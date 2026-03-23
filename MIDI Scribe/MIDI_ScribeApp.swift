@@ -10,23 +10,33 @@ import SwiftData
 
 @main
 struct MIDI_ScribeApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+    @StateObject private var appState = AppState()
+    @StateObject private var settings = AppSettings()
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(settings: settings)
+                .environmentObject(appState)
+                .environmentObject(settings)
+                .sheet(isPresented: $appState.isShowingSettings) {
+                    SettingsView(settings: settings) {
+                        appState.dismissSettings()
+                    }
+                }
         }
-        .modelContainer(sharedModelContainer)
+        .modelContainer(for: [StoredTake.self, StoredMIDIEvent.self])
+#if os(macOS)
+        .commands {
+            CommandGroup(after: .newItem) {
+                Divider()
+                Button {
+                    appState.presentSettings()
+                } label: {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                .keyboardShortcut(",", modifiers: [.command])
+            }
+        }
+#endif
     }
 }
