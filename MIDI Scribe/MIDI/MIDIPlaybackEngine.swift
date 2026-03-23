@@ -19,25 +19,34 @@ enum PlaybackOutputTarget: Hashable {
 @MainActor
 final class MIDIPlaybackEngine: ObservableObject {
     @Published private(set) var isPlaying = false
+    @Published private(set) var currentTakeID: UUID?
+    @Published private(set) var currentTarget: PlaybackOutputTarget?
 
     private let settings: AppSettings
     private let audioEngine = AVAudioEngine()
-    private let sampler = AVAudioUnitSampler()
+    private var sampler = AVAudioUnitSampler()
     private var settingsCancellable: AnyCancellable?
     private var playbackTask: Task<Void, Never>?
-    private var playbackTakeID: UUID?
+    private var playbackTake: RecordedTake?
     private var playbackTarget: PlaybackOutputTarget = .osSpeakers
+    private var playbackResumeIndex = 0
+    private var playbackResumeOffset: TimeInterval = 0
+    private var playbackStartedAt: Date?
+    private var playbackSegmentStartOffset: TimeInterval = 0
     private var outputClient = MIDIClientRef()
     private var outputPort = MIDIPortRef()
+    private var speakerProgram: Int
 
     init(settings: AppSettings) {
         self.settings = settings
+        self.speakerProgram = settings.speakerOutputProgram
         configureAudio()
         configureMIDIOutput()
 
         settingsCancellable = settings.$speakerOutputProgram
             .removeDuplicates()
-            .sink { [weak self] _ in
+            .sink { [weak self] program in
+                self?.speakerProgram = program
                 self?.reloadInstrument()
             }
     }
@@ -53,19 +62,20 @@ final class MIDIPlaybackEngine: ObservableObject {
     }
 
     func togglePlayback(for take: RecordedTake, target: PlaybackOutputTarget) {
-        if isPlaying, playbackTakeID == take.id, playbackTarget == target {
+        if isPlaying(take: take, target: target) {
             pause()
         } else {
-            play(take: take, target: target)
+            playOrResume(take: take, target: target)
         }
     }
 
     func isPlaying(take: RecordedTake, target: PlaybackOutputTarget) -> Bool {
-        isPlaying && playbackTakeID == take.id && playbackTarget == target
+        isPlaying && currentTakeID == take.id && currentTarget == target
     }
 
     func restartPlayback(for take: RecordedTake, target: PlaybackOutputTarget) {
-        play(take: take, target: target)
+        resetPlaybackPosition()
+        playOrResume(take: take, target: target)
     }
 
     func playLiveEventToSpeakers(_ event: RecordedMIDIEvent) {
@@ -74,48 +84,61 @@ final class MIDIPlaybackEngine: ObservableObject {
     }
 
     func pause() {
+        if isPlaying {
+            captureResumePosition()
+        }
         playbackTask?.cancel()
         playbackTask = nil
         isPlaying = false
         sendAllNotesOff()
     }
 
-    private func play(take: RecordedTake, target: PlaybackOutputTarget) {
-        pause()
-        playbackTakeID = take.id
+    private func playOrResume(take: RecordedTake, target: PlaybackOutputTarget) {
+        if playbackTask != nil {
+            pause()
+        }
+
+        if currentTakeID != take.id || currentTarget != target {
+            resetPlaybackPosition()
+        }
+
+        playbackTake = take
+        currentTakeID = take.id
+        currentTarget = target
         playbackTarget = target
         isPlaying = true
+        playbackStartedAt = Date()
+        playbackSegmentStartOffset = playbackResumeOffset
 
         playbackTask = Task { [weak self] in
             guard let self else { return }
-            var previousOffset: TimeInterval = 0
+            let sortedEvents = take.events.sorted(by: { $0.offsetFromTakeStart < $1.offsetFromTakeStart })
 
-            for event in take.events.sorted(by: { $0.offsetFromTakeStart < $1.offsetFromTakeStart }) {
-                let wait = max(event.offsetFromTakeStart - previousOffset, 0)
+            for index in playbackResumeIndex ..< sortedEvents.count {
+                let event = sortedEvents[index]
+                let referenceOffset = index == playbackResumeIndex ? playbackResumeOffset : sortedEvents[index - 1].offsetFromTakeStart
+                let wait = max(event.offsetFromTakeStart - referenceOffset, 0)
                 if wait > 0 {
                     try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
                 }
                 if Task.isCancelled { return }
 
                 await MainActor.run {
+                    self.playbackResumeIndex = index + 1
+                    self.playbackResumeOffset = event.offsetFromTakeStart
                     self.play(event: event, target: target)
                 }
-                previousOffset = event.offsetFromTakeStart
             }
 
             await MainActor.run {
-                self.isPlaying = false
-                self.sendAllNotesOff()
+                self.finishPlayback()
             }
         }
     }
 
     private func configureAudio() {
-        audioEngine.attach(sampler)
-        audioEngine.connect(sampler, to: audioEngine.mainMixerNode, format: nil)
-        reloadInstrument()
-
         do {
+            try rebuildSampler()
             #if os(iOS)
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
@@ -130,12 +153,7 @@ final class MIDIPlaybackEngine: ObservableObject {
             if !audioEngine.isRunning {
                 try audioEngine.start()
             }
-            try sampler.loadSoundBankInstrument(
-                at: soundBankURL,
-                program: UInt8(clamping: settings.speakerOutputProgram),
-                bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB),
-                bankLSB: UInt8(kAUSampler_DefaultBankLSB)
-            )
+            try rebuildSampler()
         } catch {
         }
     }
@@ -208,19 +226,76 @@ final class MIDIPlaybackEngine: ObservableObject {
 
     private func sendAllNotesOff() {
         for channel in 1...16 {
-            let status = UInt8(0xB0 | (channel - 1))
-            sampler.sendMIDIEvent(status, data1: 123, data2: 0)
+            sendControlChange(64, value: 0, on: channel)
+            sendControlChange(121, value: 0, on: channel)
+            sendControlChange(123, value: 0, on: channel)
+            sendControlChange(120, value: 0, on: channel)
 
-            let event = RecordedMIDIEvent(
-                receivedAt: Date(),
-                offsetFromTakeStart: 0,
-                kind: .controlChange,
-                channel: UInt8(channel),
-                status: status,
-                data1: 123,
-                data2: 0
-            )
-            sendToMIDIDestinations(event, channelOverride: channel)
+            for note in UInt8.min ... UInt8.max {
+                sampler.stopNote(note, onChannel: UInt8(channel - 1))
+            }
         }
+
+        sampler.reset()
+    }
+
+    private func captureResumePosition() {
+        guard let playbackStartedAt else { return }
+        playbackResumeOffset = playbackSegmentStartOffset + max(Date().timeIntervalSince(playbackStartedAt), 0)
+        self.playbackStartedAt = nil
+    }
+
+    private func finishPlayback() {
+        playbackTask = nil
+        isPlaying = false
+        sendAllNotesOff()
+        resetPlaybackPosition()
+    }
+
+    private func resetPlaybackPosition() {
+        playbackResumeIndex = 0
+        playbackResumeOffset = 0
+        playbackStartedAt = nil
+        playbackSegmentStartOffset = 0
+        playbackTake = nil
+        currentTakeID = nil
+        currentTarget = nil
+    }
+
+    private func rebuildSampler() throws {
+        let wasAttached = sampler.engine === audioEngine
+        if wasAttached {
+            sendAllNotesOff()
+            audioEngine.disconnectNodeInput(sampler)
+            audioEngine.disconnectNodeOutput(sampler)
+            audioEngine.detach(sampler)
+        }
+
+        let newSampler = AVAudioUnitSampler()
+        audioEngine.attach(newSampler)
+        audioEngine.connect(newSampler, to: audioEngine.mainMixerNode, format: nil)
+        try newSampler.loadSoundBankInstrument(
+            at: soundBankURL,
+            program: UInt8(clamping: speakerProgram),
+            bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB),
+            bankLSB: UInt8(kAUSampler_DefaultBankLSB)
+        )
+        sampler = newSampler
+    }
+
+    private func sendControlChange(_ controller: UInt8, value: UInt8, on channel: Int) {
+        let status = UInt8(0xB0 | (channel - 1))
+        sampler.sendMIDIEvent(status, data1: controller, data2: value)
+
+        let event = RecordedMIDIEvent(
+            receivedAt: Date(),
+            offsetFromTakeStart: 0,
+            kind: .controlChange,
+            channel: UInt8(channel),
+            status: status,
+            data1: controller,
+            data2: value
+        )
+        sendToMIDIDestinations(event, channelOverride: channel)
     }
 }

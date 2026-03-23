@@ -11,6 +11,7 @@ import Foundation
 @MainActor
 final class MIDILiveNoteViewModel: ObservableObject {
     private static let idleTimeoutDisplayDelay: TimeInterval = 5
+    private static let monitorStartRetryDelays: [TimeInterval] = [1, 2, 5, 10, 15, 30]
 
     @Published var selectedSidebarItem: SidebarItem = .currentTake
     @Published private(set) var currentNoteText = ""
@@ -29,6 +30,9 @@ final class MIDILiveNoteViewModel: ObservableObject {
     private let takeLifecycle = TakeLifecycleController()
     private var durationTicker: AnyCancellable?
     private var settingsCancellable: AnyCancellable?
+    private var playbackEngineCancellable: AnyCancellable?
+    private var monitorRetryTask: Task<Void, Never>?
+    private var completedTakeSelectionMode: CompletedTakeSelectionMode = .showCompleted
 
     init(settings: AppSettings, monitor: MIDIListening? = nil) {
         self.settings = settings
@@ -60,10 +64,15 @@ final class MIDILiveNoteViewModel: ObservableObject {
                 Task { @MainActor [weak self] in
                     self?.lastCompletedTake = take
                     self?.recentTakes.insert(take, at: 0)
-                    self?.selectedSidebarItem = .recentTake(take.id)
+                    self?.handleCompletedTakeSelection(for: take)
                 }
             }
         }
+
+        playbackEngineCancellable = playbackEngine.objectWillChange
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
 
         settingsCancellable = settings.$disableScribing
             .removeDuplicates()
@@ -73,15 +82,12 @@ final class MIDILiveNoteViewModel: ObservableObject {
     }
 
     func start() {
-        do {
-            try monitor.start()
-            errorText = nil
-        } catch {
-            errorText = error.localizedDescription
-        }
+        startMonitorWithRetry(resetBackoff: true)
     }
 
     func stop() {
+        monitorRetryTask?.cancel()
+        monitorRetryTask = nil
         Task {
             await takeLifecycle.endCurrentTake()
         }
@@ -93,12 +99,14 @@ final class MIDILiveNoteViewModel: ObservableObject {
     }
 
     func nextTake() {
+        completedTakeSelectionMode = .stayOnCurrent
         Task {
             await takeLifecycle.endCurrentTake()
         }
     }
 
     func endTake() {
+        completedTakeSelectionMode = .showCompleted
         Task {
             await takeLifecycle.endCurrentTake()
         }
@@ -163,6 +171,18 @@ final class MIDILiveNoteViewModel: ObservableObject {
         playbackEngine.restartPlayback(for: take, target: selectedPlaybackTarget)
     }
 
+    func deleteTake(id: UUID) {
+        recentTakes.removeAll { $0.id == id }
+
+        if lastCompletedTake?.id == id {
+            lastCompletedTake = recentTakes.first
+        }
+
+        if case .recentTake(let selectedID) = selectedSidebarItem, selectedID == id {
+            selectedSidebarItem = .currentTake
+        }
+    }
+
     func setRecentTakes(_ takes: [RecordedTake]) {
         recentTakes = takes
         if lastCompletedTake == nil {
@@ -211,6 +231,8 @@ final class MIDILiveNoteViewModel: ObservableObject {
             Task {
                 await takeLifecycle.endCurrentTake()
             }
+        } else {
+            startMonitorWithRetry(resetBackoff: true)
         }
     }
 
@@ -247,4 +269,51 @@ final class MIDILiveNoteViewModel: ObservableObject {
             return "None"
         }
     }
+
+    private func handleCompletedTakeSelection(for take: RecordedTake) {
+        switch completedTakeSelectionMode {
+        case .showCompleted:
+            selectedSidebarItem = .recentTake(take.id)
+        case .stayOnCurrent:
+            selectedSidebarItem = .currentTake
+        }
+
+        completedTakeSelectionMode = .showCompleted
+    }
+
+    private func startMonitorWithRetry(resetBackoff: Bool) {
+        if resetBackoff {
+            monitorRetryTask?.cancel()
+            monitorRetryTask = nil
+        }
+
+        guard monitorRetryTask == nil else { return }
+
+        monitorRetryTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            var attempt = 0
+
+            while !Task.isCancelled {
+                do {
+                    try monitor.start()
+                    errorText = nil
+                    monitorRetryTask = nil
+                    return
+                } catch {
+                    errorText = "MIDI input unavailable. Retrying... \(error.localizedDescription)"
+                }
+
+                let delay = Self.monitorStartRetryDelays[min(attempt, Self.monitorStartRetryDelays.count - 1)]
+                attempt += 1
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            }
+
+            monitorRetryTask = nil
+        }
+    }
+}
+
+private enum CompletedTakeSelectionMode {
+    case showCompleted
+    case stayOnCurrent
 }

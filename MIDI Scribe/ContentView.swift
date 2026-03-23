@@ -25,6 +25,7 @@ struct ContentView: View {
     @Query(sort: \StoredTake.startedAt, order: .reverse) private var storedRecentTakes: [StoredTake]
     @ObservedObject private var settings: AppSettings
     @StateObject private var viewModel: MIDILiveNoteViewModel
+    @State private var pendingDeleteTakeID: UUID?
 
     init(settings: AppSettings) {
         self.settings = settings
@@ -80,6 +81,27 @@ struct ContentView: View {
         }
         .onChange(of: viewModel.lastCompletedTake?.id) { _, _ in
             persistLastCompletedTakeIfNeeded()
+        }
+        .confirmationDialog(
+            "Delete Take?",
+            isPresented: Binding(
+                get: { pendingDeleteTakeID != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        pendingDeleteTakeID = nil
+                    }
+                }
+            ),
+            presenting: pendingDeleteTakeID
+        ) { takeID in
+            Button("Delete Take", role: .destructive) {
+                deleteTake(id: takeID)
+            }
+            Button("Cancel", role: .cancel) {
+                pendingDeleteTakeID = nil
+            }
+        } message: { takeID in
+            Text(viewModel.recentTake(id: takeID)?.displayTitle ?? "This take")
         }
     }
 
@@ -218,6 +240,10 @@ struct ContentView: View {
                         }
                     }
                     .frame(maxWidth: 260)
+
+                    Button("Delete Take", role: .destructive) {
+                        pendingDeleteTakeID = take.id
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -278,5 +304,26 @@ struct ContentView: View {
 
         modelContext.insert(StoredTake(recordedTake: take))
         try? modelContext.save()
+    }
+
+    private func deleteTake(id: UUID) {
+        pendingDeleteTakeID = nil
+        viewModel.playbackEngine.pause()
+
+        let takeID = id.uuidString
+        let descriptor = FetchDescriptor<StoredTake>(
+            predicate: #Predicate<StoredTake> { storedTake in
+                storedTake.takeID == takeID
+            }
+        )
+
+        if let matches = try? modelContext.fetch(descriptor) {
+            for take in matches {
+                modelContext.delete(take)
+            }
+            try? modelContext.save()
+        }
+
+        viewModel.deleteTake(id: id)
     }
 }
