@@ -13,7 +13,16 @@ final class StoredTake {
     @Attribute(.unique) var takeID: String
     var startedAt: Date
     var endedAt: Date
+    /// Default system-generated title (date/time). Kept so we can fall back
+    /// to it if a user clears their custom name.
     var title: String
+    /// User-edited title. When non-nil, this is what gets displayed instead
+    /// of `title`.
+    var userTitle: String? = nil
+    /// Whether the user has starred this take. Starred takes are shown in the
+    /// dedicated "Starred" sidebar section and are excluded from automatic
+    /// retention cleanup.
+    var isStarred: Bool = false
 
     /// Cached summary fields. Populated at save time so sidebar/list views
     /// can show counts without faulting in the (potentially huge) events
@@ -34,6 +43,12 @@ final class StoredTake {
         self.endedAt = endedAt
         self.title = title
         self.events = events
+    }
+
+    /// Title shown to the user. Prefers the user-edited name when set.
+    var displayTitle: String {
+        if let userTitle, !userTitle.isEmpty { return userTitle }
+        return title
     }
 
     convenience init(recordedTake: RecordedTake) {
@@ -74,7 +89,10 @@ final class StoredTake {
             id: UUID(uuidString: takeID) ?? UUID(),
             startedAt: startedAt,
             endedAt: endedAt,
-            title: title,
+            title: displayTitle,
+            baseTitle: title,
+            userTitle: userTitle,
+            isStarred: isStarred,
             summary: cachedSummary
         )
     }
@@ -123,7 +141,13 @@ struct RecordedTakeListItem: Identifiable, Sendable, Equatable {
     let id: UUID
     let startedAt: Date
     let endedAt: Date
+    /// What to display. Equals `userTitle` when set, otherwise `baseTitle`.
     let title: String
+    /// The system-generated (date/time) title, kept for disambiguation after
+    /// split operations use it as a base.
+    let baseTitle: String
+    let userTitle: String?
+    let isStarred: Bool
     let summary: RecordedTakeSummary
 
     var displayTitle: String { title }

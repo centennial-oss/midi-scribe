@@ -29,6 +29,39 @@ final class MIDILiveNoteViewModel: ObservableObject {
     let settings: AppSettings
     let emptyLiveValuePlaceholder = "—"
     let playbackEngine: MIDIPlaybackEngine
+    /// Injected by ContentView once the ModelContainer is available. All
+    /// mutating take operations go through here so they run off the main
+    /// thread.
+    var persistenceService: TakePersistenceService?
+    @Published var actionErrorText: String?
+    /// Takes the user has multi-selected in the sidebar for bulk operations.
+    @Published var multiSelection: Set<UUID> = []
+    /// When non-nil, a background persistence operation is in progress.
+    /// UI can use this to show a spinner and disable take actions.
+    @Published private(set) var pendingOperation: TakeOperation?
+
+    enum TakeOperation: Equatable {
+        case splitting
+        case merging
+        case renaming
+        case starring
+        case deleting
+
+        var displayText: String {
+            switch self {
+            case .splitting: return "Splitting take…"
+            case .merging: return "Merging takes…"
+            case .renaming: return "Renaming take…"
+            case .starring: return "Updating star…"
+            case .deleting: return "Deleting take…"
+            }
+        }
+    }
+
+    /// True while any mutating take operation is running. UI uses this to
+    /// disable the playback/split/star/rename/delete controls and show a
+    /// progress indicator.
+    var isTakeActionInProgress: Bool { pendingOperation != nil }
 
     private let monitor: MIDIListening
     private let takeLifecycle = TakeLifecycleController()
@@ -72,6 +105,9 @@ final class MIDILiveNoteViewModel: ObservableObject {
                         startedAt: take.startedAt,
                         endedAt: take.endedAt,
                         title: take.displayTitle,
+                        baseTitle: take.displayTitle,
+                        userTitle: nil,
+                        isStarred: false,
                         summary: take.summary
                     )
                     self.materializedTakes[take.id] = take
@@ -161,6 +197,11 @@ final class MIDILiveNoteViewModel: ObservableObject {
 
     func recentTake(id: UUID) -> RecordedTakeListItem? {
         recentTakes.first { $0.id == id }
+    }
+
+    /// Starred subset of `recentTakes`, for the sidebar's "Starred" section.
+    var starredTakes: [RecordedTakeListItem] {
+        recentTakes.filter(\.isStarred)
     }
 
     /// Materialize (with events) a take on demand. Cached so repeated taps
@@ -269,6 +310,139 @@ final class MIDILiveNoteViewModel: ObservableObject {
         }
 
         return "on Channel \(settings.monitoredMIDIChannel) "
+    }
+
+    // MARK: - Mutating actions (star/rename/split/merge)
+
+    /// True if there is a paused playback position that is strictly inside
+    /// the take (not at the very start or end), so "Split Take Here" is
+    /// meaningful.
+    func canSplit(takeID: UUID) -> Bool {
+        guard let take = recentTake(id: takeID) else { return false }
+        guard playbackEngine.currentTakeID == takeID, !playbackEngine.isPlaying else { return false }
+        guard let offset = playbackEngine.pausedAtOffset else { return false }
+        return offset > 0.01 && offset < take.duration - 0.01
+    }
+
+    var pausedPlaybackOffset: TimeInterval? {
+        playbackEngine.pausedAtOffset
+    }
+
+    func toggleStar(takeID: UUID) {
+        guard let take = recentTake(id: takeID) else { return }
+        let newValue = !take.isStarred
+        // Optimistic local update so the sidebar reflects the change
+        // immediately; ContentView only rebuilds from SwiftData on add/remove.
+        updateListItem(id: takeID) { current in
+            RecordedTakeListItem(
+                id: current.id,
+                startedAt: current.startedAt,
+                endedAt: current.endedAt,
+                title: current.title,
+                baseTitle: current.baseTitle,
+                userTitle: current.userTitle,
+                isStarred: newValue,
+                summary: current.summary
+            )
+        }
+        runPersistence(operation: .starring) { service in
+            try await service.setStarred(newValue, takeID: takeID)
+        }
+    }
+
+    func renameTake(id takeID: UUID, to newName: String?) {
+        let trimmed = newName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolved: String? = (trimmed?.isEmpty ?? true) ? nil : trimmed
+        updateListItem(id: takeID) { current in
+            RecordedTakeListItem(
+                id: current.id,
+                startedAt: current.startedAt,
+                endedAt: current.endedAt,
+                title: resolved ?? current.baseTitle,
+                baseTitle: current.baseTitle,
+                userTitle: resolved,
+                isStarred: current.isStarred,
+                summary: current.summary
+            )
+        }
+        runPersistence(operation: .renaming) { service in
+            try await service.renameTake(id: takeID, to: newName)
+        }
+    }
+
+    private func updateListItem(id takeID: UUID, transform: (RecordedTakeListItem) -> RecordedTakeListItem) {
+        if let index = recentTakes.firstIndex(where: { $0.id == takeID }) {
+            recentTakes[index] = transform(recentTakes[index])
+        }
+        if lastCompletedTake?.id == takeID, let last = lastCompletedTake {
+            lastCompletedTake = transform(last)
+        }
+    }
+
+    func deleteTakeViaPersistence(id takeID: UUID) {
+        materializedTakes.removeValue(forKey: takeID)
+        runPersistence(operation: .deleting) { service in
+            try await service.deleteTake(id: takeID)
+        }
+    }
+
+    func splitCurrentPausedTake() {
+        guard let takeID = playbackEngine.currentTakeID,
+              let offset = playbackEngine.pausedAtOffset,
+              canSplit(takeID: takeID) else { return }
+        // The take we're about to mutate is the same one the playback engine
+        // thinks it's paused inside. Fully reset the engine so Play after the
+        // split starts from offset 0 of the newly shortened first half
+        // instead of the now-invalid pre-split offset.
+        playbackEngine.stopAndReset()
+        materializedTakes.removeValue(forKey: takeID)
+        runPersistence(operation: .splitting) { service in
+            _ = try await service.splitTake(id: takeID, at: offset)
+        }
+    }
+
+    func mergeSelectedTakes(silenceBetweenMs: Int) {
+        let ids = Array(multiSelection)
+        guard ids.count >= 2 else { return }
+        // If the playback engine is currently tied to one of the merged
+        // takes (now deleted), reset it so Play on the new merged take is
+        // fresh. Even if unrelated, resetting is safe.
+        if let current = playbackEngine.currentTakeID, ids.contains(current) {
+            playbackEngine.stopAndReset()
+        }
+        for id in ids { materializedTakes.removeValue(forKey: id) }
+        multiSelection.removeAll()
+        runPersistence(operation: .merging) { service in
+            _ = try await service.mergeTakes(ids: ids, silenceBetweenMs: silenceBetweenMs)
+        }
+    }
+
+    private func runPersistence(
+        operation: TakeOperation,
+        _ work: @escaping @Sendable (TakePersistenceService) async throws -> Void
+    ) {
+        guard let persistenceService else {
+            actionErrorText = "Persistence service not available."
+            return
+        }
+        guard pendingOperation == nil else {
+            // Don't stack operations on top of each other.
+            return
+        }
+        pendingOperation = operation
+        actionErrorText = nil
+        Task { [weak self] in
+            do {
+                try await work(persistenceService)
+            } catch {
+                await MainActor.run { [weak self] in
+                    self?.actionErrorText = error.localizedDescription
+                }
+            }
+            await MainActor.run { [weak self] in
+                self?.pendingOperation = nil
+            }
+        }
     }
 
     private func handleEligibleInput(_ receivedAt: Date) {

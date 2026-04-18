@@ -21,6 +21,9 @@ final class MIDIPlaybackEngine: ObservableObject {
     @Published private(set) var isPlaying = false
     @Published private(set) var currentTakeID: UUID?
     @Published private(set) var currentTarget: PlaybackOutputTarget?
+    /// Offset (seconds) where playback is paused within the current take.
+    /// Nil if there is no paused position (never played, reset, or finished).
+    @Published private(set) var pausedAtOffset: TimeInterval?
 
     private let settings: AppSettings
     private let audioEngine = AVAudioEngine()
@@ -91,6 +94,19 @@ final class MIDIPlaybackEngine: ObservableObject {
         playbackTask = nil
         isPlaying = false
         sendAllNotesOff()
+        // Expose the paused offset so the UI can enable "Split here".
+        pausedAtOffset = playbackResumeOffset > 0 ? playbackResumeOffset : nil
+    }
+
+    /// Fully stop playback and forget any cached take/position. Call after
+    /// the current take has been mutated out from under us (split/merge) so
+    /// the next Play starts fresh.
+    func stopAndReset() {
+        playbackTask?.cancel()
+        playbackTask = nil
+        isPlaying = false
+        sendAllNotesOff()
+        resetPlaybackPosition()
     }
 
     private func playOrResume(take: RecordedTake, target: PlaybackOutputTarget) {
@@ -107,6 +123,7 @@ final class MIDIPlaybackEngine: ObservableObject {
         currentTarget = target
         playbackTarget = target
         isPlaying = true
+        pausedAtOffset = nil
         playbackStartedAt = Date()
         playbackSegmentStartOffset = playbackResumeOffset
 
@@ -265,6 +282,7 @@ final class MIDIPlaybackEngine: ObservableObject {
         playbackTake = nil
         currentTakeID = nil
         currentTarget = nil
+        pausedAtOffset = nil
     }
 
     private func rebuildSampler() throws {
