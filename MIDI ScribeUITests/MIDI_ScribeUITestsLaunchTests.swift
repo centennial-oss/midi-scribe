@@ -7,9 +7,9 @@
 
 import XCTest
 
-final class MIDI_ScribeUITestsLaunchTests: XCTestCase {
+final class MIDIScribeUITestsLaunchTests: XCTestCase {
 
-    override class var runsForEachTargetApplicationUIConfiguration: Bool {
+    override static var runsForEachTargetApplicationUIConfiguration: Bool {
         true
     }
 

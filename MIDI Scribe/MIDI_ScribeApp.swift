@@ -9,7 +9,7 @@ import SwiftUI
 import SwiftData
 
 @main
-struct MIDI_ScribeApp: App {
+struct MIDIScribeApp: App {
     @StateObject private var appState = AppState()
     @StateObject private var settings = AppSettings()
 

@@ -20,7 +20,8 @@ struct SettingsView: View {
     @State private var eraseResultMessage: String?
     @State private var isErasing = false
 
-    private let allowedDelayValues: [Double] = [1, 3, 5] + Array(stride(from: 10, through: 600, by: 10)).map(Double.init)
+    private let allowedDelayValues: [Double] =
+        [1, 3, 5] + Array(stride(from: 10, through: 600, by: 10)).map(Double.init)
 
     var body: some View {
         NavigationStack {
@@ -100,7 +101,11 @@ struct SettingsView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("This will permanently delete every recorded take and all of their MIDI events. MIDI Scribe will need to be quit and relaunched afterward. This action cannot be undone.")
+                Text(
+                    "This will permanently delete every recorded take and all of their MIDI events. "
+                        + "MIDI Scribe will need to be quit and relaunched afterward. "
+                        + "This action cannot be undone."
+                )
             }
         }
         .frame(minWidth: 460, minHeight: 280)
@@ -123,7 +128,7 @@ struct SettingsView: View {
                     let storeURL = container.configurations.first?.url
                         ?? URL.applicationSupportDirectory.appending(path: "default.store")
 
-                    let fm = FileManager.default
+                    let fileManager = FileManager.default
                     let candidates = [
                         storeURL,
                         storeURL.appendingPathExtension("shm"),
@@ -131,8 +136,8 @@ struct SettingsView: View {
                         URL(fileURLWithPath: storeURL.path + "-shm"),
                         URL(fileURLWithPath: storeURL.path + "-wal")
                     ]
-                    for url in candidates where fm.fileExists(atPath: url.path) {
-                        try fm.removeItem(at: url)
+                    for url in candidates where fileManager.fileExists(atPath: url.path) {
+                        try fileManager.removeItem(at: url)
                     }
                     return .success(storeURL)
                 } catch {

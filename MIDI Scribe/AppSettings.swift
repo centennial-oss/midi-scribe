@@ -61,13 +61,19 @@ final class AppSettings: ObservableObject {
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
         disableScribing = userDefaults.object(forKey: Self.disableScribingKey) as? Bool ?? false
-        monitoredMIDIChannel = userDefaults.object(forKey: Self.monitoredMIDIChannelKey) as? Int ?? Self.midiChannelAllValue
+        monitoredMIDIChannel =
+            userDefaults.object(forKey: Self.monitoredMIDIChannelKey) as? Int ?? Self.midiChannelAllValue
         newTakePauseSeconds = userDefaults.object(forKey: Self.newTakePauseSecondsKey) as? Double ?? 180.0
-        recentTakesShownInMenus = userDefaults.object(forKey: Self.recentTakesShownInMenusKey) as? Int ?? 10
+        recentTakesShownInMenus =
+            userDefaults.object(forKey: Self.recentTakesShownInMenusKey) as? Int ?? 10
         speakerOutputProgram = userDefaults.object(forKey: Self.speakerOutputProgramKey) as? Int ?? 0
-        echoScribedToSpeakers = userDefaults.object(forKey: Self.echoScribedToSpeakersKey) as? Bool ?? false
+        echoScribedToSpeakers =
+            userDefaults.object(forKey: Self.echoScribedToSpeakersKey) as? Bool ?? false
 
-        userDefaultsObserver = NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification, object: userDefaults)
+        userDefaultsObserver = NotificationCenter.default.publisher(
+            for: UserDefaults.didChangeNotification,
+            object: userDefaults
+        )
             .sink { [weak self] _ in
                 self?.reloadFromUserDefaults()
             }
@@ -79,11 +85,16 @@ final class AppSettings: ObservableObject {
 
     private func reloadFromUserDefaults() {
         let updatedDisableScribing = userDefaults.object(forKey: Self.disableScribingKey) as? Bool ?? false
-        let updatedMonitoredMIDIChannel = userDefaults.object(forKey: Self.monitoredMIDIChannelKey) as? Int ?? Self.midiChannelAllValue
-        let updatedNewTakePauseSeconds = userDefaults.object(forKey: Self.newTakePauseSecondsKey) as? Double ?? 180.0
-        let updatedRecentTakesShownInMenus = userDefaults.object(forKey: Self.recentTakesShownInMenusKey) as? Int ?? 10
-        let updatedSpeakerOutputProgram = userDefaults.object(forKey: Self.speakerOutputProgramKey) as? Int ?? 0
-        let updatedEchoScribedToSpeakers = userDefaults.object(forKey: Self.echoScribedToSpeakersKey) as? Bool ?? false
+        let updatedMonitoredMIDIChannel =
+            userDefaults.object(forKey: Self.monitoredMIDIChannelKey) as? Int ?? Self.midiChannelAllValue
+        let updatedNewTakePauseSeconds =
+            userDefaults.object(forKey: Self.newTakePauseSecondsKey) as? Double ?? 180.0
+        let updatedRecentTakesShownInMenus =
+            userDefaults.object(forKey: Self.recentTakesShownInMenusKey) as? Int ?? 10
+        let updatedSpeakerOutputProgram =
+            userDefaults.object(forKey: Self.speakerOutputProgramKey) as? Int ?? 0
+        let updatedEchoScribedToSpeakers =
+            userDefaults.object(forKey: Self.echoScribedToSpeakersKey) as? Bool ?? false
 
         if disableScribing != updatedDisableScribing {
             disableScribing = updatedDisableScribing

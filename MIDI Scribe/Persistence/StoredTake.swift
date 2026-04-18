@@ -18,7 +18,7 @@ final class StoredTake {
     var title: String
     /// User-edited title. When non-nil, this is what gets displayed instead
     /// of `title`.
-    var userTitle: String? = nil
+    var userTitle: String?
     /// Whether the user has starred this take. Starred takes are shown in the
     /// dedicated "Starred" sidebar section and are excluded from automatic
     /// retention cleanup.
@@ -32,8 +32,8 @@ final class StoredTake {
     var noteOffCount: Int = 0
     /// Bitmask of channels 1...16. Bit 0 == channel 1.
     var channelMask: Int = 0
-    var lowestNote: Int? = nil
-    var highestNote: Int? = nil
+    var lowestNote: Int?
+    var highestNote: Int?
 
     @Relationship(deleteRule: .cascade, inverse: \StoredMIDIEvent.take) var events: [StoredMIDIEvent]
 

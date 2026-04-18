@@ -76,19 +76,9 @@ actor TakePersistenceService {
             // re-inserting thousands of rows, which is what made split slow.
             let allEvents = original.events
             guard !allEvents.isEmpty else { return nil }
-
-            var beforeEvents: [StoredMIDIEvent] = []
-            var afterEvents: [StoredMIDIEvent] = []
-            beforeEvents.reserveCapacity(allEvents.count)
-            afterEvents.reserveCapacity(allEvents.count)
-            for event in allEvents {
-                if event.offsetFromTakeStart < splitOffset {
-                    beforeEvents.append(event)
-                } else {
-                    afterEvents.append(event)
-                }
-            }
-            guard !beforeEvents.isEmpty, !afterEvents.isEmpty else { return nil }
+            guard let partitioned = Self.partitionEventsForSplit(allEvents, at: splitOffset) else { return nil }
+            var beforeEvents = partitioned.before
+            var afterEvents = partitioned.after
 
             // Sort only the minimal slices we need for first/last offsets.
             beforeEvents.sort { $0.offsetFromTakeStart < $1.offsetFromTakeStart }
@@ -141,26 +131,54 @@ actor TakePersistenceService {
         }
     }
 
+    /// Partition events into before/after slices at `splitOffset`, or nil if a half would be empty.
+    private static func partitionEventsForSplit(
+        _ allEvents: [StoredMIDIEvent],
+        at splitOffset: TimeInterval
+    ) -> (before: [StoredMIDIEvent], after: [StoredMIDIEvent])? {
+        var beforeEvents: [StoredMIDIEvent] = []
+        var afterEvents: [StoredMIDIEvent] = []
+        beforeEvents.reserveCapacity(allEvents.count)
+        afterEvents.reserveCapacity(allEvents.count)
+        for event in allEvents {
+            if event.offsetFromTakeStart < splitOffset {
+                beforeEvents.append(event)
+            } else {
+                afterEvents.append(event)
+            }
+        }
+        guard !beforeEvents.isEmpty, !afterEvents.isEmpty else { return nil }
+        return (beforeEvents, afterEvents)
+    }
+
     /// Populate cached summary fields without constructing a RecordedTake.
     private static func recomputeSummary(on take: StoredTake, events: [StoredMIDIEvent]) {
         var noteOn = 0
         var noteOff = 0
         var channelMask = 0
-        var lowest: Int? = nil
-        var highest: Int? = nil
+        var lowest: Int?
+        var highest: Int?
         let noteOnRaw = MIDIChannelEventKind.noteOn.rawValue
         let noteOffRaw = MIDIChannelEventKind.noteOff.rawValue
         for event in events {
             if event.kindRawValue == noteOnRaw {
                 noteOn += 1
-                if let lo = lowest { lowest = min(lo, event.data1) } else { lowest = event.data1 }
-                if let hi = highest { highest = max(hi, event.data1) } else { highest = event.data1 }
+                if let lowNote = lowest {
+                    lowest = min(lowNote, event.data1)
+                } else {
+                    lowest = event.data1
+                }
+                if let highNote = highest {
+                    highest = max(highNote, event.data1)
+                } else {
+                    highest = event.data1
+                }
             } else if event.kindRawValue == noteOffRaw {
                 noteOff += 1
             }
-            let ch = event.channel
-            if ch >= 1 && ch <= 16 {
-                channelMask |= (1 << (ch - 1))
+            let channelIndex = event.channel
+            if channelIndex >= 1 && channelIndex <= 16 {
+                channelMask |= (1 << (channelIndex - 1))
             }
         }
         take.eventCount = events.count
@@ -250,19 +268,20 @@ actor TakePersistenceService {
         for take in all {
             let candidates = [take.title, take.userTitle ?? ""]
             for candidate in candidates {
-                if let match = try? pattern.wholeMatch(in: candidate), let n = Int(match.output.1) {
-                    usedSuffixes.insert(n)
+                if let match = try? pattern.wholeMatch(in: candidate),
+                   let suffixNum = Int(match.output.1) {
+                    usedSuffixes.insert(suffixNum)
                 }
             }
         }
         var result: [Int] = []
-        var n = 1
+        var candidateSuffix = 1
         while result.count < count {
-            if !usedSuffixes.contains(n) {
-                result.append(n)
-                usedSuffixes.insert(n)
+            if !usedSuffixes.contains(candidateSuffix) {
+                result.append(candidateSuffix)
+                usedSuffixes.insert(candidateSuffix)
             }
-            n += 1
+            candidateSuffix += 1
         }
         return result
     }

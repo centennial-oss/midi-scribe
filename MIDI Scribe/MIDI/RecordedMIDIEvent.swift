@@ -208,10 +208,8 @@ struct RecordedTakeSummaryBuilder: Sendable {
     nonisolated func build(duration: TimeInterval) -> RecordedTakeSummary {
         var channels: [UInt8] = []
         channels.reserveCapacity(16)
-        for bit in 0 ..< 16 {
-            if channelMask & (1 << bit) != 0 {
-                channels.append(UInt8(bit + 1))
-            }
+        for bit in 0 ..< 16 where channelMask & (1 << bit) != 0 {
+            channels.append(UInt8(bit + 1))
         }
         return RecordedTakeSummary(
             eventCount: eventCount,

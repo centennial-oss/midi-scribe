@@ -42,11 +42,11 @@ final class CoreMIDIMonitor: MIDIListening {
     var onEligibleInputReceived: (@MainActor (Date) -> Void)?
     var onRecordedEventReceived: (@MainActor (RecordedMIDIEvent) -> Void)?
 
-    private var client = MIDIClientRef()
-    private var inputPort = MIDIPortRef()
-    private var connectedSources: [MIDIUniqueID: MIDIEndpointRef] = [:]
-    private var activeNotes: [MIDINote] = []
-    private var isStarted = false
+    var client = MIDIClientRef()
+    var inputPort = MIDIPortRef()
+    var connectedSources: [MIDIUniqueID: MIDIEndpointRef] = [:]
+    var activeNotes: [MIDINote] = []
+    var isStarted = false
     private let settings: AppSettings
     private var settingsCancellable: AnyCancellable?
 
@@ -75,7 +75,11 @@ final class CoreMIDIMonitor: MIDIListening {
             throw CoreMIDIMonitorError.clientCreation(clientStatus)
         }
 
-        let inputStatus = MIDIInputPortCreateWithBlock(client, "MIDI Scribe Listener" as CFString, &inputPort) { [weak self] packetList, _ in
+        let inputStatus = MIDIInputPortCreateWithBlock(
+            client,
+            "MIDI Scribe Listener" as CFString,
+            &inputPort
+        ) { [weak self] packetList, _ in
             self?.handlePacketList(packetList)
         }
         guard inputStatus == noErr else {
@@ -95,7 +99,18 @@ final class CoreMIDIMonitor: MIDIListening {
         publishActiveNotes()
         isStarted = false
     }
+}
 
+private struct ThreeByteChannelMessage {
+    let status: UInt8
+    let command: UInt8
+    let channel: UInt8
+    let data1: UInt8
+    let data2: UInt8
+    let receivedAt: Date
+}
+
+extension CoreMIDIMonitor {
     private func handlePacketList(_ packetList: UnsafePointer<MIDIPacketList>) {
         for packet in packetList.unsafeSequence() {
             parseMessages(in: packet.pointee)
@@ -142,12 +157,14 @@ final class CoreMIDIMonitor: MIDIListening {
                     noteOn(noteNumber: noteNumber, velocity: data2, channel: channel, receivedAt: receivedAt)
                 } else {
                     handleThreeByteChannelMessage(
-                        status: status,
-                        command: command,
-                        channel: channel,
-                        data1: noteNumber,
-                        data2: data2,
-                        receivedAt: receivedAt
+                        ThreeByteChannelMessage(
+                            status: status,
+                            command: command,
+                            channel: channel,
+                            data1: noteNumber,
+                            data2: data2,
+                            receivedAt: receivedAt
+                        )
                     )
                 }
 
@@ -207,40 +224,42 @@ final class CoreMIDIMonitor: MIDIListening {
         publishActiveNotes()
     }
 
-    private func handleThreeByteChannelMessage(
-        status: UInt8,
-        command: UInt8,
-        channel: UInt8,
-        data1: UInt8,
-        data2: UInt8,
-        receivedAt: Date
-    ) {
+    private func handleThreeByteChannelMessage(_ message: ThreeByteChannelMessage) {
         guard settings.isScribingEnabled else { return }
-        guard shouldMonitor(channel: channel) else { return }
+        guard shouldMonitor(channel: message.channel) else { return }
 
-        switch command {
-        case 0x80:
-            noteOff(noteNumber: data1, velocity: data2, channel: channel, receivedAt: receivedAt)
-        case 0x90:
-            noteOff(noteNumber: data1, velocity: data2, channel: channel, receivedAt: receivedAt)
+        switch message.command {
+        case 0x80, 0x90:
+            noteOff(
+                noteNumber: message.data1,
+                velocity: message.data2,
+                channel: message.channel,
+                receivedAt: message.receivedAt
+            )
         case 0xA0:
-            publishRecordedEvent(
-                RecordedMIDIEvent(receivedAt: receivedAt, offsetFromTakeStart: 0, kind: .polyphonicKeyPressure, channel: channel, status: status, data1: data1, data2: data2)
-            )
-            publishEligibleInput(receivedAt: receivedAt)
+            publishThreeByteKind(message, kind: .polyphonicKeyPressure)
         case 0xB0:
-            publishRecordedEvent(
-                RecordedMIDIEvent(receivedAt: receivedAt, offsetFromTakeStart: 0, kind: .controlChange, channel: channel, status: status, data1: data1, data2: data2)
-            )
-            publishEligibleInput(receivedAt: receivedAt)
+            publishThreeByteKind(message, kind: .controlChange)
         case 0xE0:
-            publishRecordedEvent(
-                RecordedMIDIEvent(receivedAt: receivedAt, offsetFromTakeStart: 0, kind: .pitchBend, channel: channel, status: status, data1: data1, data2: data2)
-            )
-            publishEligibleInput(receivedAt: receivedAt)
+            publishThreeByteKind(message, kind: .pitchBend)
         default:
             break
         }
+    }
+
+    private func publishThreeByteKind(_ message: ThreeByteChannelMessage, kind: MIDIChannelEventKind) {
+        publishRecordedEvent(
+            RecordedMIDIEvent(
+                receivedAt: message.receivedAt,
+                offsetFromTakeStart: 0,
+                kind: kind,
+                channel: message.channel,
+                status: message.status,
+                data1: message.data1,
+                data2: message.data2
+            )
+        )
+        publishEligibleInput(receivedAt: message.receivedAt)
     }
 
     private func handleTwoByteChannelMessage(
@@ -264,7 +283,14 @@ final class CoreMIDIMonitor: MIDIListening {
         }
 
         publishRecordedEvent(
-            RecordedMIDIEvent(receivedAt: receivedAt, offsetFromTakeStart: 0, kind: kind, channel: channel, status: status, data1: data1)
+            RecordedMIDIEvent(
+                receivedAt: receivedAt,
+                offsetFromTakeStart: 0,
+                kind: kind,
+                channel: channel,
+                status: status,
+                data1: data1
+            )
         )
         publishEligibleInput(receivedAt: receivedAt)
     }
@@ -328,51 +354,5 @@ final class CoreMIDIMonitor: MIDIListening {
 
         activeNotes.removeAll { !shouldMonitor(channel: $0.channel) }
         publishActiveNotes()
-    }
-
-    private func reconnectSources() throws {
-        guard inputPort != 0 else { return }
-
-        var availableSources: [MIDIUniqueID: MIDIEndpointRef] = [:]
-
-        for sourceIndex in 0 ..< MIDIGetNumberOfSources() {
-            let source = MIDIGetSource(sourceIndex)
-            guard source != 0, let uniqueID = uniqueID(for: source) else { continue }
-            availableSources[uniqueID] = source
-
-            if connectedSources[uniqueID] == nil {
-                let connectionStatus = MIDIPortConnectSource(inputPort, source, nil)
-                guard connectionStatus == noErr else {
-                    throw CoreMIDIMonitorError.sourceConnection(connectionStatus, sourceIndex: Int(sourceIndex))
-                }
-                connectedSources[uniqueID] = source
-            }
-        }
-
-        for (uniqueID, source) in connectedSources where availableSources[uniqueID] == nil {
-            MIDIPortDisconnectSource(inputPort, source)
-            connectedSources.removeValue(forKey: uniqueID)
-        }
-    }
-
-    private func uniqueID(for object: MIDIObjectRef) -> MIDIUniqueID? {
-        var value: Int32 = 0
-        let status = MIDIObjectGetIntegerProperty(object, kMIDIPropertyUniqueID, &value)
-        guard status == noErr else { return nil }
-        return value
-    }
-
-    private func cleanupMIDIObjects() {
-        connectedSources.removeAll()
-
-        if inputPort != 0 {
-            MIDIPortDispose(inputPort)
-            inputPort = 0
-        }
-
-        if client != 0 {
-            MIDIClientDispose(client)
-            client = 0
-        }
     }
 }

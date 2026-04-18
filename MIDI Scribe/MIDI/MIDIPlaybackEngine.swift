@@ -108,7 +108,9 @@ final class MIDIPlaybackEngine: ObservableObject {
         sendAllNotesOff()
         resetPlaybackPosition()
     }
+}
 
+extension MIDIPlaybackEngine {
     private func playOrResume(take: RecordedTake, target: PlaybackOutputTarget) {
         if playbackTask != nil {
             pause()
