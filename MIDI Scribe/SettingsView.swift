@@ -6,13 +6,19 @@
 //
 
 import SwiftUI
+import SwiftData
 #if os(macOS)
 import AppKit
 #endif
 
 struct SettingsView: View {
+    @Environment(\.modelContext) private var modelContext
     @ObservedObject var settings: AppSettings
     let onClose: () -> Void
+
+    @State private var isConfirmingEraseAll = false
+    @State private var eraseResultMessage: String?
+    @State private var isErasing = false
 
     private let allowedDelayValues: [Double] = [1, 3, 5] + Array(stride(from: 10, through: 600, by: 10)).map(Double.init)
 
@@ -58,6 +64,28 @@ struct SettingsView: View {
                         Text(program.name).tag(program.program)
                     }
                 }
+
+                Section("Danger Zone") {
+                    HStack {
+                        Button("Erase All Data", role: .destructive) {
+                            isConfirmingEraseAll = true
+                        }
+                        .disabled(isErasing)
+
+                        if isErasing {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Erasing…")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    if let eraseResultMessage {
+                        Text(eraseResultMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
             .formStyle(.grouped)
             .navigationTitle("Settings")
@@ -66,8 +94,60 @@ struct SettingsView: View {
                     Button("Close", action: onClose)
                 }
             }
+            .alert("Erase All Data?", isPresented: $isConfirmingEraseAll) {
+                Button("Yes, I Understand", role: .destructive) {
+                    eraseAllData()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will permanently delete every recorded take and all of their MIDI events. MIDI Scribe will need to be quit and relaunched afterward. This action cannot be undone.")
+            }
         }
         .frame(minWidth: 460, minHeight: 280)
+    }
+
+    private func eraseAllData() {
+        guard !isErasing else { return }
+        isErasing = true
+        eraseResultMessage = nil
+
+        let container = modelContext.container
+        Task {
+            let result: Result<URL, Error> = await Task.detached(priority: .userInitiated) {
+                // Locate the underlying store file(s) from the container's
+                // configuration, then delete them (plus the SQLite sidecar
+                // files -shm and -wal). This is the only reliable path:
+                // `delete(model:)` can fail on mandatory inverse nullify,
+                // and `ModelContainer.deleteAllData()` is documented-broken.
+                do {
+                    let storeURL = container.configurations.first?.url
+                        ?? URL.applicationSupportDirectory.appending(path: "default.store")
+
+                    let fm = FileManager.default
+                    let candidates = [
+                        storeURL,
+                        storeURL.appendingPathExtension("shm"),
+                        storeURL.appendingPathExtension("wal"),
+                        URL(fileURLWithPath: storeURL.path + "-shm"),
+                        URL(fileURLWithPath: storeURL.path + "-wal")
+                    ]
+                    for url in candidates where fm.fileExists(atPath: url.path) {
+                        try fm.removeItem(at: url)
+                    }
+                    return .success(storeURL)
+                } catch {
+                    return .failure(error)
+                }
+            }.value
+
+            isErasing = false
+            switch result {
+            case .success:
+                eraseResultMessage = "All data erased. Please quit and relaunch MIDI Scribe to continue."
+            case .failure(let error):
+                eraseResultMessage = "Failed to erase: \(error.localizedDescription)"
+            }
+        }
     }
 
     private func formattedDelay(_ seconds: Double) -> String {

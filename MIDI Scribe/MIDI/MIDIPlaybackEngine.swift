@@ -110,14 +110,20 @@ final class MIDIPlaybackEngine: ObservableObject {
         playbackStartedAt = Date()
         playbackSegmentStartOffset = playbackResumeOffset
 
+        let events = take.events
+        let startIndex = playbackResumeIndex
+        let startOffset = playbackResumeOffset
+        let playbackEpoch = Date().addingTimeInterval(-startOffset)
+
         playbackTask = Task { [weak self] in
             guard let self else { return }
-            let sortedEvents = take.events.sorted(by: { $0.offsetFromTakeStart < $1.offsetFromTakeStart })
 
-            for index in playbackResumeIndex ..< sortedEvents.count {
-                let event = sortedEvents[index]
-                let referenceOffset = index == playbackResumeIndex ? playbackResumeOffset : sortedEvents[index - 1].offsetFromTakeStart
-                let wait = max(event.offsetFromTakeStart - referenceOffset, 0)
+            for index in startIndex ..< events.count {
+                let event = events[index]
+                // Schedule against an absolute epoch so we don't accumulate
+                // drift across thousands of per-event sleeps on long takes.
+                let targetDate = playbackEpoch.addingTimeInterval(event.offsetFromTakeStart)
+                let wait = targetDate.timeIntervalSinceNow
                 if wait > 0 {
                     try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
                 }
@@ -225,15 +231,14 @@ final class MIDIPlaybackEngine: ObservableObject {
     }
 
     private func sendAllNotesOff() {
+        // Send the standard "All Notes Off" + sustain release control changes
+        // per channel. sampler.reset() cleans up any stragglers; iterating
+        // all 16 * 256 notes is unnecessary and was a noticeable stall.
         for channel in 1...16 {
             sendControlChange(64, value: 0, on: channel)
+            sendControlChange(120, value: 0, on: channel)
             sendControlChange(121, value: 0, on: channel)
             sendControlChange(123, value: 0, on: channel)
-            sendControlChange(120, value: 0, on: channel)
-
-            for note in UInt8.min ... UInt8.max {
-                sampler.stopNote(note, onChannel: UInt8(channel - 1))
-            }
         }
 
         sampler.reset()

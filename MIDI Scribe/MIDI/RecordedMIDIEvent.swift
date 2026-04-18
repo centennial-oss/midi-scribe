@@ -79,20 +79,37 @@ struct RecordedTake: Identifiable, Sendable, Equatable {
     let startedAt: Date
     let endedAt: Date
     let events: [RecordedMIDIEvent]
+    /// Precomputed summary. Cached so a sidebar / detail view can display
+    /// counts without re-scanning the (potentially very large) events array.
+    let summary: RecordedTakeSummary
 
     nonisolated init(id: UUID = UUID(), startedAt: Date, endedAt: Date, events: [RecordedMIDIEvent]) {
         self.id = id
         self.startedAt = startedAt
         self.endedAt = endedAt
         self.events = events
+        self.summary = RecordedTakeSummary(
+            events: events,
+            duration: max(endedAt.timeIntervalSince(startedAt), 0)
+        )
+    }
+
+    nonisolated init(
+        id: UUID,
+        startedAt: Date,
+        endedAt: Date,
+        events: [RecordedMIDIEvent],
+        summary: RecordedTakeSummary
+    ) {
+        self.id = id
+        self.startedAt = startedAt
+        self.endedAt = endedAt
+        self.events = events
+        self.summary = summary
     }
 
     nonisolated var duration: TimeInterval {
         max(endedAt.timeIntervalSince(startedAt), 0)
-    }
-
-    nonisolated var summary: RecordedTakeSummary {
-        RecordedTakeSummary(events: events, duration: duration)
     }
 
     nonisolated var displayTitle: String {
@@ -117,15 +134,93 @@ struct RecordedTakeSummary: Sendable, Equatable {
     let highestNote: UInt8?
     let duration: TimeInterval
 
-    nonisolated init(events: [RecordedMIDIEvent], duration: TimeInterval) {
-        eventCount = events.count
-        noteOnCount = events.filter { $0.kind == .noteOn }.count
-        noteOffCount = events.filter { $0.kind == .noteOff }.count
-        uniqueChannels = Array(Set(events.map(\.channel))).sorted()
-
-        let noteNumbers = events.compactMap(\.noteNumber)
-        lowestNote = noteNumbers.min()
-        highestNote = noteNumbers.max()
+    nonisolated init(
+        eventCount: Int,
+        noteOnCount: Int,
+        noteOffCount: Int,
+        uniqueChannels: [UInt8],
+        lowestNote: UInt8?,
+        highestNote: UInt8?,
+        duration: TimeInterval
+    ) {
+        self.eventCount = eventCount
+        self.noteOnCount = noteOnCount
+        self.noteOffCount = noteOffCount
+        self.uniqueChannels = uniqueChannels
+        self.lowestNote = lowestNote
+        self.highestNote = highestNote
         self.duration = duration
+    }
+
+    nonisolated init(events: [RecordedMIDIEvent], duration: TimeInterval) {
+        var builder = RecordedTakeSummaryBuilder()
+        for event in events {
+            builder.add(event)
+        }
+        self = builder.build(duration: duration)
+    }
+
+    static let empty = RecordedTakeSummary(
+        eventCount: 0,
+        noteOnCount: 0,
+        noteOffCount: 0,
+        uniqueChannels: [],
+        lowestNote: nil,
+        highestNote: nil,
+        duration: 0
+    )
+}
+
+/// Accumulates a summary in O(1) per event so the live UI never has to
+/// re-scan the events array to know counts, channels, or note range.
+struct RecordedTakeSummaryBuilder: Sendable {
+    private var eventCount = 0
+    private var noteOnCount = 0
+    private var noteOffCount = 0
+    private var channelMask: UInt32 = 0
+    private var lowestNote: UInt8?
+    private var highestNote: UInt8?
+
+    nonisolated init() {}
+
+    nonisolated mutating func add(_ event: RecordedMIDIEvent) {
+        eventCount += 1
+
+        switch event.kind {
+        case .noteOn:
+            noteOnCount += 1
+        case .noteOff:
+            noteOffCount += 1
+        default:
+            break
+        }
+
+        if event.channel >= 1 && event.channel <= 16 {
+            channelMask |= (1 << (event.channel - 1))
+        }
+
+        if let note = event.noteNumber {
+            if let current = lowestNote { lowestNote = min(current, note) } else { lowestNote = note }
+            if let current = highestNote { highestNote = max(current, note) } else { highestNote = note }
+        }
+    }
+
+    nonisolated func build(duration: TimeInterval) -> RecordedTakeSummary {
+        var channels: [UInt8] = []
+        channels.reserveCapacity(16)
+        for bit in 0 ..< 16 {
+            if channelMask & (1 << bit) != 0 {
+                channels.append(UInt8(bit + 1))
+            }
+        }
+        return RecordedTakeSummary(
+            eventCount: eventCount,
+            noteOnCount: noteOnCount,
+            noteOffCount: noteOffCount,
+            uniqueChannels: channels,
+            lowestNote: lowestNote,
+            highestNote: highestNote,
+            duration: duration
+        )
     }
 }

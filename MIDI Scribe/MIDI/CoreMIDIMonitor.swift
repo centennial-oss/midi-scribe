@@ -111,9 +111,20 @@ final class CoreMIDIMonitor: MIDIListening {
     }
 
     private func parseMessages(in packet: MIDIPacket) {
-        let bytes = withUnsafeBytes(of: packet.data) { rawBuffer in
-            Array(rawBuffer.prefix(Int(packet.length)))
+        // Read directly from the fixed-size packet tuple instead of allocating
+        // a fresh [UInt8] per packet on the MIDI thread.
+        withUnsafeBytes(of: packet.data) { rawBuffer in
+            let count = Int(packet.length)
+            guard count > 0, let base = rawBuffer.baseAddress else { return }
+            let bytes = UnsafeBufferPointer<UInt8>(
+                start: base.assumingMemoryBound(to: UInt8.self),
+                count: min(count, rawBuffer.count)
+            )
+            parseMessages(bytes: bytes)
         }
+    }
+
+    private func parseMessages(bytes: UnsafeBufferPointer<UInt8>) {
         var index = 0
 
         while index + 2 < bytes.count {

@@ -13,6 +13,17 @@ struct MIDI_ScribeApp: App {
     @StateObject private var appState = AppState()
     @StateObject private var settings = AppSettings()
 
+    /// The app's shared SwiftData container. Created up front so we can pass
+    /// it into sheets (which don't always inherit `.modelContainer` via the
+    /// environment).
+    private let modelContainer: ModelContainer = {
+        do {
+            return try ModelContainer(for: StoredTake.self, StoredMIDIEvent.self)
+        } catch {
+            fatalError("Unable to create ModelContainer: \(error)")
+        }
+    }()
+
     var body: some Scene {
         WindowGroup {
             ContentView(settings: settings)
@@ -22,9 +33,10 @@ struct MIDI_ScribeApp: App {
                     SettingsView(settings: settings) {
                         appState.dismissSettings()
                     }
+                    .modelContainer(modelContainer)
                 }
         }
-        .modelContainer(for: [StoredTake.self, StoredMIDIEvent.self])
+        .modelContainer(modelContainer)
 #if os(macOS)
         .commands {
             CommandGroup(after: .newItem) {

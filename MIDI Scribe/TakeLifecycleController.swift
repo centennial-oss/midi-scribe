@@ -7,17 +7,20 @@
 
 import Foundation
 
-struct CurrentTakeSnapshot: Sendable {
+/// Lightweight snapshot published on every MIDI event.
+///
+/// Intentionally does NOT carry the full events array: for a long take that
+/// array can be tens of thousands of items, and copying it to the main actor
+/// on every note is what caused the recording beachball. Instead we publish
+/// an incrementally-maintained summary, and hand the full event list over
+/// exactly once when the take completes.
+struct CurrentTakeSnapshot: Sendable, Equatable {
     let startedAt: Date?
     let lastEventAt: Date?
-    let events: [RecordedMIDIEvent]
+    let summary: RecordedTakeSummary
 
     nonisolated var isInProgress: Bool {
         startedAt != nil
-    }
-
-    nonisolated var summary: RecordedTakeSummary {
-        RecordedTakeSummary(events: events, duration: duration)
     }
 
     nonisolated var duration: TimeInterval {
@@ -25,21 +28,30 @@ struct CurrentTakeSnapshot: Sendable {
         let endedAt = lastEventAt ?? startedAt
         return max(endedAt.timeIntervalSince(startedAt), 0)
     }
+
+    static let empty = CurrentTakeSnapshot(
+        startedAt: nil,
+        lastEventAt: nil,
+        summary: RecordedTakeSummary.empty
+    )
 }
 
 actor TakeLifecycleController {
     var onSnapshotChanged: (@Sendable (CurrentTakeSnapshot) -> Void)?
     var onTakeCompleted: (@Sendable (RecordedTake) -> Void)?
 
-    private var currentTake = CurrentTakeSnapshot(startedAt: nil, lastEventAt: nil, events: [])
+    private var startedAt: Date?
+    private var lastEventAt: Date?
+    private var events: [RecordedMIDIEvent] = []
+    private var summaryBuilder = RecordedTakeSummaryBuilder()
     private var timeoutGeneration = 0
 
     func ingestInput(at date: Date, timeout: TimeInterval) {
-        if currentTake.startedAt == nil {
-            currentTake = CurrentTakeSnapshot(startedAt: date, lastEventAt: date, events: [])
-        } else {
-            currentTake = CurrentTakeSnapshot(startedAt: currentTake.startedAt, lastEventAt: date, events: currentTake.events)
+        if startedAt == nil {
+            startedAt = date
+            events.reserveCapacity(1024)
         }
+        lastEventAt = date
 
         timeoutGeneration += 1
         scheduleTimeout(generation: timeoutGeneration, timeout: timeout)
@@ -47,7 +59,15 @@ actor TakeLifecycleController {
     }
 
     func appendEvent(_ event: RecordedMIDIEvent, timeout: TimeInterval) {
-        let takeStart = currentTake.startedAt ?? event.receivedAt
+        let takeStart: Date
+        if let existing = startedAt {
+            takeStart = existing
+        } else {
+            takeStart = event.receivedAt
+            startedAt = event.receivedAt
+            events.reserveCapacity(1024)
+        }
+
         let normalizedEvent = RecordedMIDIEvent(
             id: event.id,
             receivedAt: event.receivedAt,
@@ -59,15 +79,9 @@ actor TakeLifecycleController {
             data2: event.data2
         )
 
-        if currentTake.startedAt == nil {
-            currentTake = CurrentTakeSnapshot(startedAt: event.receivedAt, lastEventAt: event.receivedAt, events: [normalizedEvent])
-        } else {
-            currentTake = CurrentTakeSnapshot(
-                startedAt: currentTake.startedAt,
-                lastEventAt: event.receivedAt,
-                events: currentTake.events + [normalizedEvent]
-            )
-        }
+        events.append(normalizedEvent)
+        summaryBuilder.add(normalizedEvent)
+        lastEventAt = event.receivedAt
 
         timeoutGeneration += 1
         scheduleTimeout(generation: timeoutGeneration, timeout: timeout)
@@ -75,13 +89,16 @@ actor TakeLifecycleController {
     }
 
     func endCurrentTake() {
-        guard currentTake.isInProgress else { return }
+        guard startedAt != nil else { return }
         let completedTake = RecordedTake(
-            startedAt: currentTake.startedAt ?? Date(),
-            endedAt: currentTake.lastEventAt ?? currentTake.startedAt ?? Date(),
-            events: currentTake.events
+            startedAt: startedAt ?? Date(),
+            endedAt: lastEventAt ?? startedAt ?? Date(),
+            events: events
         )
-        currentTake = CurrentTakeSnapshot(startedAt: nil, lastEventAt: nil, events: [])
+        startedAt = nil
+        lastEventAt = nil
+        events = []
+        summaryBuilder = RecordedTakeSummaryBuilder()
         timeoutGeneration += 1
         onTakeCompleted?(completedTake)
         publish()
@@ -105,11 +122,22 @@ actor TakeLifecycleController {
     }
 
     private func handleTimeout(generation: Int) {
-        guard generation == timeoutGeneration, currentTake.isInProgress else { return }
+        guard generation == timeoutGeneration, startedAt != nil else { return }
         endCurrentTake()
     }
 
     private func publish() {
-        onSnapshotChanged?(currentTake)
+        let snapshot = CurrentTakeSnapshot(
+            startedAt: startedAt,
+            lastEventAt: lastEventAt,
+            summary: summaryBuilder.build(duration: currentDuration)
+        )
+        onSnapshotChanged?(snapshot)
+    }
+
+    private var currentDuration: TimeInterval {
+        guard let startedAt else { return 0 }
+        let endedAt = lastEventAt ?? startedAt
+        return max(endedAt.timeIntervalSince(startedAt), 0)
     }
 }

@@ -16,9 +16,13 @@ final class MIDILiveNoteViewModel: ObservableObject {
     @Published var selectedSidebarItem: SidebarItem = .currentTake
     @Published private(set) var currentNoteText = ""
     @Published private(set) var currentChannelText = ""
-    @Published private(set) var currentTakeSnapshot = CurrentTakeSnapshot(startedAt: nil, lastEventAt: nil, events: [])
-    @Published private(set) var recentTakes: [RecordedTake] = []
-    @Published private(set) var lastCompletedTake: RecordedTake?
+    @Published private(set) var currentTakeSnapshot = CurrentTakeSnapshot.empty
+    @Published private(set) var recentTakes: [RecordedTakeListItem] = []
+    @Published private(set) var lastCompletedTake: RecordedTakeListItem?
+    /// Lazy cache of fully-materialized takes (with events). Only populated
+    /// when a take is actually played or inspected in detail.
+    private var materializedTakes: [UUID: RecordedTake] = [:]
+    var resolveFullTake: (@Sendable (UUID) -> RecordedTake?)?
     @Published private(set) var errorText: String?
     @Published var selectedPlaybackTarget: PlaybackOutputTarget = .osSpeakers
 
@@ -62,9 +66,18 @@ final class MIDILiveNoteViewModel: ObservableObject {
             }
             await takeLifecycle.setOnTakeCompleted { [weak self] take in
                 Task { @MainActor [weak self] in
-                    self?.lastCompletedTake = take
-                    self?.recentTakes.insert(take, at: 0)
-                    self?.handleCompletedTakeSelection(for: take)
+                    guard let self else { return }
+                    let listItem = RecordedTakeListItem(
+                        id: take.id,
+                        startedAt: take.startedAt,
+                        endedAt: take.endedAt,
+                        title: take.displayTitle,
+                        summary: take.summary
+                    )
+                    self.materializedTakes[take.id] = take
+                    self.lastCompletedTake = listItem
+                    self.recentTakes.insert(listItem, at: 0)
+                    self.handleCompletedTakeSelection(for: listItem)
                 }
             }
         }
@@ -146,33 +159,78 @@ final class MIDILiveNoteViewModel: ObservableObject {
         return "Last take: \(formatDuration(summary.duration)), \(summary.eventCount) events, channels \(channels.isEmpty ? "None" : channels), range \(noteRangeText)"
     }
 
-    func recentTake(id: UUID) -> RecordedTake? {
+    func recentTake(id: UUID) -> RecordedTakeListItem? {
         recentTakes.first { $0.id == id }
     }
 
-    func completedTakeDurationText(_ take: RecordedTake) -> String {
+    /// Materialize (with events) a take on demand. Cached so repeated taps
+    /// don't re-fault events from SwiftData.
+    func fullTake(id: UUID) -> RecordedTake? {
+        if let cached = materializedTakes[id] { return cached }
+        guard let resolved = resolveFullTake?(id) else { return nil }
+        materializedTakes[id] = resolved
+        return resolved
+    }
+
+    func completedTakeDurationText(_ take: RecordedTakeListItem) -> String {
         formatDuration(take.duration)
     }
 
-    func completedTakeChannelsText(_ take: RecordedTake) -> String {
+    func completedTakeChannelsText(_ take: RecordedTakeListItem) -> String {
         let channels = take.summary.uniqueChannels.map(String.init).joined(separator: ", ")
         return channels.isEmpty ? "None" : channels
     }
 
-    func completedTakeRangeText(_ take: RecordedTake) -> String {
+    func completedTakeRangeText(_ take: RecordedTakeListItem) -> String {
         formatNoteRange(lowest: take.summary.lowestNote, highest: take.summary.highestNote)
     }
 
-    func togglePlayback(for take: RecordedTake) {
-        playbackEngine.togglePlayback(for: take, target: selectedPlaybackTarget)
+    func togglePlayback(for takeID: UUID) {
+        if isPlaying(takeID: takeID) {
+            playbackEngine.pause()
+            return
+        }
+        loadFullTakeAndPlay(takeID: takeID, restart: false)
     }
 
-    func restartPlayback(for take: RecordedTake) {
-        playbackEngine.restartPlayback(for: take, target: selectedPlaybackTarget)
+    func restartPlayback(for takeID: UUID) {
+        loadFullTakeAndPlay(takeID: takeID, restart: true)
+    }
+
+    private func loadFullTakeAndPlay(takeID: UUID, restart: Bool) {
+        if let cached = materializedTakes[takeID] {
+            if restart {
+                playbackEngine.restartPlayback(for: cached, target: selectedPlaybackTarget)
+            } else {
+                playbackEngine.togglePlayback(for: cached, target: selectedPlaybackTarget)
+            }
+            return
+        }
+
+        let target = selectedPlaybackTarget
+        let resolver = resolveFullTake
+        Task { [weak self] in
+            let take: RecordedTake? = await Task.detached(priority: .userInitiated) { [resolver] in
+                resolver?(takeID)
+            }.value
+
+            guard let self, let take else { return }
+            self.materializedTakes[takeID] = take
+            if restart {
+                self.playbackEngine.restartPlayback(for: take, target: target)
+            } else {
+                self.playbackEngine.togglePlayback(for: take, target: target)
+            }
+        }
+    }
+
+    func isPlaying(takeID: UUID) -> Bool {
+        playbackEngine.currentTakeID == takeID && playbackEngine.isPlaying && playbackEngine.currentTarget == selectedPlaybackTarget
     }
 
     func deleteTake(id: UUID) {
         recentTakes.removeAll { $0.id == id }
+        materializedTakes.removeValue(forKey: id)
 
         if lastCompletedTake?.id == id {
             lastCompletedTake = recentTakes.first
@@ -183,8 +241,13 @@ final class MIDILiveNoteViewModel: ObservableObject {
         }
     }
 
-    func setRecentTakes(_ takes: [RecordedTake]) {
+    func setRecentTakes(_ takes: [RecordedTakeListItem]) {
         recentTakes = takes
+        // Drop cached full takes that are no longer in the list so memory
+        // doesn't grow unbounded with deleted rows.
+        let validIDs = Set(takes.map(\.id))
+        materializedTakes = materializedTakes.filter { validIDs.contains($0.key) }
+
         if lastCompletedTake == nil {
             lastCompletedTake = takes.first
         } else if let lastCompletedTake, let refreshed = takes.first(where: { $0.id == lastCompletedTake.id }) {
@@ -270,7 +333,7 @@ final class MIDILiveNoteViewModel: ObservableObject {
         }
     }
 
-    private func handleCompletedTakeSelection(for take: RecordedTake) {
+    private func handleCompletedTakeSelection(for take: RecordedTakeListItem) {
         switch completedTakeSelectionMode {
         case .showCompleted:
             selectedSidebarItem = .recentTake(take.id)

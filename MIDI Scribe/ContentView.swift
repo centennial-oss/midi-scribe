@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 #if os(macOS)
 import AppKit
 #elseif os(iOS)
@@ -26,6 +27,10 @@ struct ContentView: View {
     @ObservedObject private var settings: AppSettings
     @StateObject private var viewModel: MIDILiveNoteViewModel
     @State private var pendingDeleteTakeID: UUID?
+    @State private var exportDocument: MIDIFileDocument?
+    @State private var exportSuggestedName: String = "take"
+    @State private var isPresentingExporter = false
+    @State private var exportErrorMessage: String?
 
     init(settings: AppSettings) {
         self.settings = settings
@@ -77,7 +82,17 @@ struct ContentView: View {
             viewModel.appWillTerminate()
         }
         .task(id: storedRecentTakes.map(\.takeID)) {
-            viewModel.setRecentTakes(storedRecentTakes.map(\.recordedTake))
+            viewModel.setRecentTakes(storedRecentTakes.map(\.listItem))
+            let container = modelContext.container
+            viewModel.resolveFullTake = { id in
+                // Fresh context so this can safely run off the main thread.
+                let context = ModelContext(container)
+                let takeID = id.uuidString
+                let descriptor = FetchDescriptor<StoredTake>(
+                    predicate: #Predicate<StoredTake> { $0.takeID == takeID }
+                )
+                return (try? context.fetch(descriptor))?.first?.recordedTake
+            }
         }
         .onChange(of: viewModel.lastCompletedTake?.id) { _, _ in
             persistLastCompletedTakeIfNeeded()
@@ -102,6 +117,20 @@ struct ContentView: View {
             }
         } message: { takeID in
             Text(viewModel.recentTake(id: takeID)?.displayTitle ?? "This take")
+        }
+        .fileExporter(
+            isPresented: $isPresentingExporter,
+            document: exportDocument,
+            contentType: .midi,
+            defaultFilename: exportSuggestedName
+        ) { result in
+            switch result {
+            case .success:
+                exportErrorMessage = nil
+            case .failure(let error):
+                exportErrorMessage = "Export failed: \(error.localizedDescription)"
+            }
+            exportDocument = nil
         }
     }
 
@@ -225,12 +254,12 @@ struct ContentView: View {
         VStack(spacing: 24) {
             if let take = viewModel.recentTake(id: takeID) {
                 HStack(spacing: 16) {
-                    Button(viewModel.playbackEngine.isPlaying(take: take, target: viewModel.selectedPlaybackTarget) ? "Pause" : "Play") {
-                        viewModel.togglePlayback(for: take)
+                    Button(viewModel.isPlaying(takeID: take.id) ? "Pause" : "Play") {
+                        viewModel.togglePlayback(for: take.id)
                     }
 
                     Button("Restart") {
-                        viewModel.restartPlayback(for: take)
+                        viewModel.restartPlayback(for: take.id)
                     }
 
                     Picker("Output Device", selection: $viewModel.selectedPlaybackTarget) {
@@ -241,11 +270,21 @@ struct ContentView: View {
                     }
                     .frame(maxWidth: 260)
 
+                    Button("Export .mid") {
+                        exportTake(id: take.id)
+                    }
+
                     Button("Delete Take", role: .destructive) {
                         pendingDeleteTakeID = take.id
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+                if let exportErrorMessage {
+                    Text(exportErrorMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
 
                 Text(take.displayTitle)
                     .font(.title2.monospaced())
@@ -289,21 +328,65 @@ struct ContentView: View {
     }
 
     private func persistLastCompletedTakeIfNeeded() {
-        guard let take = viewModel.lastCompletedTake else { return }
-        let takeID = take.id.uuidString
+        guard let listItem = viewModel.lastCompletedTake else { return }
+        // Resolve the full take (with events) from the view model's cache;
+        // it was just completed so it's in memory and won't touch SwiftData.
+        guard let take = viewModel.fullTake(id: listItem.id) else { return }
 
-        let descriptor = FetchDescriptor<StoredTake>(
-            predicate: #Predicate<StoredTake> { storedTake in
-                storedTake.takeID == takeID
+        let container = modelContext.container
+        // Run the insert on a background context so serializing thousands of
+        // events doesn't block the main thread (the "beachball while saving"
+        // symptom).
+        Task.detached(priority: .utility) {
+            let context = ModelContext(container)
+            let takeID = take.id.uuidString
+            let descriptor = FetchDescriptor<StoredTake>(
+                predicate: #Predicate<StoredTake> { storedTake in
+                    storedTake.takeID == takeID
+                }
+            )
+            if let existing = try? context.fetch(descriptor), !existing.isEmpty {
+                return
             }
-        )
+            context.insert(StoredTake(recordedTake: take))
+            try? context.save()
+        }
+    }
 
-        if let existing = try? modelContext.fetch(descriptor), !existing.isEmpty {
+    private func exportTake(id: UUID) {
+        exportErrorMessage = nil
+
+        // Use the cached full take if we have it; otherwise fetch on a
+        // background context so large takes don't stall the UI.
+        if let cached = viewModel.fullTake(id: id) {
+            presentExporter(for: cached)
             return
         }
 
-        modelContext.insert(StoredTake(recordedTake: take))
-        try? modelContext.save()
+        let container = modelContext.container
+        let takeID = id.uuidString
+        Task {
+            let take: RecordedTake? = await Task.detached(priority: .userInitiated) {
+                let context = ModelContext(container)
+                let descriptor = FetchDescriptor<StoredTake>(
+                    predicate: #Predicate<StoredTake> { $0.takeID == takeID }
+                )
+                return (try? context.fetch(descriptor))?.first?.recordedTake
+            }.value
+
+            guard let take else {
+                exportErrorMessage = "Unable to load take for export."
+                return
+            }
+            presentExporter(for: take)
+        }
+    }
+
+    private func presentExporter(for take: RecordedTake) {
+        let document = MIDIFileDocument(take: take)
+        exportSuggestedName = document.suggestedFileName
+        exportDocument = document
+        isPresentingExporter = true
     }
 
     private func deleteTake(id: UUID) {
