@@ -65,13 +65,26 @@ extension ContentView {
 
     @ToolbarContentBuilder
     private func completedTakeToolbar(for take: RecordedTakeListItem) -> some ToolbarContent {
-        let playLabel = viewModel.isPlaying(takeID: take.id) ? "Pause" : "Play"
-        let playIcon = viewModel.isPlaying(takeID: take.id) ? "pause.fill" : "play.fill"
-        let splitLabel = splitTakeLabel(for: take)
-        let starLabel = take.isStarred ? "Unstar" : "Star"
-        let starIcon = take.isStarred ? "star.fill" : "star"
+        completedTakePlaybackToolbar(for: take)
+        ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
+        completedTakeActionsToolbar(for: take)
+    }
+
+    @ToolbarContentBuilder
+    private func completedTakePlaybackToolbar(for take: RecordedTakeListItem) -> some ToolbarContent {
+        let isPlaying = viewModel.isPlaying(takeID: take.id)
+        let playLabel = isPlaying ? "Pause" : "Play"
+        let playIcon = isPlaying ? "pause.fill" : "play.fill"
+        let rewindLabel = isPlaying ? "Pause and Rewind to Beginning" : "Rewind to Beginning"
 
         ToolbarItemGroup(placement: completedTakeToolbarPlacement) {
+            toolbarIconButton(
+                rewindLabel,
+                systemImage: "backward.end.fill",
+                disabled: viewModel.isTakeActionInProgress
+            ) {
+                viewModel.rewindPlaybackToBeginning(for: take.id)
+            }
 
             toolbarIconButton(playLabel, systemImage: playIcon, disabled: viewModel.isTakeActionInProgress) {
                 viewModel.togglePlayback(for: take.id)
@@ -80,7 +93,16 @@ extension ContentView {
             toolbarIconButton("Restart", systemImage: "gobackward", disabled: viewModel.isTakeActionInProgress) {
                 viewModel.restartPlayback(for: take.id)
             }
+        }
+    }
 
+    @ToolbarContentBuilder
+    private func completedTakeActionsToolbar(for take: RecordedTakeListItem) -> some ToolbarContent {
+        let splitLabel = splitTakeLabel(for: take)
+        let starLabel = take.isStarred ? "Unstar" : "Star"
+        let starIcon = take.isStarred ? "star.fill" : "star"
+
+        ToolbarItemGroup(placement: completedTakeToolbarPlacement) {
             toolbarIconButton("Rename Take", systemImage: "pencil", disabled: viewModel.isTakeActionInProgress) {
                 beginRename(take)
             }

@@ -18,6 +18,10 @@ extension MIDILiveNoteViewModel {
         loadFullTakeAndPlay(takeID: takeID, restart: true)
     }
 
+    func rewindPlaybackToBeginning(for takeID: UUID) {
+        playbackEngine.rewindToBeginning(takeID: takeID)
+    }
+
     private func loadFullTakeAndPlay(takeID: UUID, restart: Bool) {
         if let cached = materializedTakes[takeID] {
             if restart {

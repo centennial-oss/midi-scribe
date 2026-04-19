@@ -127,6 +127,8 @@ extension ContentView {
         switch request {
         case .togglePlayback(let takeID):
             viewModel.togglePlayback(for: takeID)
+        case .rewindPlayback(let takeID):
+            viewModel.rewindPlaybackToBeginning(for: takeID)
         case .restartPlayback(let takeID):
             viewModel.restartPlayback(for: takeID)
         case .split(let takeID):

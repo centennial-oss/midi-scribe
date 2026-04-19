@@ -63,6 +63,14 @@ struct MIDIScribeApp: App {
                 .keyboardShortcut(" ", modifiers: [])
                 .disabled(!state.canPerformTakeAction)
 
+                Button(state.isPlaying ? "Pause and Rewind to Beginning" : "Rewind to Beginning") {
+                    if let takeID {
+                        appState.requestTakeCommand(.rewindPlayback(takeID))
+                    }
+                }
+                .keyboardShortcut(.leftArrow, modifiers: [.command])
+                .disabled(!state.canPerformTakeAction)
+
                 Button("Restart") {
                     if let takeID {
                         appState.requestTakeCommand(.restartPlayback(takeID))
@@ -78,6 +86,7 @@ struct MIDIScribeApp: App {
                         appState.requestTakeCommand(.split(takeID))
                     }
                 }
+                .keyboardShortcut("/", modifiers: [])
                 .disabled(!state.canPerformTakeAction || !state.canSplit)
 
                 Divider()
@@ -105,6 +114,7 @@ struct MIDIScribeApp: App {
                         appState.requestTakeCommand(.toggleStar(takeID))
                     }
                 }
+                .keyboardShortcut("s", modifiers: [])
                 .disabled(!state.canPerformTakeAction)
 
                 Button("Delete Take", role: .destructive) {

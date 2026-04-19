@@ -87,6 +87,7 @@ final class MIDIPlaybackEngine: ObservableObject {
         playOrResume(take: take, target: target)
     }
 
+    func rewindToBeginning(takeID: UUID? = nil) { pause(); resetPlaybackPosition(); currentTakeID = takeID }
     func playLiveEventToSpeakers(_ event: RecordedMIDIEvent) {
         guard settings.echoScribedToSpeakers else { return }
         playThroughSpeakers(event)

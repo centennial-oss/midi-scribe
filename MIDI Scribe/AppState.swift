@@ -13,6 +13,7 @@ import AppKit
 
 enum TakeCommandRequest: Equatable {
     case togglePlayback(UUID)
+    case rewindPlayback(UUID)
     case restartPlayback(UUID)
     case split(UUID)
     case toggleStar(UUID)
@@ -24,6 +25,7 @@ enum TakeCommandRequest: Equatable {
     var takeID: UUID {
         switch self {
         case .togglePlayback(let takeID),
+             .rewindPlayback(let takeID),
              .restartPlayback(let takeID),
              .split(let takeID),
              .toggleStar(let takeID),
@@ -137,10 +139,17 @@ final class AppState: ObservableObject {
             return true
         }
 
+        if handlePlainTakeShortcut(event, takeID: takeID) {
+            return true
+        }
+
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         guard flags == [.command] || flags == [.command, .shift] else { return false }
 
         switch event.charactersIgnoringModifiers {
+        case "\u{F702}":
+            requestTakeCommand(.rewindPlayback(takeID))
+            return true
         case "=", "+":
             requestTakeCommand(.zoomIn(takeID))
             return true
@@ -150,6 +159,22 @@ final class AppState: ObservableObject {
         default:
             return false
         }
+    }
+
+    private func handlePlainTakeShortcut(_ event: NSEvent, takeID: UUID) -> Bool {
+        guard event.modifierFlags.isDisjoint(with: .deviceIndependentFlagsMask) else { return false }
+
+        switch event.charactersIgnoringModifiers {
+        case "/":
+            guard takeCommandState.canSplit else { return false }
+            requestTakeCommand(.split(takeID))
+        case "s", "S":
+            requestTakeCommand(.toggleStar(takeID))
+        default:
+            return false
+        }
+
+        return true
     }
 #endif
 }
