@@ -104,6 +104,16 @@ actor TakeLifecycleController {
         publish()
     }
 
+    func discardCurrentTake() {
+        guard startedAt != nil else { return }
+        startedAt = nil
+        lastEventAt = nil
+        events = []
+        summaryBuilder = RecordedTakeSummaryBuilder()
+        timeoutGeneration += 1
+        publish()
+    }
+
     func setOnSnapshotChanged(_ callback: @escaping @Sendable (CurrentTakeSnapshot) -> Void) {
         onSnapshotChanged = callback
         publish()

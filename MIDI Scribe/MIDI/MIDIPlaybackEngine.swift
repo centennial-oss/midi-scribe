@@ -1,13 +1,7 @@
-//
-//  MIDIPlaybackEngine.swift
-//  MIDI Scribe
-//
-//  Created by Codex on 3/21/26.
-//
-
 import AudioToolbox
 import AVFoundation
 import Combine
+import CoreAudio
 import CoreMIDI
 import Foundation
 
@@ -21,8 +15,6 @@ final class MIDIPlaybackEngine: ObservableObject {
     @Published private(set) var isPlaying = false
     @Published private(set) var currentTakeID: UUID?
     @Published private(set) var currentTarget: PlaybackOutputTarget?
-    /// Offset (seconds) where playback is paused within the current take.
-    /// Nil if there is no paused position (never played, reset, or finished).
     @Published private(set) var pausedAtOffset: TimeInterval?
 
     var currentPlaybackTime: TimeInterval {
@@ -32,7 +24,7 @@ final class MIDIPlaybackEngine: ObservableObject {
     }
 
     private let settings: AppSettings
-    private let audioEngine = AVAudioEngine()
+    private var audioEngine = AVAudioEngine()
     private var speakerInstrument: AVAudioUnitMIDIInstrument = AVAudioUnitSampler()
     private var settingsCancellable: AnyCancellable?
     private var playbackTask: Task<Void, Never>?
@@ -45,6 +37,9 @@ final class MIDIPlaybackEngine: ObservableObject {
     private var outputClient = MIDIClientRef()
     private var outputPort = MIDIPortRef()
     private var speakerProgram: Int
+    #if os(macOS)
+    private var lastSpeakerOutputDeviceID: AudioDeviceID?
+    #endif
 
     init(settings: AppSettings) {
         self.settings = settings
@@ -62,12 +57,8 @@ final class MIDIPlaybackEngine: ObservableObject {
 
     deinit {
         playbackTask?.cancel()
-        if outputPort != 0 {
-            MIDIPortDispose(outputPort)
-        }
-        if outputClient != 0 {
-            MIDIClientDispose(outputClient)
-        }
+        if outputPort != 0 { MIDIPortDispose(outputPort) }
+        if outputClient != 0 { MIDIClientDispose(outputClient) }
     }
 
     func togglePlayback(for take: RecordedTake, target: PlaybackOutputTarget) {
@@ -101,13 +92,9 @@ final class MIDIPlaybackEngine: ObservableObject {
         playbackTask = nil
         isPlaying = false
         sendAllNotesOff()
-        // Expose the paused offset so the UI can enable "Split here".
         pausedAtOffset = playbackResumeOffset > 0 ? playbackResumeOffset : nil
     }
 
-    /// Fully stop playback and forget any cached take/position. Call after
-    /// the current take has been mutated out from under us (split/merge) so
-    /// the next Play starts fresh.
     func stopAndReset() {
         playbackTask?.cancel()
         playbackTask = nil
@@ -128,28 +115,18 @@ final class MIDIPlaybackEngine: ObservableObject {
         }
     }
 
-    func playScrubEvent(_ event: RecordedMIDIEvent, target: PlaybackOutputTarget) {
-        play(event: event, target: target)
-    }
+    func playScrubEvent(_ event: RecordedMIDIEvent, target: PlaybackOutputTarget) { play(event: event, target: target) }
 
-    func stopScrubbingNotes() {
-        sendAllNotesOff()
-    }
+    func stopScrubbingNotes() { sendAllNotesOff() }
 }
-
 extension MIDIPlaybackEngine {
     private func playOrResume(take: RecordedTake, target: PlaybackOutputTarget) {
         if playbackTask != nil {
             pause()
         }
+        if target == .osSpeakers { refreshSpeakerOutputRoute() }
 
         if currentTakeID != take.id || currentTarget != target {
-            // Preserve any scrub position the user set via
-            // `updatePausedOffset` before the engine was bound to this
-            // take (e.g. dragging the playhead before ever pressing
-            // Play). Otherwise `resetPlaybackPosition` would snap the
-            // resume offset back to 0 and playback would start at the
-            // beginning instead of where the user dropped the playhead.
             let preservedResumeOffset = playbackResumeOffset
             resetPlaybackPosition()
             if preservedResumeOffset > 0 {
@@ -177,8 +154,6 @@ extension MIDIPlaybackEngine {
 
             for index in startIndex ..< events.count {
                 let event = events[index]
-                // Schedule against an absolute epoch so we don't accumulate
-                // drift across thousands of per-event sleeps on long takes.
                 let targetDate = playbackEpoch.addingTimeInterval(event.offsetFromTakeStart)
                 let wait = targetDate.timeIntervalSinceNow
                 if wait > 0 {
@@ -207,6 +182,9 @@ extension MIDIPlaybackEngine {
             try AVAudioSession.sharedInstance().setActive(true)
             #endif
             try audioEngine.start()
+            #if os(macOS)
+            lastSpeakerOutputDeviceID = currentDefaultOutputDeviceID()
+            #endif
         } catch {
             print("MIDI Scribe playback audio setup failed: \(error)")
         }
@@ -227,12 +205,41 @@ extension MIDIPlaybackEngine {
         }
     }
 
-    private func resolvedSoundBankURL() throws -> URL {
-        try SoundBankAssets.soundBankURL()
-        // macOS fallback if GeneralUser-GS does not work well enough:
-        // URL(fileURLWithPath:
-        //     "/System/Library/Components/CoreAudio.component/Contents/Resources/gs_instruments.dls")
+    private func refreshSpeakerOutputRoute() {
+        #if os(macOS)
+        let deviceID = currentDefaultOutputDeviceID()
+        guard deviceID != lastSpeakerOutputDeviceID else { return }
+        lastSpeakerOutputDeviceID = deviceID
+        do {
+            sendAllNotesOff()
+            audioEngine.stop()
+            audioEngine = AVAudioEngine()
+            speakerInstrument = AVAudioUnitSampler()
+            try rebuildSampler()
+            try audioEngine.start()
+        } catch {
+            print("MIDI Scribe playback output route refresh failed: \(error)")
+        }
+        #else
+        reloadInstrument()
+        #endif
     }
+
+    #if os(macOS)
+    private func currentDefaultOutputDeviceID() -> AudioDeviceID? {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultOutputDevice, mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var deviceID = AudioDeviceID()
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        let status = AudioObjectGetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &deviceID
+        )
+        return status == noErr ? deviceID : nil
+    }
+    #endif
+    private func resolvedSoundBankURL() throws -> URL { try SoundBankAssets.soundBankURL() }
 
     private func configureMIDIOutput() {
         let clientStatus = MIDIClientCreateWithBlock("MIDI Scribe Playback" as CFString, &outputClient) { _ in }
@@ -259,14 +266,12 @@ extension MIDIPlaybackEngine {
         var data = event.midiData
         guard !data.isEmpty else { return }
         data[0] = (data[0] & 0xF0) | UInt8(channelOverride - 1)
-
         let packetListSize = 1024
         let packetListPointer = UnsafeMutableRawPointer.allocate(
             byteCount: packetListSize,
             alignment: MemoryLayout<MIDIPacketList>.alignment
         )
         defer { packetListPointer.deallocate() }
-
         let typedPacketListPointer = packetListPointer.bindMemory(to: MIDIPacketList.self, capacity: 1)
         data.withUnsafeBytes { bytes in
             let packetList = typedPacketListPointer
@@ -311,13 +316,7 @@ extension MIDIPlaybackEngine {
     }
 
     private func firstEventIndex(in take: RecordedTake, atOrAfter offset: TimeInterval) -> Int {
-        // Events are appended in receive order, which is time-sorted.
-        // Walk forward until we find the first event at or after the
-        // target offset; this bounds the skipped prefix of playback.
-        for (index, event) in take.events.enumerated() where event.offsetFromTakeStart >= offset {
-            return index
-        }
-        return take.events.count
+        take.events.firstIndex { $0.offsetFromTakeStart >= offset } ?? take.events.count
     }
 
     private func resetPlaybackPosition() {

@@ -106,6 +106,14 @@ final class MIDILiveNoteViewModel: ObservableObject {
         }
     }
 
+    func cancelTake() {
+        completedTakeSelectionMode = .stayOnCurrent
+        selectedSidebarItem = .currentTake
+        Task {
+            await takeLifecycle.discardCurrentTake()
+        }
+    }
+
     var isTakeInProgress: Bool {
         currentTakeSnapshot.isInProgress
     }

@@ -4,13 +4,8 @@
 //
 
 import SwiftUI
-#if os(iOS)
-import UIKit
-#endif
 
 extension ContentView {
-    /// iPhone: `NavigationSplitView` toolbar targets the sidebar column; attach app-wide actions here so
-    /// they appear on every detail (including Current Take) without stealing vertical space for a title.
     @ViewBuilder
     var detailContent: some View {
         Group {
@@ -27,7 +22,6 @@ extension ContentView {
         }
 #if os(iOS)
         .navigationBarBackButtonHidden(true)
-        .modifier(IPhoneGlobalAppToolbarModifier(appState: appState, preferredCompactColumn: $preferredCompactColumn))
 #endif
     }
 
@@ -198,14 +192,6 @@ extension ContentView {
 
     var currentTakeDetail: some View {
         VStack(spacing: 32) {
-            HStack(spacing: 20) {
-                Button("End Take") {
-                    viewModel.endTake()
-                }
-                .disabled(!viewModel.isTakeInProgress)
-            }
-            .frame(maxWidth: .infinity, alignment: .center)
-
             if viewModel.isTakeInProgress {
                 currentTakeInProgressContent
             } else {
@@ -214,6 +200,48 @@ extension ContentView {
         }
         .padding(32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .toolbar {
+            if viewModel.isTakeInProgress {
+                currentTakeActionsToolbar()
+            }
+            #if os(iOS)
+            if viewModel.isTakeInProgress {
+                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+            }
+            iOSAppActionsToolbar()
+            #endif
+        }
+    }
+
+    @ToolbarContentBuilder
+    private func currentTakeActionsToolbar() -> some ToolbarContent {
+        ToolbarItemGroup(placement: currentTakeToolbarPlacement) {
+            Button {
+                viewModel.endTake()
+            } label: {
+                Image(systemName: "stop.fill")
+            }
+            .disabled(!viewModel.isTakeInProgress)
+            .help("End Take")
+            .accessibilityLabel("End Take")
+
+            Button(role: .destructive) {
+                viewModel.cancelTake()
+            } label: {
+                Image(systemName: "trash")
+            }
+            .disabled(!viewModel.isTakeInProgress)
+            .help("Cancel Take")
+            .accessibilityLabel("Cancel Take")
+        }
+    }
+
+    private var currentTakeToolbarPlacement: ToolbarItemPlacement {
+        #if os(iOS)
+        .topBarTrailing
+        #else
+        .automatic
+        #endif
     }
 
     private var currentTakeInProgressContent: some View {
@@ -271,7 +299,7 @@ extension ContentView {
                         .frame(maxWidth: .infinity)
                 }
             }
-
+ 
             livePianoRoll
         }
     }
@@ -332,51 +360,24 @@ extension ContentView {
     }
 }
 
-// MARK: - iPhone app toolbar (detail column)
-
 #if os(iOS)
-/// `NavigationSplitView`'s own `.toolbar` applies to the sidebar on compact width; this attaches
-/// Settings / About to the detail stack so they appear on Current Take and every other detail.
-/// A leading control restores the sidebar column when the split is stacked (compact-width iPhone).
-private struct IPhoneGlobalAppToolbarModifier: ViewModifier {
-    let appState: AppState
-    @Binding var preferredCompactColumn: NavigationSplitViewColumn
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-
-    func body(content: Content) -> some View {
-        Group {
-            if UIDevice.current.userInterfaceIdiom == .phone {
-                content
-                    .toolbar {
-                        if horizontalSizeClass != .regular {
-                            ToolbarItem(placement: .topBarLeading) {
-                                Button {
-                                    preferredCompactColumn = .sidebar
-                                } label: {
-                                    Image(systemName: "sidebar.left")
-                                }
-                                .accessibilityLabel("Show sidebar")
-                            }
-                        }
-                        ToolbarItemGroup(placement: .topBarTrailing) {
-                            Button {
-                                appState.presentSettings()
-                            } label: {
-                                Image(systemName: "gearshape")
-                            }
-                            .accessibilityLabel("Preferences")
-
-                            Button {
-                                appState.presentAbout()
-                            } label: {
-                                Image(systemName: "info.circle")
-                            }
-                            .accessibilityLabel("About")
-                        }
-                    }
-            } else {
-                content
+extension ContentView {
+    @ToolbarContentBuilder
+    func iOSAppActionsToolbar() -> some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button {
+                appState.presentSettings()
+            } label: {
+                Image(systemName: "gearshape")
             }
+            .accessibilityLabel("Preferences")
+
+            Button {
+                appState.presentAbout()
+            } label: {
+                Image(systemName: "info.circle")
+            }
+            .accessibilityLabel("About")
         }
     }
 }

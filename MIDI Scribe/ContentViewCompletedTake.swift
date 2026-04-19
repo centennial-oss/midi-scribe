@@ -4,15 +4,11 @@
 //
 
 import SwiftUI
-#if os(iOS)
-import UIKit
-#endif
 
 extension ContentView {
-    /// iPhone: take actions stay leading so app Settings/About remain trailing.
     private var completedTakeToolbarPlacement: ToolbarItemPlacement {
         #if os(iOS)
-        UIDevice.current.userInterfaceIdiom == .phone ? .topBarLeading : .automatic
+        .topBarTrailing
         #else
         .automatic
         #endif
@@ -68,6 +64,10 @@ extension ContentView {
         completedTakePlaybackToolbar(for: take)
         ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
         completedTakeActionsToolbar(for: take)
+        #if os(iOS)
+        ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
+        iOSAppActionsToolbar()
+        #endif
     }
 
     @ToolbarContentBuilder
