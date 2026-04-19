@@ -57,6 +57,9 @@ struct PianoRollView: View {
 
     @State var dragStartOffset: TimeInterval?
     @State var dragIntersectedNotes: Set<UUID> = []
+    @State var lastScrubAuditionUptime: TimeInterval?
+    @State var scrubAuditionDiagnostics = ScrubAuditionDiagnostics()
+    @State var lastPlaybackModelDiagnosticUptime: TimeInterval?
     @State var scrubEdgeAutoScrollDirection: CGFloat = 0
     @State var scrubLastDragTranslationWidth: CGFloat?
     /// Local scrub offset used when the playback engine has no active take
@@ -183,6 +186,7 @@ struct PianoRollView: View {
                                     )
                                 )
                             }
+                            logPlaybackModelDiagnosticsIfNeeded(at: playOffset)
                         }
                         .onChange(of: zoomLevel) { _, _ in
                             beginPausedZoomCentering(debounce: true)
@@ -296,6 +300,9 @@ struct PianoRollView: View {
     private func resetScrubState() {
         dragStartOffset = nil
         dragIntersectedNotes.removeAll()
+        lastScrubAuditionUptime = nil
+        scrubAuditionDiagnostics = ScrubAuditionDiagnostics()
+        lastPlaybackModelDiagnosticUptime = nil
         localScrubOffset = nil
         viewModel.playbackEngine.stopScrubbingNotes()
         scrubEdgeAutoScrollDirection = 0

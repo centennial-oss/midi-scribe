@@ -6,7 +6,23 @@ struct ScrubDragAutoScrollContext {
     let viewportFrameInGlobal: CGRect
 }
 
+struct ScrubAuditionDiagnostics {
+    var startedUptime: TimeInterval?
+    var suppressedFrames = 0
+    var batches = 0
+    var noteOnCount = 0
+    var noteOffCount = 0
+    var maxIntersectedNotes = 0
+}
+
+struct PianoRollModelSnapshot {
+    let count: Int
+    let signature: String
+}
+
 extension PianoRollView {
+    private static let minimumScrubAuditionInterval: TimeInterval = 0.01
+
     func handleScrubDrag(
         value: DragGesture.Value,
         pixelsPerSecond: CGFloat,
@@ -16,6 +32,7 @@ extension PianoRollView {
         if dragStartOffset == nil {
             dragStartOffset = currentPlaybackOffset
             scrubLastDragTranslationWidth = 0
+            beginScrubAuditionDiagnostics(at: currentPlaybackOffset)
         }
         guard dragStartOffset != nil else { return }
         guard pixelsPerSecond > 0 else { return }
@@ -28,11 +45,7 @@ extension PianoRollView {
         syncScrubOffset(to: newOffset)
 
         let currentlyIntersected = intersectedNoteIDs(at: newOffset)
-        playScrubTransitions(
-            enteredIDs: currentlyIntersected.subtracting(dragIntersectedNotes),
-            exitedIDs: dragIntersectedNotes.subtracting(currentlyIntersected)
-        )
-        dragIntersectedNotes = currentlyIntersected
+        auditionScrubNotes(currentlyIntersected)
         updateScrubAutoScrollState(
             dragLocationInGlobal: value.location,
             autoScrollContext: autoScrollContext
@@ -41,9 +54,12 @@ extension PianoRollView {
     }
 
     func handleScrubEnd() {
+        logScrubAuditionSummary()
         dragStartOffset = nil
-        playScrubTransitions(enteredIDs: [], exitedIDs: dragIntersectedNotes)
+        viewModel.playbackEngine.stopScrubbingNotes()
         dragIntersectedNotes.removeAll()
+        lastScrubAuditionUptime = nil
+        resetScrubAuditionDiagnostics()
         scrubEdgeAutoScrollDirection = 0
         scrubLastDragTranslationWidth = nil
     }
@@ -110,11 +126,7 @@ extension PianoRollView {
 
         syncScrubOffset(to: targetOffset)
         let currentlyIntersected = intersectedNoteIDs(at: targetOffset)
-        playScrubTransitions(
-            enteredIDs: currentlyIntersected.subtracting(dragIntersectedNotes),
-            exitedIDs: dragIntersectedNotes.subtracting(currentlyIntersected)
-        )
-        dragIntersectedNotes = currentlyIntersected
+        auditionScrubNotes(currentlyIntersected)
         autoScrollIfScrubbingAtViewportEdge(proxy: proxy)
     }
 
@@ -136,14 +148,38 @@ extension PianoRollView {
         return intersectedIDs
     }
 
-    private func playScrubTransitions(enteredIDs: Set<UUID>, exitedIDs: Set<UUID>) {
-        for noteID in enteredIDs {
-            guard let note = notes.first(where: { $0.id == noteID }) else { continue }
-            emitScrubEvent(for: note, kind: .noteOn, velocity: note.velocity)
+    private func auditionScrubNotes(_ currentlyIntersected: Set<UUID>) {
+        let now = ProcessInfo.processInfo.systemUptime
+        scrubAuditionDiagnostics.maxIntersectedNotes = max(
+            scrubAuditionDiagnostics.maxIntersectedNotes,
+            currentlyIntersected.count
+        )
+        if let lastScrubAuditionUptime,
+           now - lastScrubAuditionUptime < Self.minimumScrubAuditionInterval {
+            scrubAuditionDiagnostics.suppressedFrames += 1
+            return
         }
+
+        let enteredIDs = currentlyIntersected.subtracting(dragIntersectedNotes)
+        let exitedIDs = dragIntersectedNotes.subtracting(currentlyIntersected)
+        playScrubTransitions(enteredIDs: enteredIDs, exitedIDs: exitedIDs)
+        if !enteredIDs.isEmpty || !exitedIDs.isEmpty {
+            scrubAuditionDiagnostics.batches += 1
+            scrubAuditionDiagnostics.noteOnCount += enteredIDs.count
+            scrubAuditionDiagnostics.noteOffCount += exitedIDs.count
+        }
+        dragIntersectedNotes = currentlyIntersected
+        lastScrubAuditionUptime = now
+    }
+
+    private func playScrubTransitions(enteredIDs: Set<UUID>, exitedIDs: Set<UUID>) {
         for noteID in exitedIDs {
             guard let note = notes.first(where: { $0.id == noteID }) else { continue }
             emitScrubEvent(for: note, kind: .noteOff, velocity: 0)
+        }
+        for noteID in enteredIDs {
+            guard let note = notes.first(where: { $0.id == noteID }) else { continue }
+            emitScrubEvent(for: note, kind: .noteOn, velocity: note.velocity)
         }
     }
 
@@ -199,5 +235,86 @@ extension PianoRollView {
     private func midiChannelNibble(for channel: UInt8) -> UInt8? {
         guard channel >= 1, channel <= 16 else { return nil }
         return channel - 1
+    }
+
+    private func beginScrubAuditionDiagnostics(at offset: TimeInterval) {
+        resetScrubAuditionDiagnostics()
+        scrubAuditionDiagnostics.startedUptime = ProcessInfo.processInfo.systemUptime
+        print(
+            "MIDI Scribe scrub audition started: " +
+                "take=\(take.id) offset=\(String(format: "%.3f", offset)) " +
+                "duration=\(String(format: "%.3f", take.duration)) notes=\(notes.count) " +
+                "target=\(viewModel.selectedPlaybackTarget)"
+        )
+    }
+
+    private func logScrubAuditionSummary() {
+        let elapsed = scrubAuditionDiagnostics.startedUptime.map {
+            max(ProcessInfo.processInfo.systemUptime - $0, 0)
+        } ?? 0
+        guard scrubAuditionDiagnostics.batches > 0 || scrubAuditionDiagnostics.suppressedFrames > 0 else { return }
+        print(
+            "MIDI Scribe scrub audition ended: " +
+                "take=\(take.id) elapsed=\(String(format: "%.3f", elapsed))s " +
+                "batches=\(scrubAuditionDiagnostics.batches) noteOns=\(scrubAuditionDiagnostics.noteOnCount) " +
+                "noteOffs=\(scrubAuditionDiagnostics.noteOffCount) " +
+                "suppressedFrames=\(scrubAuditionDiagnostics.suppressedFrames) " +
+                "maxIntersected=\(scrubAuditionDiagnostics.maxIntersectedNotes) finalOffset=" +
+                "\(String(format: "%.3f", currentPlaybackOffset))"
+        )
+    }
+
+    private func resetScrubAuditionDiagnostics() {
+        scrubAuditionDiagnostics = ScrubAuditionDiagnostics()
+    }
+
+    func logPlaybackModelDiagnosticsIfNeeded(at offset: TimeInterval) {
+        guard isTakePlaying, !isLive else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        if let lastPlaybackModelDiagnosticUptime, now - lastPlaybackModelDiagnosticUptime < 1 {
+            return
+        }
+        lastPlaybackModelDiagnosticUptime = now
+
+        let rendered = renderedModelSnapshot(at: offset)
+        let raw = rawEventModelSnapshot(at: offset)
+        guard rendered.signature != raw.signature else { return }
+
+        print(
+            "MIDI Scribe piano roll model mismatch: " +
+                "take=\(take.id) offset=\(String(format: "%.3f", offset)) " +
+                "renderedCount=\(rendered.count) rendered=\(rendered.signature) " +
+                "rawCount=\(raw.count) raw=\(raw.signature) events=\(take.events.count) notes=\(notes.count)"
+        )
+    }
+
+    private func renderedModelSnapshot(at offset: TimeInterval) -> PianoRollModelSnapshot {
+        let active = notes.filter { note in
+            offset >= note.startOffset && offset <= note.startOffset + note.duration
+        }
+        return PianoRollModelSnapshot(count: active.count, signature: noteSignature(active))
+    }
+
+    private func rawEventModelSnapshot(at offset: TimeInterval) -> PianoRollModelSnapshot {
+        var activeByChannelAndPitch: [UInt8: Set<UInt8>] = [:]
+        for event in take.events.sorted(by: { $0.offsetFromTakeStart < $1.offsetFromTakeStart }) {
+            if event.offsetFromTakeStart > offset { break }
+            guard event.channel >= 1, event.channel <= 16 else { continue }
+            guard let pitch = event.noteNumber else { continue }
+            if event.kind == .noteOn && (event.velocity ?? 0) > 0 {
+                activeByChannelAndPitch[event.channel, default: []].insert(pitch)
+            } else if event.kind == .noteOff || (event.kind == .noteOn && event.velocity == 0) {
+                activeByChannelAndPitch[event.channel]?.remove(pitch)
+            }
+        }
+
+        let pairs = activeByChannelAndPitch.flatMap { channel, pitches in
+            pitches.map { pitch in "\(channel):\(pitch)" }
+        }.sorted()
+        return PianoRollModelSnapshot(count: pairs.count, signature: pairs.prefix(12).joined(separator: ","))
+    }
+
+    private func noteSignature(_ notes: [PianoRollNote]) -> String {
+        notes.map { "\($0.channel):\($0.pitch)" }.sorted().prefix(12).joined(separator: ",")
     }
 }
