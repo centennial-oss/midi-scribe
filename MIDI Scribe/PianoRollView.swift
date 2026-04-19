@@ -7,7 +7,10 @@ import SwiftUI
 
 struct PianoRollView: View {
     private static let rollCornerRadius: CGFloat = 8
-    private static let maxConcurrentScrubAuditionNotes = 24
+    static let maxConcurrentScrubAuditionNotes = 24
+    static let timelineLeadingInset: CGFloat = 12
+    /// Nudges the paused scrub knob down so the rounded clip does not crop its top.
+    static let playheadKnobVerticalOffset: CGFloat = 10
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -52,17 +55,18 @@ struct PianoRollView: View {
     /// deduplicated counter so repeated redraws do not inflate the value.
     @State var ignoredMalformedEventIDs: Set<UUID> = []
 
-    @State private var dragStartOffset: TimeInterval?
-    @State private var dragIntersectedNotes: Set<UUID> = []
+    @State var dragStartOffset: TimeInterval?
+    @State var dragIntersectedNotes: Set<UUID> = []
+    @State var scrubEdgeAutoScrollDirection: CGFloat = 0
+    @State var scrubLastDragTranslationWidth: CGFloat?
     /// Local scrub offset used when the playback engine has no active take
     /// for this piano roll (e.g. before the user has ever pressed Play).
     /// Without this, the engine's `currentPlaybackTime` would stay at 0
     /// during a drag because `currentTakeID` hasn't been assigned yet.
-    @State private var localScrubOffset: TimeInterval?
+    @State var localScrubOffset: TimeInterval?
 
     /// To smoothly zoom on iOS:
     @State private var currentMagnification: CGFloat = 1.0
-    @State private var lastScrollUpdate: TimeInterval = -1
     @State private var isZoomCentering = false
     @State private var isPinchZooming = false
     @State private var zoomCenteringTask: Task<Void, Never>?
@@ -85,13 +89,14 @@ struct PianoRollView: View {
 
                 let secondsLength = max(0.01, take.duration)
                 let zoomInterpolation = max(0, min(1, zoomLevel + (currentMagnification - 1.0) * 0.5))
-                let minPxPerSec = layoutWidth / secondsLength
-                let maxPxPerSec = layoutWidth / 5.0
+                let timelineLayoutWidth = max(layoutWidth - Self.timelineLeadingInset, 1)
+                let minPxPerSec = timelineLayoutWidth / secondsLength
+                let maxPxPerSec = timelineLayoutWidth / 5.0
 
                 let calculatedPxPerSec = minPxPerSec + zoomInterpolation * (maxPxPerSec - minPxPerSec)
                 let pixelsPerSecond = secondsLength < 5.0 ? minPxPerSec : max(minPxPerSec, calculatedPxPerSec)
 
-                let rollWidth = max(layoutWidth, secondsLength * pixelsPerSecond)
+                let rollWidth = max(layoutWidth, Self.timelineLeadingInset + (secondsLength * pixelsPerSecond))
 
                 let playOffset = currentPlaybackOffset
 
@@ -115,7 +120,7 @@ struct PianoRollView: View {
                             .frame(width: rollWidth, height: viewHeight)
                             .allowsHitTesting(false)
 
-                            let headX = playOffset * pixelsPerSecond
+                            let headX = Self.timelineLeadingInset + (playOffset * pixelsPerSecond)
 
                             HStack(spacing: 0) {
                                 Spacer(minLength: 0)
@@ -137,14 +142,19 @@ struct PianoRollView: View {
                                     .fill(playheadChrome)
                                     .frame(width: 24, height: 24)
                                     .contentShape(Circle())
-                                    .offset(x: headX - 11)
+                                    .offset(x: headX - 11, y: Self.playheadKnobVerticalOffset)
                                     .gesture(
                                         DragGesture(minimumDistance: 0, coordinateSpace: .global)
                                             .onChanged { value in
                                                 handleScrubDrag(
                                                     value: value,
                                                     pixelsPerSecond: pixelsPerSecond,
-                                                    proxy: proxy
+                                                    proxy: proxy,
+                                                    autoScrollContext: ScrubDragAutoScrollContext(
+                                                        rollWidth: rollWidth,
+                                                        layoutWidth: layoutWidth,
+                                                        viewportFrameInGlobal: geo.frame(in: .global)
+                                                    )
                                                 )
                                             }
                                             .onEnded { _ in
@@ -161,6 +171,17 @@ struct PianoRollView: View {
                                 proxy.scrollTo("playhead", anchor: .center)
                             } else if isLive && rollWidth > layoutWidth {
                                 proxy.scrollTo("playhead", anchor: .trailing)
+                            }
+                            if dragStartOffset != nil {
+                                continueScrubAutoScrollIfNeeded(
+                                    proxy: proxy,
+                                    pixelsPerSecond: pixelsPerSecond,
+                                    autoScrollContext: ScrubDragAutoScrollContext(
+                                        rollWidth: rollWidth,
+                                        layoutWidth: layoutWidth,
+                                        viewportFrameInGlobal: geo.frame(in: .global)
+                                    )
+                                )
                             }
                         }
                         .onChange(of: zoomLevel) { _, _ in
@@ -260,7 +281,7 @@ struct PianoRollView: View {
         }
     }
 
-    private var isTakePlaying: Bool {
+    var isTakePlaying: Bool {
         viewModel.isPlaying(takeID: take.id)
     }
 
@@ -272,21 +293,17 @@ struct PianoRollView: View {
         !isLive && !isTakePlaying && isZoomCentering
     }
 
-    private var disableManualScrollOnCurrentPlatform: Bool {
-        #if os(iOS)
-        true
-        #else
-        false
-        #endif
-    }
-
     private func resetScrubState() {
         dragStartOffset = nil
         dragIntersectedNotes.removeAll()
         localScrubOffset = nil
         viewModel.playbackEngine.stopScrubbingNotes()
+        scrubEdgeAutoScrollDirection = 0
+        scrubLastDragTranslationWidth = nil
     }
+}
 
+extension PianoRollView {
     private func beginPausedZoomCentering(debounce: Bool) {
         guard !isLive, !isTakePlaying else { return }
         if !isZoomCentering {
@@ -312,10 +329,8 @@ struct PianoRollView: View {
         didPrimeInitialLayout = true
         layoutPrimeID += 1
     }
-}
 
-extension PianoRollView {
-    private var currentPlaybackOffset: TimeInterval {
+    var currentPlaybackOffset: TimeInterval {
         if isLive {
             return take.duration
         }
@@ -343,145 +358,6 @@ extension PianoRollView {
         return "\(notes[noteIndex])\(octave)"
     }
 
-    private func handleScrubDrag(value: DragGesture.Value, pixelsPerSecond: CGFloat, proxy: ScrollViewProxy) {
-        if dragStartOffset == nil {
-            dragStartOffset = currentPlaybackOffset
-        }
-        guard let start = dragStartOffset else { return }
-
-        let deltaOffset = TimeInterval(value.translation.width / pixelsPerSecond)
-        let newOffset = max(0, start + deltaOffset)
-
-        viewModel.playbackEngine.updatePausedOffset(to: newOffset, takeID: take.id)
-        if viewModel.playbackEngine.currentTakeID != take.id {
-            localScrubOffset = newOffset
-        }
-        // Auto-scroll handled by onChange of playhead
-
-        // Dense MIDI can have very large overlaps at a single playhead offset.
-        // Cap scrub audition polyphony to avoid overwhelming the sampler.
-        var currentlyIntersected: Set<UUID> = []
-        for note in notes where currentlyIntersected.count < Self.maxConcurrentScrubAuditionNotes {
-            if newOffset >= note.startOffset && newOffset <= (note.startOffset + note.duration) {
-                currentlyIntersected.insert(note.id)
-            }
-        }
-
-        let newlyEntered = currentlyIntersected.subtracting(dragIntersectedNotes)
-        let newlyExited = dragIntersectedNotes.subtracting(currentlyIntersected)
-
-        for noteID in newlyEntered {
-            if let note = notes.first(where: { $0.id == noteID }) {
-                guard let channelNibble = midiChannelNibble(for: note.channel) else { continue }
-                let status = UInt8(0x90 | channelNibble)
-                let pitch = note.pitch & 0x7F
-                let velocity = note.velocity & 0x7F
-                let event = RecordedMIDIEvent(
-                    receivedAt: Date(),
-                    offsetFromTakeStart: 0,
-                    kind: .noteOn,
-                    channel: note.channel,
-                    status: status,
-                    data1: pitch,
-                    data2: velocity
-                )
-                viewModel.playbackEngine.playScrubEvent(event, target: viewModel.selectedPlaybackTarget)
-            }
-        }
-
-        for noteID in newlyExited {
-            if let note = notes.first(where: { $0.id == noteID }) {
-                guard let channelNibble = midiChannelNibble(for: note.channel) else { continue }
-                let status = UInt8(0x80 | channelNibble)
-                let pitch = note.pitch & 0x7F
-                let event = RecordedMIDIEvent(
-                    receivedAt: Date(),
-                    offsetFromTakeStart: 0,
-                    kind: .noteOff,
-                    channel: note.channel,
-                    status: status,
-                    data1: pitch,
-                    data2: 0
-                )
-                viewModel.playbackEngine.playScrubEvent(event, target: viewModel.selectedPlaybackTarget)
-            }
-        }
-
-        dragIntersectedNotes = currentlyIntersected
-    }
-
-    private func handleScrubEnd() {
-        dragStartOffset = nil
-        for noteID in dragIntersectedNotes {
-            if let note = notes.first(where: { $0.id == noteID }) {
-                guard let channelNibble = midiChannelNibble(for: note.channel) else { continue }
-                let status = UInt8(0x80 | channelNibble)
-                let pitch = note.pitch & 0x7F
-                let event = RecordedMIDIEvent(
-                    receivedAt: Date(),
-                    offsetFromTakeStart: 0,
-                    kind: .noteOff,
-                    channel: note.channel,
-                    status: status,
-                    data1: pitch,
-                    data2: 0
-                )
-                viewModel.playbackEngine.playScrubEvent(event, target: viewModel.selectedPlaybackTarget)
-            }
-        }
-        dragIntersectedNotes.removeAll()
-    }
-
-    private func handleRollTap(
-        at location: CGPoint,
-        rollWidth: CGFloat,
-        pixelsPerSecond: CGFloat,
-        viewHeight: CGFloat,
-        playOffset: TimeInterval
-    ) {
-        guard !isLive, pixelsPerSecond > 0, rollWidth > 0 else { return }
-        guard location.x.isFinite, location.y.isFinite else { return }
-
-        // Preserve playhead-circle scrubbing interactions.
-        if !isTakePlaying {
-            let playheadX = CGFloat(playOffset) * pixelsPerSecond
-            let scrubHandleCenter = CGPoint(x: playheadX, y: 12)
-            let dx = location.x - scrubHandleCenter.x
-            let dy = location.y - scrubHandleCenter.y
-            let distance = (dx * dx + dy * dy).squareRoot()
-            if distance <= 18 { return }
-        }
-
-        let clampedX = min(max(0, location.x), rollWidth)
-        let tappedOffset = min(take.duration, max(0, TimeInterval(clampedX / pixelsPerSecond)))
-        let snappedOffset = snappedSeekOffset(forTappedOffset: tappedOffset)
-        seekPlayback(to: snappedOffset)
-    }
-
-    private func seekPlayback(to offset: TimeInterval) {
-        let wasPlaying = isTakePlaying
-        if wasPlaying {
-            viewModel.playbackEngine.pause()
-        }
-
-        viewModel.playbackEngine.updatePausedOffset(to: offset, takeID: take.id)
-        localScrubOffset = offset
-
-        if wasPlaying {
-            viewModel.playbackEngine.togglePlayback(for: take, target: viewModel.selectedPlaybackTarget)
-        }
-    }
-
-    private func snappedSeekOffset(forTappedOffset tappedOffset: TimeInterval) -> TimeInterval {
-        let intersectedNotes = notes.filter { note in
-            tappedOffset >= note.startOffset && tappedOffset <= (note.startOffset + note.duration)
-        }
-        guard let earliestStart = intersectedNotes.map(\.startOffset).min() else {
-            return tappedOffset
-        }
-        return earliestStart
-    }
-
     func computeNotes() {
         computeNoteEvents()
         computeCCs()
@@ -493,8 +369,4 @@ extension PianoRollView {
         liveActiveCCs.removeAll(keepingCapacity: true)
     }
 
-    private func midiChannelNibble(for channel: UInt8) -> UInt8? {
-        guard channel >= 1 && channel <= 16 else { return nil }
-        return channel - 1
-    }
 }

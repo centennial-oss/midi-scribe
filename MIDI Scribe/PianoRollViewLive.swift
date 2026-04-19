@@ -198,6 +198,7 @@ struct PianoRollDrawContext {
     let noteHeight: CGFloat
     let ccHeight: CGFloat
     let pixelsPerSecond: CGFloat
+    let timelineLeadingInset: CGFloat
     let playOffset: TimeInterval
     let idleNoteColor: Color
     let playingNoteColor: Color
@@ -215,6 +216,7 @@ extension PianoRollView {
             noteHeight: max(1, keyHeight - 1),
             ccHeight: max(4, keyHeight),
             pixelsPerSecond: pixelsPerSecond,
+            timelineLeadingInset: Self.timelineLeadingInset,
             playOffset: playOffset,
             idleNoteColor: Color(red: 0.6, green: 1.0, blue: 0.2),
             playingNoteColor: Color(red: 1.0, green: 0.2, blue: 0.8)
@@ -244,7 +246,7 @@ extension PianoRollView {
         into context: GraphicsContext,
         drawContext: PianoRollDrawContext
     ) {
-        let startX = note.startOffset * drawContext.pixelsPerSecond
+        let startX = drawContext.timelineLeadingInset + (note.startOffset * drawContext.pixelsPerSecond)
         let width = max(2, note.duration * drawContext.pixelsPerSecond)
         let topY = pitchToY(pitch: note.pitch, keyHeight: drawContext.keyHeight) + 12
         let rect = CGRect(x: startX, y: topY, width: width, height: drawContext.noteHeight)
@@ -264,7 +266,7 @@ extension PianoRollView {
         into context: GraphicsContext,
         drawContext: PianoRollDrawContext
     ) {
-        let startX = ccEvent.startOffset * drawContext.pixelsPerSecond
+        let startX = drawContext.timelineLeadingInset + (ccEvent.startOffset * drawContext.pixelsPerSecond)
         let width = max(2, ccEvent.duration * drawContext.pixelsPerSecond)
         let rect = CGRect(x: startX, y: 12, width: width, height: drawContext.ccHeight)
         context.fill(Path(rect), with: .color(ccEvent.kind.color))
