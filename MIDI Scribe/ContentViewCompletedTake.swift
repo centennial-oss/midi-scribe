@@ -4,35 +4,43 @@
 //
 
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 extension ContentView {
+    /// iPhone: take actions stay leading so app Settings/About remain trailing.
+    private var completedTakeToolbarPlacement: ToolbarItemPlacement {
+        #if os(iOS)
+        UIDevice.current.userInterfaceIdiom == .phone ? .topBarLeading : .automatic
+        #else
+        .automatic
+        #endif
+    }
+
     func completedTakeDetail(for takeID: UUID) -> some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 6) {
             if let take = viewModel.recentTake(id: takeID) {
-                completedTakeToolbar(for: take)
                 completedTakeProgressAndErrors
-                takeTitleView(for: take)
 
-                HStack(alignment: .top, spacing: 32) {
-                    completedTakeMetadata(for: take)
-                    Spacer()
-                    // Zoom Buttons
-                    let isZoomDisabled = take.summary.duration < 5.0
-                    HStack(spacing: 8) {
-                        Image(systemName: "minus.magnifyingglass")
-                            .foregroundStyle(isZoomDisabled ? .secondary : .primary)
-
-                        Slider(value: $pianoRollZoomLevel, in: 0...1)
-                            .frame(width: 150)
-                            .disabled(isZoomDisabled)
-
-                        Image(systemName: "plus.magnifyingglass")
-                            .foregroundStyle(isZoomDisabled ? .secondary : .primary)
-                    }
-                }
+                completedTakeMetadata(for: take)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                 if let fullTake = viewModel.fullTake(id: take.id) {
-                    PianoRollView(take: fullTake, viewModel: viewModel, zoomLevel: $pianoRollZoomLevel)
+                    VStack(alignment: .trailing, spacing: 8) {
+                        PianoRollView(take: fullTake, viewModel: viewModel, zoomLevel: $pianoRollZoomLevel)
+                            .id(take.id)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+#if os(iOS)
+                        if UIDevice.current.userInterfaceIdiom != .phone {
+                            completedTakeZoomSliderRow(for: take)
+                        }
+#else
+                        completedTakeZoomSliderRow(for: take)
+#endif
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 } else {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -43,63 +51,99 @@ extension ContentView {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .padding(32)
+        .padding(.horizontal, 24)
+        .padding(.top, 6)
+        .padding(.bottom, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .toolbar {
+            if let take = viewModel.recentTake(id: takeID) {
+                completedTakeToolbar(for: take)
+            }
+        }
+        .navigationTitle(viewModel.recentTake(id: takeID)?.displayTitle ?? "Take")
     }
 
-    @ViewBuilder
-    private func completedTakeToolbar(for take: RecordedTakeListItem) -> some View {
-        HStack(spacing: 16) {
-            Button(viewModel.isPlaying(takeID: take.id) ? "Pause" : "Play") {
+    @ToolbarContentBuilder
+    private func completedTakeToolbar(for take: RecordedTakeListItem) -> some ToolbarContent {
+        let playLabel = viewModel.isPlaying(takeID: take.id) ? "Pause" : "Play"
+        let playIcon = viewModel.isPlaying(takeID: take.id) ? "pause.fill" : "play.fill"
+        let splitLabel = splitTakeLabel(for: take)
+        let starLabel = take.isStarred ? "Unstar" : "Star"
+        let starIcon = take.isStarred ? "star.fill" : "star"
+
+        ToolbarItemGroup(placement: completedTakeToolbarPlacement) {
+
+            toolbarIconButton(playLabel, systemImage: playIcon, disabled: viewModel.isTakeActionInProgress) {
                 viewModel.togglePlayback(for: take.id)
             }
-            .disabled(viewModel.isTakeActionInProgress)
 
-            Button("Restart") {
+            toolbarIconButton("Restart", systemImage: "gobackward", disabled: viewModel.isTakeActionInProgress) {
                 viewModel.restartPlayback(for: take.id)
             }
-            .disabled(viewModel.isTakeActionInProgress)
 
-            splitTakeButton(for: take)
-
-            Picker("Output Device", selection: $viewModel.selectedPlaybackTarget) {
-                Text("OS Speakers").tag(PlaybackOutputTarget.osSpeakers)
-                ForEach(1...16, id: \.self) { channel in
-                    Text("MIDI Channel \(channel)").tag(PlaybackOutputTarget.midiChannel(channel))
-                }
+            toolbarIconButton("Rename Take", systemImage: "pencil", disabled: viewModel.isTakeActionInProgress) {
+                beginRename(take)
             }
-            .frame(maxWidth: 260)
-            .disabled(viewModel.isTakeActionInProgress)
 
-            Button(take.isStarred ? "Unstar" : "Star") {
+            toolbarIconButton(
+                splitLabel,
+                systemImage: "square.split.2x1",
+                disabled: !viewModel.canSplit(takeID: take.id) || viewModel.isTakeActionInProgress
+            ) {
+                viewModel.splitCurrentPausedTake()
+            }
+
+            toolbarIconButton(
+                starLabel,
+                systemImage: starIcon,
+                disabled: viewModel.isTakeActionInProgress,
+                foregroundStyle: take.isStarred ? .yellow : nil
+            ) {
                 viewModel.toggleStar(takeID: take.id)
             }
-            .disabled(viewModel.isTakeActionInProgress)
 
-            Button("Export .mid") {
+            toolbarIconButton(
+                "Export .mid",
+                systemImage: "square.and.arrow.up",
+                disabled: viewModel.isTakeActionInProgress
+            ) {
                 exportTake(id: take.id)
             }
-            .disabled(viewModel.isTakeActionInProgress)
 
-            Button("Delete Take", role: .destructive) {
+            toolbarIconButton(
+                "Delete Take",
+                systemImage: "trash",
+                disabled: viewModel.isTakeActionInProgress,
+                role: .destructive
+            ) {
                 pendingDeleteTakeID = take.id
             }
-            .disabled(viewModel.isTakeActionInProgress)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func splitTakeButton(for take: RecordedTakeListItem) -> some View {
+    private func toolbarIconButton(
+        _ label: String,
+        systemImage: String,
+        disabled: Bool,
+        role: ButtonRole? = nil,
+        foregroundStyle: Color? = nil,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(role: role, action: action) {
+            Image(systemName: systemImage)
+                .foregroundStyle(foregroundStyle ?? .primary)
+        }
+        .disabled(disabled)
+        .help(label)
+        .accessibilityLabel(label)
+    }
+
+    private func splitTakeLabel(for take: RecordedTakeListItem) -> String {
         let canSplit = viewModel.canSplit(takeID: take.id)
         let offsetText = formatOffset(viewModel.pausedPlaybackOffset ?? 0)
-        let title = canSplit
+        return canSplit
             ? "Split Take Here (\(offsetText))"
             : "Split Take Here"
-        return Button(title) {
-            viewModel.splitCurrentPausedTake()
-        }
-        .disabled(!canSplit || viewModel.isTakeActionInProgress)
-        .help("Pause playback at the point where you want to split, then click here.")
     }
 
     @ViewBuilder
@@ -128,14 +172,35 @@ extension ContentView {
     }
 
     private func completedTakeMetadata(for take: RecordedTakeListItem) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 24) {
-            inlineLabeledValue("Duration", viewModel.completedTakeDurationText(take))
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            HStack(spacing: 6) {
+                Text(viewModel.completedTakeDurationText(take))
+                    .font(.body.monospaced())
+                    .foregroundStyle(.secondary)
+            }
             inlineLabeledValue("Events", "\(take.summary.eventCount)")
-            inlineLabeledValue("Note On / Off", "\(take.summary.noteOnCount) / \(take.summary.noteOffCount)")
-            inlineLabeledValue("Channels", viewModel.completedTakeChannelsText(take))
+            inlineLabeledValue("Notes", "\(max(take.summary.noteOnCount, take.summary.noteOffCount))")
             inlineLabeledValue("Range", viewModel.completedTakeRangeText(take))
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Zoom controls sit below the piano roll, trailing-aligned.
+    private func completedTakeZoomSliderRow(for take: RecordedTakeListItem) -> some View {
+        let isZoomDisabled = take.summary.duration < 5.0
+        return HStack {
+            Spacer(minLength: 0)
+            HStack(spacing: 8) {
+                Image(systemName: "minus.magnifyingglass")
+                    .foregroundStyle(isZoomDisabled ? .secondary : .primary)
+
+                Slider(value: $pianoRollZoomLevel, in: 0...1)
+                    .frame(width: 150)
+                    .disabled(isZoomDisabled)
+
+                Image(systemName: "plus.magnifyingglass")
+                    .foregroundStyle(isZoomDisabled ? .secondary : .primary)
+            }
+        }
     }
 
     private func inlineLabeledValue(_ label: String, _ value: String) -> some View {
@@ -146,19 +211,6 @@ extension ContentView {
                 .font(.body.monospaced())
                 .foregroundStyle(.secondary)
         }
-    }
-
-    @ViewBuilder
-    func takeTitleView(for take: RecordedTakeListItem) -> some View {
-        HStack {
-            Text(take.displayTitle)
-                .font(.title2.monospaced())
-            Button("Rename") { beginRename(take) }
-                .buttonStyle(.borderless)
-                .foregroundStyle(Color.accentColor)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .onTapGesture(count: 2) { beginRename(take) }
     }
 
     func placeholderDetail(_ text: String) -> some View {

@@ -38,6 +38,27 @@ struct PianoRollCC: Identifiable {
 }
 
 struct PianoRollView: View {
+    private static let rollCornerRadius: CGFloat = 8
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    /// Dark charcoal in light mode so lime note bars pop; solid black in dark mode.
+    private var rollBackground: Color {
+        switch colorScheme {
+        case .light:
+            return Color(red: 0.14, green: 0.14, blue: 0.15)
+        case .dark:
+            return .black
+        @unknown default:
+            return Color(red: 0.14, green: 0.14, blue: 0.15)
+        }
+    }
+
+    /// Playhead line + scrub handle: light on dark roll in both modes.
+    private var playheadChrome: Color {
+        colorScheme == .dark ? Color.white : Color(white: 0.92)
+    }
+
     let take: RecordedTake
     @ObservedObject var viewModel: MIDILiveNoteViewModel
     @Binding var zoomLevel: CGFloat
@@ -70,31 +91,38 @@ struct PianoRollView: View {
     /// To smoothly zoom on iOS:
     @State private var currentMagnification: CGFloat = 1.0
     @State private var lastScrollUpdate: TimeInterval = -1
+    @State private var isZoomCentering = false
+    @State private var isPinchZooming = false
+    @State private var zoomCenteringTask: Task<Void, Never>?
 
     var body: some View {
-        TimelineView(.animation(paused: !isTakePlaying && dragStartOffset == nil && !isLive)) { context in
+        TimelineView(.animation(paused: !shouldAnimatePianoRoll)) { context in
             GeometryReader { geo in
-                let availableHeight = geo.size.height - 12 // Leave 12px for the scrubber head at the top
-                let keyHeight = max(4.0, min(7.0, availableHeight / 88.0))
+                // iPadOS often reports 0×0 on the first layout pass; using that for scale yields 0px-wide
+                // content so the Canvas stays blank until something (e.g. zoom) forces a relayout.
+                let layoutWidth = max(geo.size.width, 1)
+                let layoutHeight = max(geo.size.height, 1)
+                let availableHeight = layoutHeight - 12 // Leave 12px for the scrubber head at the top
+                let keyHeight = max(3.5, availableHeight / 88.0)
                 let rollHeight = keyHeight * 88.0
                 let viewHeight = rollHeight + 12
 
                 let secondsLength = max(0.01, take.duration)
                 let zoomInterpolation = max(0, min(1, zoomLevel + (currentMagnification - 1.0) * 0.5))
-                let minPxPerSec = geo.size.width / secondsLength
-                let maxPxPerSec = geo.size.width / 5.0
+                let minPxPerSec = layoutWidth / secondsLength
+                let maxPxPerSec = layoutWidth / 5.0
 
                 let calculatedPxPerSec = minPxPerSec + zoomInterpolation * (maxPxPerSec - minPxPerSec)
                 let pixelsPerSecond = secondsLength < 5.0 ? minPxPerSec : max(minPxPerSec, calculatedPxPerSec)
 
-                let rollWidth = max(geo.size.width, secondsLength * pixelsPerSecond)
+                let rollWidth = max(layoutWidth, secondsLength * pixelsPerSecond)
 
                 let playOffset = currentPlaybackOffset
 
                 ScrollView(.horizontal) {
                     ScrollViewReader { proxy in
                         ZStack(alignment: .topLeading) {
-                            Color(white: 0.1) // Dark background
+                            rollBackground
 
                             // Render all notes + CCs in a single Canvas to
                             // avoid SwiftUI diffing thousands of Rectangle
@@ -115,61 +143,73 @@ struct PianoRollView: View {
 
                             HStack(spacing: 0) {
                                 Spacer(minLength: 0)
-                                    .frame(width: max(0, headX - 11))
-                                ZStack(alignment: .topLeading) {
-                                    Rectangle()
-                                        .fill(Color.white)
-                                        .frame(width: 2, height: rollHeight)
-                                        .padding(.leading, 11) // Align to exact center of 24px wide circle
-                                        .padding(.top, 12)
-
-                                    if !isTakePlaying && !isLive {
-                                        Circle()
-                                            .fill(Color.white)
-                                            .frame(width: 24, height: 24)
-                                            .contentShape(Circle())
-                                            .gesture(
-                                                DragGesture(minimumDistance: 0, coordinateSpace: .global)
-                                                    .onChanged { value in
-                                                        handleScrubDrag(
-                                                            value: value,
-                                                            pixelsPerSecond: pixelsPerSecond,
-                                                            proxy: proxy
-                                                        )
-                                                    }
-                                                    .onEnded { _ in
-                                                        handleScrubEnd()
-                                                    }
-                                            )
-                                    }
-                                }
-                                .id("playhead")
+                                    .frame(width: headX)
+                                Color.clear
+                                    .frame(width: 1, height: viewHeight)
+                                    .id("playhead")
                                 Spacer(minLength: 0)
+                            }
+
+                            Rectangle()
+                                .fill(playheadChrome)
+                                .frame(width: 2, height: rollHeight)
+                                .padding(.top, 12)
+                                .offset(x: headX)
+
+                            if !isTakePlaying && !isLive {
+                                Circle()
+                                    .fill(playheadChrome)
+                                    .frame(width: 24, height: 24)
+                                    .contentShape(Circle())
+                                    .offset(x: headX - 11)
+                                    .gesture(
+                                        DragGesture(minimumDistance: 0, coordinateSpace: .global)
+                                            .onChanged { value in
+                                                handleScrubDrag(
+                                                    value: value,
+                                                    pixelsPerSecond: pixelsPerSecond,
+                                                    proxy: proxy
+                                                )
+                                            }
+                                            .onEnded { _ in
+                                                handleScrubEnd()
+                                            }
+                                    )
                             }
                         }
                         .frame(width: rollWidth, height: viewHeight, alignment: .topLeading)
                         .transaction { $0.animation = nil }
                         .onChange(of: context.date) { _, _ in
-                            if isTakePlaying || dragStartOffset != nil {
+                            if isTakePlaying || shouldCenterPausedPlayheadDuringZoom {
                                 proxy.scrollTo("playhead", anchor: .center)
-                            } else if isLive && rollWidth > geo.size.width {
+                            } else if isLive && rollWidth > layoutWidth {
                                 proxy.scrollTo("playhead", anchor: .trailing)
                             }
+                        }
+                        .onChange(of: zoomLevel) { _, _ in
+                            beginPausedZoomCentering(debounce: true)
                         }
                         .gesture(
                             MagnificationGesture()
                                 .onChanged { value in
+                                    if !isPinchZooming {
+                                        isPinchZooming = true
+                                        beginPausedZoomCentering(debounce: false)
+                                    }
                                     currentMagnification = value
                                 }
                                 .onEnded { value in
                                     let delta = (value - 1.0) * 0.5
                                     zoomLevel = max(0.0, min(1.0, zoomLevel + delta))
                                     currentMagnification = 1.0
+                                    isPinchZooming = false
+                                    beginPausedZoomCentering(debounce: true)
                                 }
                         )
                     }
                 }
                 .frame(height: viewHeight)
+                .clipShape(RoundedRectangle(cornerRadius: Self.rollCornerRadius, style: .continuous))
 
                 // Tooltips layer intentionally omitted: previously a
                 // per-note hover .help() was rendered here, but the
@@ -182,6 +222,13 @@ struct PianoRollView: View {
         .onAppear {
             computeNotes()
             liveEventsProcessedCount = take.events.count
+        }
+        /// Completed takes: first frame can lay out before `GeometryReader` has a stable size; yield once
+        /// so `computeNotes()`/Canvas see non-zero scale (matches “zoom fixes it” without user action).
+        .task(id: take.id) {
+            guard !isLive else { return }
+            await Task.yield()
+            computeNotes()
         }
         .onChange(of: take.id) { _, _ in
             resetScrubState()
@@ -200,11 +247,38 @@ struct PianoRollView: View {
         viewModel.isPlaying(takeID: take.id)
     }
 
+    private var shouldAnimatePianoRoll: Bool {
+        isTakePlaying || dragStartOffset != nil || isLive || isZoomCentering
+    }
+
+    private var shouldCenterPausedPlayheadDuringZoom: Bool {
+        !isLive && !isTakePlaying && isZoomCentering
+    }
+
     private func resetScrubState() {
         dragStartOffset = nil
         dragIntersectedNotes.removeAll()
         localScrubOffset = nil
         viewModel.playbackEngine.stopScrubbingNotes()
+    }
+
+    private func beginPausedZoomCentering(debounce: Bool) {
+        guard !isLive, !isTakePlaying else { return }
+        if !isZoomCentering {
+            isZoomCentering = true
+        }
+        guard debounce else { return }
+
+        zoomCenteringTask?.cancel()
+        zoomCenteringTask = Task {
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                guard !isPinchZooming else { return }
+                isZoomCentering = false
+                zoomCenteringTask = nil
+            }
+        }
     }
 }
 
@@ -246,7 +320,7 @@ extension PianoRollView {
         let deltaOffset = TimeInterval(value.translation.width / pixelsPerSecond)
         let newOffset = max(0, start + deltaOffset)
 
-        viewModel.playbackEngine.updatePausedOffset(to: newOffset)
+        viewModel.playbackEngine.updatePausedOffset(to: newOffset, takeID: take.id)
         if viewModel.playbackEngine.currentTakeID != take.id {
             localScrubOffset = newOffset
         }

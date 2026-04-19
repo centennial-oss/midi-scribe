@@ -99,13 +99,6 @@ final class MIDILiveNoteViewModel: ObservableObject {
         stop()
     }
 
-    func nextTake() {
-        completedTakeSelectionMode = .stayOnCurrent
-        Task {
-            await takeLifecycle.endCurrentTake()
-        }
-    }
-
     func endTake() {
         completedTakeSelectionMode = .showCompleted
         Task {
@@ -128,9 +121,9 @@ final class MIDILiveNoteViewModel: ObservableObject {
         let channelLabel = channels.isEmpty ? "None" : channels
         return [
             "Events: \(summary.eventCount)",
-            "Notes On/Off: \(summary.noteOnCount)/\(summary.noteOffCount)",
-            "Channels: \(channelLabel)",
-            "Range: \(noteRangeText)"
+            "Notes: \(max(summary.noteOnCount, summary.noteOffCount))",
+            "Range: \(noteRangeText)",
+            "Channels: \(channelLabel)"
         ].joined(separator: "  ")
     }
 
@@ -143,19 +136,6 @@ final class MIDILiveNoteViewModel: ObservableObject {
         guard let lastEventAt = currentTakeSnapshot.lastEventAt else { return "" }
         let remaining = max(settings.newTakePauseSeconds - Date().timeIntervalSince(lastEventAt), 0)
         return "Idle Timeout in \(formatDuration(remaining))"
-    }
-
-    var lastTakeSummaryText: String {
-        guard let lastCompletedTake else { return "No completed takes recorded yet." }
-        let summary = lastCompletedTake.summary
-        let channels = summary.uniqueChannels.map(String.init).joined(separator: ", ")
-        let noteRangeText = formatNoteRange(lowest: summary.lowestNote, highest: summary.highestNote)
-        let channelLabel = channels.isEmpty ? "None" : channels
-        return [
-            "Last take: \(formatDuration(summary.duration)), \(summary.eventCount) events",
-            "channels \(channelLabel)",
-            "range \(noteRangeText)"
-        ].joined(separator: ", ")
     }
 
     func recentTake(id: UUID) -> RecordedTakeListItem? {

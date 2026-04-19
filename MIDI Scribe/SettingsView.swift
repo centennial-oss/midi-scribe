@@ -10,11 +10,16 @@ import SwiftData
 #if os(macOS)
 import AppKit
 #endif
+#if os(iOS)
+import UIKit
+#endif
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @ObservedObject var settings: AppSettings
     let onClose: () -> Void
+    /// Invoked from **iPhone** “Load Sample Takes…” only (no menu bar on phone).
+    let onLoadSampleTakes: () -> Void
 
     @State private var isConfirmingEraseAll = false
     @State private var eraseResultMessage: String?
@@ -26,7 +31,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Picker("MIDI Channels", selection: $settings.monitoredMIDIChannel) {
+                Picker("MIDI Input Channel", selection: $settings.monitoredMIDIChannel) {
                     Text("All Channels").tag(AppSettings.midiChannelAllValue)
                     ForEach(1...16, id: \.self) { channel in
                         Text("Channel \(channel)").tag(channel)
@@ -34,7 +39,7 @@ struct SettingsView: View {
                 }
 
                 HStack {
-                    Text("New Take Delay")
+                    Text("End Take when Idle For")
                     Spacer()
 #if os(macOS)
                     DiscreteSettingsSlider(
@@ -51,22 +56,29 @@ struct SettingsView: View {
                         .frame(width: 58, alignment: .trailing)
                 }
 
-                Stepper(value: $settings.recentTakesShownInMenus, in: 1...25) {
+                Stepper(value: $settings.recentTakesShownInMenus, in: 1...99) {
                     HStack {
-                        Text("Recent Takes in Menus")
+                        Text("# Recent Takes to Keep")
                         Spacer()
                         Text("\(settings.recentTakesShownInMenus)")
                             .foregroundStyle(.secondary)
                     }
                 }
 
-                Picker("Speaker Instrument", selection: $settings.speakerOutputProgram) {
+                Picker("Playback Instrument", selection: $settings.speakerOutputProgram) {
                     ForEach(GeneralMIDI.programs) { program in
                         Text(program.name).tag(program.program)
                     }
                 }
 
                 Section("Danger Zone") {
+#if os(iOS)
+                    if UIDevice.current.userInterfaceIdiom == .phone {
+                        Button("Load Sample Takes…") {
+                            onLoadSampleTakes()
+                        }
+                    }
+#endif
                     HStack {
                         Button("Erase All Data", role: .destructive) {
                             isConfirmingEraseAll = true

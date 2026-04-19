@@ -13,7 +13,9 @@
 
 import Foundation
 import SwiftData
-#if os(macOS)
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
 import AppKit
 #endif
 

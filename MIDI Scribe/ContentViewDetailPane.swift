@@ -4,20 +4,28 @@
 //
 
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 extension ContentView {
+    /// iPhone: `NavigationSplitView` toolbar targets the sidebar column; attach app-wide actions here so
+    /// they appear on every detail (including Current Take) without stealing vertical space for a title.
     @ViewBuilder
     var detailContent: some View {
-        switch viewModel.selectedSidebarItem {
-        case .currentTake:
-            currentTakeDetail
-        case .recentTake(let takeID), .starredTake(let takeID):
-            completedTakeDetail(for: takeID)
-        case .organizing:
-            placeholderDetail("Organizing tools will appear here.")
-        case .editingTakes:
-            editingTakesDetail
+        Group {
+            switch viewModel.selectedSidebarItem {
+            case .currentTake:
+                currentTakeDetail
+            case .recentTake(let takeID), .starredTake(let takeID):
+                completedTakeDetail(for: takeID)
+            case .organizing:
+                placeholderDetail("Organizing tools will appear here.")
+            case .editingTakes:
+                editingTakesDetail
+            }
         }
+        .modifier(iPhoneGlobalAppToolbarModifier(appState: appState))
     }
 
     var editingTakesDetail: some View {
@@ -188,20 +196,12 @@ extension ContentView {
     var currentTakeDetail: some View {
         VStack(spacing: 32) {
             HStack(spacing: 20) {
-                Button("Next Take") {
-                    viewModel.nextTake()
-                }
-                .disabled(!viewModel.isTakeInProgress)
-
                 Button("End Take") {
                     viewModel.endTake()
                 }
                 .disabled(!viewModel.isTakeInProgress)
             }
             .frame(maxWidth: .infinity, alignment: .center)
-
-            Toggle("Echo Scribed Data To Speakers", isOn: $settings.echoScribedToSpeakers)
-                .frame(maxWidth: .infinity, alignment: .leading)
 
             if viewModel.isTakeInProgress {
                 currentTakeInProgressContent
@@ -276,13 +276,13 @@ extension ContentView {
     @ViewBuilder
     private var livePianoRoll: some View {
         if let liveTake = currentLiveTake {
-            HStack(spacing: 8) {
-                Image(systemName: "minus.magnifyingglass")
-                Slider(value: $pianoRollZoomLevel, in: 0...1)
-                    .frame(width: 150)
-                Image(systemName: "plus.magnifyingglass")
+#if os(iOS)
+            if UIDevice.current.userInterfaceIdiom != .phone {
+                livePianoRollZoomSliderChrome
             }
-            .frame(maxWidth: .infinity, alignment: .trailing)
+#else
+            livePianoRollZoomSliderChrome
+#endif
 
             PianoRollView(
                 take: liveTake,
@@ -290,7 +290,18 @@ extension ContentView {
                 zoomLevel: $pianoRollZoomLevel,
                 isLive: true
             )
+            .layoutPriority(1)
         }
+    }
+
+    private var livePianoRollZoomSliderChrome: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "minus.magnifyingglass")
+            Slider(value: $pianoRollZoomLevel, in: 0...1)
+                .frame(width: 150)
+            Image(systemName: "plus.magnifyingglass")
+        }
+        .frame(maxWidth: .infinity, alignment: .trailing)
     }
 
     private var currentLiveTake: RecordedTake? {
@@ -313,12 +324,46 @@ extension ContentView {
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
 
-            Text(viewModel.lastTakeSummaryText)
-                .font(.body.monospaced())
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - iPhone app toolbar (detail column)
+
+/// `NavigationSplitView`'s own `.toolbar` applies to the sidebar on compact width; this attaches
+/// Settings / About to the detail stack so they appear on Current Take and every other detail.
+private struct iPhoneGlobalAppToolbarModifier: ViewModifier {
+    let appState: AppState
+
+    func body(content: Content) -> some View {
+#if os(iOS)
+        Group {
+            if UIDevice.current.userInterfaceIdiom == .phone {
+                content
+                    .toolbar {
+                        ToolbarItemGroup(placement: .topBarTrailing) {
+                            Button {
+                                appState.presentSettings()
+                            } label: {
+                                Image(systemName: "gearshape")
+                            }
+                            .accessibilityLabel("Preferences")
+
+                            Button {
+                                appState.presentAbout()
+                            } label: {
+                                Image(systemName: "info.circle")
+                            }
+                            .accessibilityLabel("About")
+                        }
+                    }
+            } else {
+                content
+            }
+        }
+#else
+        content
+#endif
     }
 }

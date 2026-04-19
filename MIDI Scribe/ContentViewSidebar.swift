@@ -12,7 +12,23 @@ extension ContentView {
     // MARK: - Sidebar
 
     var sidebar: some View {
-        List(selection: sidebarSelectionBinding) {
+        Group {
+#if os(macOS)
+            List(selection: sidebarSelectionBinding) {
+                sidebarListRows
+            }
+#else
+            List {
+                sidebarListRows
+            }
+#endif
+        }
+    }
+
+    /// Rows shared by macOS (`List(selection:)`) and iOS (plain `List` + tap targets).
+    @ViewBuilder
+    private var sidebarListRows: some View {
+        VStack(spacing: 10) {
             HStack {
                 Text("Scribing Enabled")
                 Spacer()
@@ -24,46 +40,96 @@ extension ContentView {
                 .toggleStyle(.switch)
             }
 
-            Divider()
-
-            Text("Current Take")
-                .tag(SidebarItem.currentTake)
-
-            Text("Organizing")
-                .tag(SidebarItem.organizing)
-
-            if !viewModel.starredTakes.isEmpty {
-                Section {
-                    ForEach(viewModel.starredTakes) { take in
-                        sidebarRow(for: take, asStarred: true)
-                            .tag(SidebarItem.starredTake(take.id))
-                    }
-                } header: {
-                    sectionHeader(title: "Starred")
-                }
+            HStack {
+                Text("Mute Input")
+                Spacer()
+                Toggle("", isOn: Binding(
+                    get: { !settings.echoScribedToSpeakers },
+                    set: { settings.echoScribedToSpeakers = !$0 }
+                ))
+                .labelsHidden()
+                .toggleStyle(.switch)
             }
 
+            playbackOutputPicker
+                .padding(.top, 4)
+        }
+
+        Divider()
+
+        sidebarSelectableRow(item: .currentTake) {
+            Text("Current Take")
+        }
+
+        if !viewModel.starredTakes.isEmpty {
             Section {
-                ForEach(viewModel.recentTakes) { take in
-                    sidebarRow(for: take, asStarred: false)
-                        .tag(SidebarItem.recentTake(take.id))
+                ForEach(viewModel.starredTakes) { take in
+                    sidebarSelectableRow(item: .starredTake(take.id)) {
+                        sidebarRow(for: take, asStarred: true)
+                    }
                 }
             } header: {
-                sectionHeader(title: "Recent Takes", showsEditButton: true)
+                sectionHeader(title: "Starred")
             }
+        }
 
-            if let pendingTakeOperation = viewModel.pendingOperation {
-                Section {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                            .controlSize(.small)
-                        Text(pendingTakeOperation.displayText)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
+        Section {
+            ForEach(viewModel.recentTakes) { take in
+                sidebarSelectableRow(item: .recentTake(take.id)) {
+                    sidebarRow(for: take, asStarred: false)
+                }
+            }
+        } header: {
+            sectionHeader(title: "Recent Takes", showsEditButton: true)
+        }
+
+        if let pendingTakeOperation = viewModel.pendingOperation {
+            Section {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(pendingTakeOperation.displayText)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
         }
+    }
+
+    /// `List(selection:content:)` exists on macOS; on iOS we drive the same `sidebarSelectionBinding`
+    /// with buttons and a row background for the active row.
+    @ViewBuilder
+    private func sidebarSelectableRow<Content: View>(
+        item: SidebarItem,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+#if os(macOS)
+        content()
+            .tag(item)
+#else
+        Button {
+            sidebarSelectionBinding.wrappedValue = item
+        } label: {
+            content()
+        }
+        .buttonStyle(.plain)
+        .listRowBackground(
+            (!isEditingList && viewModel.selectedSidebarItem == item)
+                ? Color.accentColor.opacity(0.15)
+                : Color.clear
+        )
+#endif
+    }
+
+    @ViewBuilder
+    private var playbackOutputPicker: some View {
+        Picker("Playback to", selection: $viewModel.selectedPlaybackTarget) {
+            Text("OS Speakers").tag(PlaybackOutputTarget.osSpeakers)
+            ForEach(1...16, id: \.self) { channel in
+                Text("MIDI Channel \(channel)").tag(PlaybackOutputTarget.midiChannel(channel))
+            }
+        }
+        .disabled(viewModel.isTakeActionInProgress)
     }
 
     @ViewBuilder
@@ -126,12 +192,18 @@ extension ContentView {
                     toggleEditMode()
                 } label: {
                     Image(systemName: "pencil")
-                        .font(.caption)
+                        .font(.body)
                         .foregroundStyle(isEditingList ? Color.accentColor : Color.secondary)
+                        .frame(width: 28, height: 28)
+                        .background(
+                            Circle()
+                                .fill(isEditingList ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.10))
+                        )
+                        .contentShape(Circle())
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.plain)
                 .help(isEditingList ? "Done editing" : "Select multiple takes")
-                .padding(.trailing, 8)
+                .padding(.trailing, 14)
             }
         }
     }

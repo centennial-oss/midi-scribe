@@ -8,10 +8,9 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import Combine
 #if os(macOS)
 import AppKit
-#elseif os(iOS)
-import UIKit
 #endif
 
 enum SidebarItem: Hashable {
@@ -52,6 +51,14 @@ struct ContentView: View {
     }
 
     var body: some View {
+        configuredContent
+    }
+
+    private var configuredContent: some View {
+        alertContent(exportContent(deleteDialogContent(observerContent(setupContent(baseContent)))))
+    }
+
+    private var baseContent: some View {
         NavigationSplitView {
             sidebar
 #if os(macOS)
@@ -61,6 +68,14 @@ struct ContentView: View {
             detailContent
         }
         .frame(minWidth: 520, minHeight: 320)
+    }
+
+    private func lifecycleContent(_ content: some View) -> some View {
+        observerContent(setupContent(content))
+    }
+
+    private func setupContent(_ content: some View) -> some View {
+        content
         .onAppear { viewModel.start() }
         .onDisappear { viewModel.stop() }
         .onReceive(NotificationCenter.default.publisher(for: appWillTerminateNotification)) { _ in
@@ -82,6 +97,10 @@ struct ContentView: View {
             }
             viewModel.setRecentTakes(storedRecentTakes.map(\.listItem))
         }
+    }
+
+    private func observerContent(_ content: some View) -> some View {
+        content
         // Rebuild our lightweight list whenever rows are added/removed/reordered.
         // We key on takeIDs only (O(n) string compare) instead of faulting
         // extra @Attribute properties on every body pass, which was causing
@@ -107,6 +126,38 @@ struct ContentView: View {
         .onChange(of: appState.sampleTakeLoadRequestID) { _, _ in
             loadSampleTakes()
         }
+        .onChange(of: appState.takeCommandRequest) { _, request in
+            handleTakeCommandRequest(request)
+        }
+        .onReceive(viewModel.objectWillChange) { _ in
+            DispatchQueue.main.async {
+                updateTakeCommandState()
+            }
+        }
+        .onReceive(viewModel.playbackEngine.objectWillChange) { _ in
+            DispatchQueue.main.async {
+                updateTakeCommandState()
+            }
+        }
+        // When a bulk merge or delete completes, exit Edit mode automatically
+        // and restore/update the selected sidebar item appropriately.
+        .onChange(of: viewModel.lastBulkResult) { _, newValue in
+            guard isEditingList, newValue != nil else { return }
+            switch newValue {
+            case .merged, .deleted:
+                DispatchQueue.main.async { toggleEditMode() }
+            case .starred, .none:
+                break
+            }
+        }
+    }
+
+    private func dialogContent(_ content: some View) -> some View {
+        alertContent(exportContent(deleteDialogContent(content)))
+    }
+
+    private func deleteDialogContent(_ content: some View) -> some View {
+        content
         .confirmationDialog(
             "Delete Take?",
             isPresented: Binding(
@@ -128,6 +179,10 @@ struct ContentView: View {
         } message: { takeID in
             Text(viewModel.recentTake(id: takeID)?.displayTitle ?? "This take")
         }
+    }
+
+    private func exportContent(_ content: some View) -> some View {
+        content
         .fileExporter(
             isPresented: $isPresentingExporter,
             document: exportDocument,
@@ -142,6 +197,10 @@ struct ContentView: View {
             }
             exportDocument = nil
         }
+    }
+
+    private func alertContent(_ content: some View) -> some View {
+        content
         .alert("Merge \(viewModel.multiSelection.count) Takes", isPresented: $isPresentingMergeDialog) {
             TextField("Silence between takes (ms)", text: $mergeSilenceMsText)
 #if os(iOS)
@@ -172,17 +231,6 @@ struct ContentView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This will permanently delete the selected takes. This action cannot be undone.")
-        }
-        // When a bulk merge or delete completes, exit Edit mode automatically
-        // and restore/update the selected sidebar item appropriately.
-        .onChange(of: viewModel.lastBulkResult) { _, newValue in
-            guard isEditingList, newValue != nil else { return }
-            switch newValue {
-            case .merged, .deleted:
-                DispatchQueue.main.async { toggleEditMode() }
-            case .starred, .none:
-                break
-            }
         }
     }
 

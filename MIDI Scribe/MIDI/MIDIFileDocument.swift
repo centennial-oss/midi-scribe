@@ -18,7 +18,7 @@ struct MIDIFileDocument: FileDocument {
 
     init(take: RecordedTake) {
         self.data = StandardMIDIFileWriter.data(for: take)
-        self.suggestedFileName = Self.sanitize(take.displayTitle)
+        self.suggestedFileName = "\(Self.sanitize(take.displayTitle)).mid"
     }
 
     init(configuration: ReadConfiguration) throws {

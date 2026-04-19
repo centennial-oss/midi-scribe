@@ -115,8 +115,11 @@ final class MIDIPlaybackEngine: ObservableObject {
         resetPlaybackPosition()
     }
 
-    func updatePausedOffset(to offset: TimeInterval) {
+    func updatePausedOffset(to offset: TimeInterval, takeID: UUID? = nil) {
         let safeOffset = max(0, offset)
+        if let takeID {
+            currentTakeID = takeID
+        }
         pausedAtOffset = safeOffset
         playbackResumeOffset = safeOffset
         if let playbackTake {

@@ -9,6 +9,7 @@ import Foundation
 extension MIDILiveNoteViewModel {
     func handleEligibleInput(_ receivedAt: Date) {
         guard settings.isScribingEnabled else { return }
+        selectedSidebarItem = .currentTake
         Task {
             await takeLifecycle.ingestInput(at: receivedAt, timeout: settings.newTakePauseSeconds)
         }
@@ -16,6 +17,7 @@ extension MIDILiveNoteViewModel {
 
     func handleRecordedEvent(_ event: RecordedMIDIEvent) {
         guard settings.isScribingEnabled else { return }
+        selectedSidebarItem = .currentTake
         // Play first, synchronously, so speaker echo isn't delayed by
         // subsequent SwiftData/UI work on this tick.
         playbackEngine.playLiveEventToSpeakers(event)

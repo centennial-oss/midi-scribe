@@ -114,4 +114,69 @@ extension ContentView {
         }
         viewModel.loadSampleTakes()
     }
+
+    func handleTakeCommandRequest(_ request: TakeCommandRequest?) {
+        guard let request else { return }
+        defer { appState.takeCommandRequest = nil }
+        guard canPerformTakeCommand(takeID: request.takeID) else { return }
+
+        performTakeCommand(request)
+    }
+
+    func performTakeCommand(_ request: TakeCommandRequest) {
+        switch request {
+        case .togglePlayback(let takeID):
+            viewModel.togglePlayback(for: takeID)
+        case .restartPlayback(let takeID):
+            viewModel.restartPlayback(for: takeID)
+        case .split(let takeID):
+            guard viewModel.canSplit(takeID: takeID) else { return }
+            viewModel.splitCurrentPausedTake()
+        case .toggleStar(let takeID):
+            viewModel.toggleStar(takeID: takeID)
+        case .export(let takeID):
+            exportTake(id: takeID)
+        case .zoomIn:
+            adjustPianoRollZoom(by: 0.1)
+        case .zoomOut:
+            adjustPianoRollZoom(by: -0.1)
+        case .delete(let takeID):
+            pendingDeleteTakeID = takeID
+        }
+    }
+
+    func adjustPianoRollZoom(by delta: CGFloat) {
+        pianoRollZoomLevel = max(0.0, min(1.0, pianoRollZoomLevel + delta))
+    }
+
+    func updateTakeCommandState() {
+        guard let takeID = selectedSavedTakeID,
+              let take = viewModel.recentTake(id: takeID) else {
+            appState.takeCommandState = TakeCommandState()
+            return
+        }
+
+        appState.takeCommandState = TakeCommandState(
+            takeID: takeID,
+            isSavedTake: true,
+            isPlaying: viewModel.isPlaying(takeID: takeID),
+            isStarred: take.isStarred,
+            canSplit: viewModel.canSplit(takeID: takeID),
+            canZoom: take.summary.duration >= 5.0,
+            isActionInProgress: viewModel.isTakeActionInProgress
+        )
+    }
+
+    var selectedSavedTakeID: UUID? {
+        switch viewModel.selectedSidebarItem {
+        case .recentTake(let id), .starredTake(let id):
+            return id
+        case .currentTake, .organizing, .editingTakes:
+            return nil
+        }
+    }
+
+    func canPerformTakeCommand(takeID: UUID) -> Bool {
+        selectedSavedTakeID == takeID && !viewModel.isTakeActionInProgress
+    }
 }

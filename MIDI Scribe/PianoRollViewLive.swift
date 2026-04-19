@@ -192,7 +192,7 @@ extension PianoRollView {
         let drawContext = PianoRollDrawContext(
             keyHeight: keyHeight,
             noteHeight: max(1, keyHeight - 1),
-            ccHeight: max(4, keyHeight * 1.5),
+            ccHeight: max(4, keyHeight),
             pixelsPerSecond: pixelsPerSecond,
             playOffset: playOffset,
             idleNoteColor: Color(red: 0.6, green: 1.0, blue: 0.2),
