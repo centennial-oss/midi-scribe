@@ -50,7 +50,7 @@ final class MacScrollWheelCatcherView: NSView {
     override var acceptsFirstResponder: Bool { true }
 
     override func scrollWheel(with event: NSEvent) {
-        guard event.modifierFlags.isDisjoint(with: .deviceIndependentFlagsMask) else {
+        guard shouldHandleZoom(for: event) else {
             super.scrollWheel(with: event)
             return
         }
@@ -67,10 +67,17 @@ final class MacScrollWheelCatcherView: NSView {
         guard let event = NSApp.currentEvent, event.type == .scrollWheel else {
             return nil
         }
-        if event.modifierFlags.isDisjoint(with: .deviceIndependentFlagsMask) {
+        if shouldHandleZoom(for: event) {
             return super.hitTest(point)
         }
         return nil
+    }
+
+    private func shouldHandleZoom(for event: NSEvent) -> Bool {
+        guard event.modifierFlags.isDisjoint(with: .deviceIndependentFlagsMask) else {
+            return false
+        }
+        return abs(event.scrollingDeltaY) > abs(event.scrollingDeltaX)
     }
 }
 
@@ -104,6 +111,7 @@ private struct PlatformScrollWheelZoom: UIViewRepresentable {
 
     final class Coordinator: NSObject, UIGestureRecognizerDelegate {
         @Binding var zoomLevel: CGFloat
+        private var lastTranslationX: CGFloat = 0
         private var lastTranslationY: CGFloat = 0
 
         init(zoomLevel: Binding<CGFloat>) {
@@ -119,15 +127,21 @@ private struct PlatformScrollWheelZoom: UIViewRepresentable {
 
             switch recognizer.state {
             case .began:
+                lastTranslationX = 0
                 lastTranslationY = 0
             case .changed:
-                let translation = recognizer.translation(in: recognizer.view).y
-                let delta = translation - lastTranslationY
-                lastTranslationY = translation
-                applyZoomDelta(delta, to: zoomLevel) { next in
+                let translation = recognizer.translation(in: recognizer.view)
+                let deltaX = translation.x - lastTranslationX
+                let deltaY = translation.y - lastTranslationY
+                lastTranslationX = translation.x
+                lastTranslationY = translation.y
+
+                guard abs(deltaY) > abs(deltaX) else { return }
+                applyZoomDelta(deltaY, to: zoomLevel) { next in
                     if next != self.zoomLevel { self.zoomLevel = next }
                 }
             default:
+                lastTranslationX = 0
                 lastTranslationY = 0
             }
         }
@@ -169,7 +183,7 @@ private func applyZoomDelta(
     // NSEvent / UIGestureRecognizer deltas are small, continuous floats
     // (often 0..5 per tick on a physical wheel). Scale down so a normal
     // flick produces a smooth, non-jumpy change across the 0...1 range.
-    let scaled = deltaY * 0.02
+    let scaled = deltaY * 0.001
     let next = max(0.0, min(1.0, currentZoom + scaled))
     assign(next)
 }

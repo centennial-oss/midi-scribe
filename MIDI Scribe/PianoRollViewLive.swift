@@ -178,8 +178,8 @@ struct PianoRollDrawContext {
     let ccHeight: CGFloat
     let pixelsPerSecond: CGFloat
     let playOffset: TimeInterval
-    let idleShading: GraphicsContext.Shading
-    let playingShading: GraphicsContext.Shading
+    let idleNoteColor: Color
+    let playingNoteColor: Color
 }
 
 extension PianoRollView {
@@ -195,8 +195,8 @@ extension PianoRollView {
             ccHeight: max(4, keyHeight * 1.5),
             pixelsPerSecond: pixelsPerSecond,
             playOffset: playOffset,
-            idleShading: .color(Color(red: 0.6, green: 1.0, blue: 0.2)),
-            playingShading: .color(Color(red: 1.0, green: 0.2, blue: 0.8))
+            idleNoteColor: Color(red: 0.6, green: 1.0, blue: 0.2),
+            playingNoteColor: Color(red: 1.0, green: 0.2, blue: 0.8)
         )
         let tail = take.duration
 
@@ -229,7 +229,13 @@ extension PianoRollView {
         let rect = CGRect(x: startX, y: topY, width: width, height: drawContext.noteHeight)
         let path = Path(roundedRect: rect, cornerRadius: 1)
         let playing = isNotePlaying(note, currentOffset: drawContext.playOffset)
-        context.fill(path, with: playing ? drawContext.playingShading : drawContext.idleShading)
+        let baseColor = playing ? drawContext.playingNoteColor : drawContext.idleNoteColor
+        context.fill(path, with: .color(baseColor.opacity(opacity(forVelocity: note.velocity))))
+    }
+
+    private func opacity(forVelocity velocity: UInt8) -> Double {
+        let normalized = min(Double(velocity), 100) / 100
+        return 0.05 + (normalized * 0.95)
     }
 
     private func drawCC(
