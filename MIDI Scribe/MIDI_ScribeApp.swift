@@ -40,6 +40,13 @@ struct MIDIScribeApp: App {
 #if os(macOS)
         .commands {
             CommandGroup(after: .newItem) {
+#if os(macOS)
+                if appState.isOptionKeyPressed {
+                    Button("Load Sample Takes") {
+                        appState.requestLoadSampleTakes()
+                    }
+                }
+#endif
                 Divider()
                 Button {
                     appState.presentSettings()

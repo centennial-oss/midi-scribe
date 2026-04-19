@@ -13,7 +13,11 @@ final class MIDILiveNoteViewModel: ObservableObject {
     private static let idleTimeoutDisplayDelay: TimeInterval = 5
     static let monitorStartRetryDelays: [TimeInterval] = [1, 2, 5, 10, 15, 30]
 
-    @Published var selectedSidebarItem: SidebarItem = .currentTake
+    @Published var selectedSidebarItem: SidebarItem = .currentTake {
+        didSet {
+            resetPlaybackIfDisplayedTakeChanged(old: oldValue, new: selectedSidebarItem)
+        }
+    }
     @Published var currentNoteText = ""
     @Published var currentChannelText = ""
     @Published var currentTakeSnapshot = CurrentTakeSnapshot.empty
@@ -216,6 +220,21 @@ final class MIDILiveNoteViewModel: ObservableObject {
 
     func clearLastBulkResult() {
         lastBulkResult = nil
+    }
+
+    private func resetPlaybackIfDisplayedTakeChanged(old: SidebarItem, new: SidebarItem) {
+        let oldTakeID = takeID(fromAny: old)
+        let newTakeID = takeID(fromAny: new)
+        guard oldTakeID != newTakeID, newTakeID != nil else { return }
+
+        playbackEngine.stopAndReset()
+    }
+
+    private func takeID(fromAny item: SidebarItem) -> UUID? {
+        switch item {
+        case .recentTake(let id), .starredTake(let id): return id
+        default: return nil
+        }
     }
 
     func recordMergedBulkResult(newTakeID: UUID, removedIDs: Set<UUID>) {

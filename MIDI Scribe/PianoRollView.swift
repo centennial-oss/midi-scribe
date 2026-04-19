@@ -184,6 +184,7 @@ struct PianoRollView: View {
             liveEventsProcessedCount = take.events.count
         }
         .onChange(of: take.id) { _, _ in
+            resetScrubState()
             resetLiveCursors()
             computeNotes()
             liveEventsProcessedCount = take.events.count
@@ -197,6 +198,13 @@ struct PianoRollView: View {
 
     private var isTakePlaying: Bool {
         viewModel.isPlaying(takeID: take.id)
+    }
+
+    private func resetScrubState() {
+        dragStartOffset = nil
+        dragIntersectedNotes.removeAll()
+        localScrubOffset = nil
+        viewModel.playbackEngine.stopScrubbingNotes()
     }
 }
 

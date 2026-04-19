@@ -11,6 +11,7 @@ enum TakeListPendingOperation: Equatable {
     case renaming
     case starring
     case deleting
+    case loadingSamples
 
     var displayText: String {
         switch self {
@@ -19,6 +20,7 @@ enum TakeListPendingOperation: Equatable {
         case .renaming: return "Renaming take…"
         case .starring: return "Updating star…"
         case .deleting: return "Deleting take…"
+        case .loadingSamples: return "Loading sample takes…"
         }
     }
 }

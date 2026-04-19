@@ -24,6 +24,7 @@ enum SidebarItem: Hashable {
 
 struct ContentView: View {
     @Environment(\.modelContext) var modelContext
+    @EnvironmentObject var appState: AppState
     @Query(sort: \StoredTake.startedAt, order: .reverse) var storedRecentTakes: [StoredTake]
     @ObservedObject var settings: AppSettings
     @StateObject var viewModel: MIDILiveNoteViewModel
@@ -103,6 +104,9 @@ struct ContentView: View {
         .onChange(of: viewModel.lastCompletedTake?.id) { _, _ in
             persistLastCompletedTakeIfNeeded()
         }
+        .onChange(of: appState.sampleTakeLoadRequestID) { _, _ in
+            loadSampleTakes()
+        }
         .confirmationDialog(
             "Delete Take?",
             isPresented: Binding(
@@ -161,7 +165,7 @@ struct ContentView: View {
         } message: {
             Text("Enter a new name for this take.")
         }
-        .alert("Delete \(viewModel.multiSelection.count) Takes?", isPresented: $isPresentingBulkDeleteConfirm) {
+        .alert(bulkDeleteConfirmationTitle, isPresented: $isPresentingBulkDeleteConfirm) {
             Button("Delete", role: .destructive) {
                 viewModel.deleteSelectedTakes()
             }
@@ -181,4 +185,6 @@ struct ContentView: View {
             }
         }
     }
+
+    private var bulkDeleteConfirmationTitle: String { "Delete \(viewModel.multiSelection.count) Takes?" }
 }

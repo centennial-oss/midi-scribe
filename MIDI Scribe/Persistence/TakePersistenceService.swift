@@ -13,6 +13,9 @@
 
 import Foundation
 import SwiftData
+#if os(macOS)
+import AppKit
+#endif
 
 actor TakePersistenceService {
     private let container: ModelContainer
@@ -54,6 +57,36 @@ actor TakePersistenceService {
             guard let take = try Self.fetchTake(id: takeID, in: context) else { return }
             context.delete(take)
             try context.save()
+        }
+    }
+
+    // MARK: - Samples
+
+    func importSampleTakes(_ samples: [SampleMIDIFile]) async throws -> [UUID] {
+        try await runReturning { context -> [UUID] in
+            let existingTitles = try Set(
+                context.fetch(FetchDescriptor<StoredTake>())
+                    .map(\.displayTitle)
+            )
+
+            var insertedIDs: [UUID] = []
+            for sample in samples where !existingTitles.contains(sample.title) {
+                let asset = NSDataAsset(name: "SampleTakes/\(sample.assetName)") ?? NSDataAsset(name: sample.assetName)
+                guard let asset else {
+                    continue
+                }
+
+                let take = try StandardMIDIFileReader.take(from: asset.data, title: sample.title)
+                let stored = StoredTake(recordedTake: take)
+                stored.title = sample.title
+                context.insert(stored)
+                insertedIDs.append(take.id)
+            }
+
+            if !insertedIDs.isEmpty {
+                try context.save()
+            }
+            return insertedIDs
         }
     }
 

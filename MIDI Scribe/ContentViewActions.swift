@@ -106,4 +106,12 @@ extension ContentView {
             viewModel.selectedSidebarItem = .currentTake
         }
     }
+
+    func loadSampleTakes() {
+        let container = modelContext.container
+        if viewModel.persistenceService == nil {
+            viewModel.persistenceService = TakePersistenceService(container: container)
+        }
+        viewModel.loadSampleTakes()
+    }
 }
