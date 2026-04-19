@@ -205,15 +205,30 @@ final class StoredMIDIEvent {
     }
 
     var recordedEvent: RecordedMIDIEvent {
-        RecordedMIDIEvent(
+        let sanitizedChannel = Self.sanitizedChannel(channel, status: status)
+        return RecordedMIDIEvent(
             id: UUID(uuidString: eventID) ?? UUID(),
             receivedAt: receivedAt,
             offsetFromTakeStart: offsetFromTakeStart,
             kind: MIDIChannelEventKind(rawValue: kindRawValue) ?? .controlChange,
-            channel: UInt8(channel),
-            status: UInt8(status),
-            data1: UInt8(data1),
-            data2: data2.map(UInt8.init)
+            channel: sanitizedChannel,
+            status: UInt8(clamping: status),
+            data1: UInt8(clamping: data1),
+            data2: data2.map { UInt8(clamping: $0) }
         )
+    }
+
+    /// Legacy/corrupted stores can contain out-of-range channel values.
+    /// Recover by deriving from status nibble when possible, otherwise use channel 1.
+    private static func sanitizedChannel(_ rawChannel: Int, status: Int) -> UInt8 {
+        if (1...16).contains(rawChannel) {
+            return UInt8(rawChannel)
+        }
+        let statusByte = UInt8(clamping: status)
+        let command = statusByte & 0xF0
+        if command >= 0x80, command <= 0xE0 {
+            return (statusByte & 0x0F) + 1
+        }
+        return 1
     }
 }

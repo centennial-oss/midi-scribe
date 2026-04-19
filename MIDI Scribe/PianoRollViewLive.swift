@@ -12,6 +12,24 @@ import Foundation
 import SwiftUI
 
 extension PianoRollView {
+    /// MIDI channel-voice data bytes are 7-bit (0...127). We defensively
+    /// skip malformed legacy/corrupt events when building the piano roll.
+    private func isRenderableMIDIEvent(_ event: RecordedMIDIEvent) -> Bool {
+        guard event.channel >= 1 && event.channel <= 16 else {
+            ignoredMalformedEventIDs.insert(event.id)
+            return false
+        }
+        guard event.data1 <= 127 else {
+            ignoredMalformedEventIDs.insert(event.id)
+            return false
+        }
+        if let data2 = event.data2, data2 > 127 {
+            ignoredMalformedEventIDs.insert(event.id)
+            return false
+        }
+        return true
+    }
+
     /// Called when `take.events.count` changes in live mode. Processes
     /// only the events that arrived since the last call.
     func ingestNewLiveEvents(upTo newCount: Int) {
@@ -32,6 +50,7 @@ extension PianoRollView {
     }
 
     private func ingestLiveEvent(_ event: RecordedMIDIEvent) {
+        guard isRenderableMIDIEvent(event) else { return }
         switch event.kind {
         case .noteOn, .noteOff:
             ingestLiveNoteEvent(event)
@@ -99,6 +118,7 @@ extension PianoRollView {
         let sortedEvents = take.events.sorted { $0.offsetFromTakeStart < $1.offsetFromTakeStart }
 
         for event in sortedEvents {
+            guard isRenderableMIDIEvent(event) else { continue }
             guard let pitch = event.noteNumber else { continue }
             if event.kind == .noteOn && (event.velocity ?? 0) > 0 {
                 if var active = activeNotes[pitch] {
@@ -134,6 +154,7 @@ extension PianoRollView {
         let sortedEvents = take.events.sorted { $0.offsetFromTakeStart < $1.offsetFromTakeStart }
 
         for event in sortedEvents where event.kind == .controlChange {
+            guard isRenderableMIDIEvent(event) else { continue }
             let ccNumber = event.data1
             let isOn = (event.data2 ?? 0) >= 64
 

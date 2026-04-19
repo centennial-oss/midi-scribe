@@ -9,7 +9,6 @@ enum PlaybackOutputTarget: Hashable {
     case osSpeakers
     case midiChannel(Int)
 }
-
 @MainActor
 final class MIDIPlaybackEngine: ObservableObject {
     @Published private(set) var isPlaying = false
@@ -148,9 +147,15 @@ extension MIDIPlaybackEngine {
         let startIndex = playbackResumeIndex
         let startOffset = playbackResumeOffset
         let playbackEpoch = Date().addingTimeInterval(-startOffset)
+        let syntheticPedalDownEvents = pedalReentryEvents(in: take, at: startOffset)
+
+        for event in syntheticPedalDownEvents {
+            play(event: event, target: target)
+        }
 
         playbackTask = Task { [weak self] in
             guard let self else { return }
+            var immediateBurstCount = 0
 
             for index in startIndex ..< events.count {
                 let event = events[index]
@@ -158,6 +163,15 @@ extension MIDIPlaybackEngine {
                 let wait = targetDate.timeIntervalSinceNow
                 if wait > 0 {
                     try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
+                    immediateBurstCount = 0
+                } else {
+                    immediateBurstCount += 1
+                    if immediateBurstCount >= 128 {
+                        // Seeking into dense sections can enqueue many events at
+                        // once; briefly yielding prevents a single-frame burst.
+                        try? await Task.sleep(nanoseconds: 1_000_000) // 1ms
+                        immediateBurstCount = 0
+                    }
                 }
                 if Task.isCancelled { return }
 
@@ -220,8 +234,10 @@ extension MIDIPlaybackEngine {
         } catch {
             print("MIDI Scribe playback output route refresh failed: \(error)")
         }
-        #else
-        reloadInstrument()
+        #elseif os(iOS)
+        // iOS routes are managed by AVAudioSession; rebuilding the sampler here can leave
+        // playback silent after route checks that were introduced for macOS.
+        return
         #endif
     }
 
@@ -258,14 +274,24 @@ extension MIDIPlaybackEngine {
 
     private func playThroughSpeakers(_ event: RecordedMIDIEvent) {
         guard event.kind != .programChange else { return }
-        speakerInstrument.sendMIDIEvent(event.status, data1: event.data1, data2: event.data2 ?? 0)
+        guard ensureSpeakerAudioReady() else { return }
+        guard let status = statusByte(for: event.kind, channel: Int(event.channel)) else { return }
+        let data1 = event.data1 & 0x7F
+        let data2 = (event.data2 ?? 0) & 0x7F
+        speakerInstrument.sendMIDIEvent(status, data1: data1, data2: data2)
     }
 
     private func sendToMIDIDestinations(_ event: RecordedMIDIEvent, channelOverride: Int) {
         guard outputPort != 0 else { return }
+        guard let channelNibble = midiChannelNibble(for: channelOverride) else { return }
         var data = event.midiData
         guard !data.isEmpty else { return }
-        data[0] = (data[0] & 0xF0) | UInt8(channelOverride - 1)
+        data[0] = (data[0] & 0xF0) | channelNibble
+        if data.count > 1 {
+            for index in 1 ..< data.count {
+                data[index] = data[index] & 0x7F
+            }
+        }
         let packetListSize = 1024
         let packetListPointer = UnsafeMutableRawPointer.allocate(
             byteCount: packetListSize,
@@ -294,6 +320,8 @@ extension MIDIPlaybackEngine {
     private func sendAllNotesOff() {
         for channel in 1...16 {
             sendControlChange(64, value: 0, on: channel)
+            sendControlChange(66, value: 0, on: channel)
+            sendControlChange(67, value: 0, on: channel)
             sendControlChange(120, value: 0, on: channel)
             sendControlChange(121, value: 0, on: channel)
             sendControlChange(123, value: 0, on: channel)
@@ -330,6 +358,46 @@ extension MIDIPlaybackEngine {
         pausedAtOffset = nil
     }
 
+    private func pedalReentryEvents(in take: RecordedTake, at offset: TimeInterval) -> [RecordedMIDIEvent] {
+        // Controllers that can keep notes sounding/colored across seek boundaries.
+        let pedalControllers: Set<UInt8> = [64, 66, 67] // sustain, sostenuto, soft
+        var latestByChannelAndController: [UInt8: [UInt8: UInt8]] = [:]
+
+        for event in take.events {
+            if event.offsetFromTakeStart >= offset {
+                break
+            }
+            guard event.kind == .controlChange, pedalControllers.contains(event.data1) else {
+                continue
+            }
+            latestByChannelAndController[event.channel, default: [:]][event.data1] = event.data2 ?? 0
+        }
+
+        var syntheticEvents: [RecordedMIDIEvent] = []
+        let now = Date()
+        for channel in latestByChannelAndController.keys.sorted() {
+            guard let ccValues = latestByChannelAndController[channel] else { continue }
+            guard let channelNibble = midiChannelNibble(for: Int(channel)) else { continue }
+            for controller in pedalControllers.sorted() {
+                guard let value = ccValues[controller], value >= 64 else { continue }
+                let status = UInt8(0xB0 | channelNibble)
+                syntheticEvents.append(
+                    RecordedMIDIEvent(
+                        receivedAt: now,
+                        offsetFromTakeStart: offset,
+                        kind: .controlChange,
+                        channel: channel,
+                        status: status,
+                        data1: controller,
+                        data2: value
+                    )
+                )
+            }
+        }
+
+        return syntheticEvents
+    }
+
     private func rebuildSampler() throws {
         let wasAttached = speakerInstrument.engine === audioEngine
         if wasAttached {
@@ -339,35 +407,6 @@ extension MIDIPlaybackEngine {
             audioEngine.detach(speakerInstrument)
         }
         let soundBankURL = try resolvedSoundBankURL()
-
-        #if os(iOS)
-        let description = AudioComponentDescription(
-            componentType: kAudioUnitType_MusicDevice,
-            componentSubType: kAudioUnitSubType_MIDISynth,
-            componentManufacturer: kAudioUnitManufacturer_Apple,
-            componentFlags: 0,
-            componentFlagsMask: 0
-        )
-        let newInstrument = AVAudioUnitMIDIInstrument(audioComponentDescription: description)
-        audioEngine.attach(newInstrument)
-        audioEngine.connect(newInstrument, to: audioEngine.mainMixerNode, format: nil)
-        var bankURL = soundBankURL as CFURL
-        print("MIDI Scribe iOS playback synth: loading sound bank \(soundBankURL.path)")
-        let status = withUnsafePointer(to: &bankURL) { pointer in
-            AudioUnitSetProperty(
-                newInstrument.audioUnit, AudioUnitPropertyID(kMusicDeviceProperty_SoundBankURL),
-                AudioUnitScope(kAudioUnitScope_Global), 0, pointer, UInt32(MemoryLayout<CFURL>.size)
-            )
-        }
-        if status != noErr {
-            print("MIDI Scribe iOS playback synth: sound bank load failed OSStatus \(status)")
-        }
-        for channel in UInt8(0) ... UInt8(15) {
-            newInstrument.sendMIDIEvent(0xC0 | channel, data1: UInt8(clamping: speakerProgram))
-        }
-        print("MIDI Scribe iOS playback synth: selected GM program \(speakerProgram)")
-        speakerInstrument = newInstrument
-        #else
         let newInstrument = AVAudioUnitSampler()
         audioEngine.attach(newInstrument)
         audioEngine.connect(newInstrument, to: audioEngine.mainMixerNode, format: nil)
@@ -378,12 +417,14 @@ extension MIDIPlaybackEngine {
             bankLSB: UInt8(kAUSampler_DefaultBankLSB)
         )
         speakerInstrument = newInstrument
-        #endif
     }
 
     private func sendControlChange(_ controller: UInt8, value: UInt8, on channel: Int) {
-        let status = UInt8(0xB0 | (channel - 1))
-        speakerInstrument.sendMIDIEvent(status, data1: controller, data2: value)
+        guard let channelNibble = midiChannelNibble(for: channel) else { return }
+        let status = UInt8(0xB0 | channelNibble)
+        if ensureSpeakerAudioReady() {
+            speakerInstrument.sendMIDIEvent(status, data1: controller, data2: value)
+        }
 
         let event = RecordedMIDIEvent(
             receivedAt: Date(),
@@ -395,5 +436,52 @@ extension MIDIPlaybackEngine {
             data2: value
         )
         sendToMIDIDestinations(event, channelOverride: channel)
+    }
+
+    private func midiChannelNibble(for channel: Int) -> UInt8? {
+        guard (1...16).contains(channel) else { return nil }
+        return UInt8(channel - 1)
+    }
+
+    private func statusByte(for kind: MIDIChannelEventKind, channel: Int) -> UInt8? {
+        guard let channelNibble = midiChannelNibble(for: channel) else { return nil }
+        let command: UInt8
+        switch kind {
+        case .noteOff:
+            command = 0x80
+        case .noteOn:
+            command = 0x90
+        case .polyphonicKeyPressure:
+            command = 0xA0
+        case .controlChange:
+            command = 0xB0
+        case .programChange:
+            command = 0xC0
+        case .channelPressure:
+            command = 0xD0
+        case .pitchBend:
+            command = 0xE0
+        }
+        return command | channelNibble
+    }
+
+    private func ensureSpeakerAudioReady() -> Bool {
+        if speakerInstrument.engine !== audioEngine {
+            do {
+                try rebuildSampler()
+            } catch {
+                print("MIDI Scribe playback sampler rebuild failed: \(error)")
+                return false
+            }
+        }
+        if !audioEngine.isRunning {
+            do {
+                try audioEngine.start()
+            } catch {
+                print("MIDI Scribe playback audio start failed: \(error)")
+                return false
+            }
+        }
+        return speakerInstrument.engine === audioEngine && audioEngine.isRunning
     }
 }

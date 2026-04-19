@@ -23,19 +23,15 @@ extension ContentView {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 if let fullTake = viewModel.fullTake(id: take.id) {
-                    VStack(alignment: .trailing, spacing: 8) {
-                        PianoRollView(take: fullTake, viewModel: viewModel, zoomLevel: $pianoRollZoomLevel)
-                            .id(take.id)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-#if os(iOS)
-                        if UIDevice.current.userInterfaceIdiom != .phone {
+                    PianoRollView(take: fullTake, viewModel: viewModel, zoomLevel: $pianoRollZoomLevel)
+                        .id(take.id)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .overlay(alignment: .bottomTrailing) {
                             completedTakeZoomSliderRow(for: take)
+                                .padding(.trailing, 12)
+                                .padding(.bottom, 12)
+                                .offset(completedTakeZoomSliderOverlayOffset)
                         }
-#else
-                        completedTakeZoomSliderRow(for: take)
-#endif
-                    }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 } else {
                     ProgressView()
@@ -56,11 +52,14 @@ extension ContentView {
                 completedTakeToolbar(for: take)
             }
         }
-        .navigationTitle(viewModel.recentTake(id: takeID)?.displayTitle ?? "Take")
+        .navigationTitle(completedTakeNavigationTitle(for: takeID))
     }
 
     @ToolbarContentBuilder
     private func completedTakeToolbar(for take: RecordedTakeListItem) -> some ToolbarContent {
+        #if os(iOS)
+        iPhoneSidebarToggleToolbar()
+        #endif
         completedTakePlaybackToolbar(for: take)
         ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
         completedTakeActionsToolbar(for: take)
@@ -195,34 +194,41 @@ extension ContentView {
 
     private func completedTakeMetadata(for take: RecordedTakeListItem) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
+            #if os(iOS)
+            if UIDevice.current.userInterfaceIdiom == .phone {
+                Text(take.displayTitle)
+                    .font(.headline)
+                Text("/")
+                    .foregroundStyle(.secondary)
+            }
+            #endif
             HStack(spacing: 6) {
                 Text(viewModel.completedTakeDurationText(take))
                     .font(.body.monospaced())
                     .foregroundStyle(.secondary)
             }
-            inlineLabeledValue("Events", "\(take.summary.eventCount)")
             inlineLabeledValue("Notes", "\(max(take.summary.noteOnCount, take.summary.noteOffCount))")
             inlineLabeledValue("Range", viewModel.completedTakeRangeText(take))
         }
     }
 
-    /// Zoom controls sit below the piano roll, trailing-aligned.
+    /// Zoom controls sit over the piano roll, bottom-right aligned.
     private func completedTakeZoomSliderRow(for take: RecordedTakeListItem) -> some View {
         let isZoomDisabled = take.summary.duration < 5.0
-        return HStack {
-            Spacer(minLength: 0)
-            HStack(spacing: 8) {
-                Image(systemName: "minus.magnifyingglass")
-                    .foregroundStyle(isZoomDisabled ? .secondary : .primary)
+        return HStack(spacing: 8) {
+            Image(systemName: "minus.magnifyingglass")
+                .foregroundStyle(isZoomDisabled ? .secondary : .primary)
 
-                Slider(value: $pianoRollZoomLevel, in: 0...1)
-                    .frame(width: 150)
-                    .disabled(isZoomDisabled)
+            Slider(value: $pianoRollZoomLevel, in: 0...1)
+                .frame(width: 150)
+                .disabled(isZoomDisabled)
 
-                Image(systemName: "plus.magnifyingglass")
-                    .foregroundStyle(isZoomDisabled ? .secondary : .primary)
-            }
+            Image(systemName: "plus.magnifyingglass")
+                .foregroundStyle(isZoomDisabled ? .secondary : .primary)
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial, in: Capsule())
     }
 
     private func inlineLabeledValue(_ label: String, _ value: String) -> some View {
@@ -258,5 +264,22 @@ extension ContentView {
         let minutes = Int(seconds) / 60
         let remaining = seconds - TimeInterval(minutes * 60)
         return String(format: "%dm %.1fs", minutes, remaining)
+    }
+
+    private func completedTakeNavigationTitle(for takeID: UUID) -> String {
+        #if os(iOS)
+        if UIDevice.current.userInterfaceIdiom == .phone {
+            return ""
+        }
+        #endif
+        return viewModel.recentTake(id: takeID)?.displayTitle ?? "Take"
+    }
+
+    private var completedTakeZoomSliderOverlayOffset: CGSize {
+        #if os(iOS)
+        CGSize(width: 14, height: 14)
+        #else
+        .zero
+        #endif
     }
 }

@@ -128,7 +128,6 @@ final class MIDILiveNoteViewModel: ObservableObject {
         let noteRangeText = formatNoteRange(lowest: summary.lowestNote, highest: summary.highestNote)
         let channelLabel = channels.isEmpty ? "None" : channels
         return [
-            "Events: \(summary.eventCount)",
             "Notes: \(max(summary.noteOnCount, summary.noteOffCount))",
             "Range: \(noteRangeText)",
             "Channels: \(channelLabel)"

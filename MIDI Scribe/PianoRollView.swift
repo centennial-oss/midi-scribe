@@ -7,6 +7,7 @@ import SwiftUI
 
 struct PianoRollView: View {
     private static let rollCornerRadius: CGFloat = 8
+    private static let maxConcurrentScrubAuditionNotes = 24
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -47,6 +48,9 @@ struct PianoRollView: View {
     @State var liveActiveNotes: [UInt8: PianoRollNote] = [:]
     /// In-flight CC regions keyed by cc number; appended to `ccEvents` once closed.
     @State var liveActiveCCs: [UInt8: PianoRollCC] = [:]
+    /// Event IDs skipped due to invalid MIDI bounds. Used as a stable,
+    /// deduplicated counter so repeated redraws do not inflate the value.
+    @State var ignoredMalformedEventIDs: Set<UUID> = []
 
     @State private var dragStartOffset: TimeInterval?
     @State private var dragIntersectedNotes: Set<UUID> = []
@@ -62,6 +66,10 @@ struct PianoRollView: View {
     @State private var isZoomCentering = false
     @State private var isPinchZooming = false
     @State private var zoomCenteringTask: Task<Void, Never>?
+    /// iOS can deliver an initial 0x0 layout pass for this view. Prime once
+    /// when we observe a usable size to force a deterministic first render.
+    @State private var didPrimeInitialLayout = false
+    @State private var layoutPrimeID = 0
 
     var body: some View {
         TimelineView(.animation(paused: !shouldAnimatePianoRoll)) { context in
@@ -146,6 +154,7 @@ struct PianoRollView: View {
                             }
                         }
                         .frame(width: rollWidth, height: viewHeight, alignment: .topLeading)
+                        .contentShape(Rectangle())
                         .transaction { $0.animation = nil }
                         .onChange(of: context.date) { _, _ in
                             if isTakePlaying || shouldCenterPausedPlayheadDuringZoom {
@@ -174,10 +183,43 @@ struct PianoRollView: View {
                                     beginPausedZoomCentering(debounce: true)
                                 }
                         )
+                        .simultaneousGesture(
+                            SpatialTapGesture()
+                                .onEnded { value in
+                                    handleRollTap(
+                                        at: value.location,
+                                        rollWidth: rollWidth,
+                                        pixelsPerSecond: pixelsPerSecond,
+                                        viewHeight: viewHeight,
+                                        playOffset: playOffset
+                                    )
+                                },
+                            including: isLive ? .subviews : .all
+                        )
                     }
                 }
+                .id(layoutPrimeID)
                 .frame(height: viewHeight)
                 .clipShape(RoundedRectangle(cornerRadius: Self.rollCornerRadius, style: .continuous))
+                .overlay(alignment: .topLeading) {
+                    if !ignoredMalformedEventIDs.isEmpty {
+                        Text("Ignored malformed MIDI events: \(ignoredMalformedEventIDs.count)")
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.orange)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .background(.ultraThinMaterial, in: Capsule())
+                            .padding(.top, 8)
+                            .padding(.leading, 8)
+                    }
+                }
+                .onAppear {
+                    ignoredMalformedEventIDs.removeAll(keepingCapacity: true)
+                    primeInitialLayoutIfNeeded(size: geo.size)
+                }
+                .onChange(of: geo.size) { _, newSize in
+                    primeInitialLayoutIfNeeded(size: newSize)
+                }
 
                 // Tooltips layer intentionally omitted: previously a
                 // per-note hover .help() was rendered here, but the
@@ -201,6 +243,7 @@ struct PianoRollView: View {
         .onChange(of: take.id) { _, _ in
             resetScrubState()
             resetLiveCursors()
+            ignoredMalformedEventIDs.removeAll(keepingCapacity: true)
             computeNotes()
             liveEventsProcessedCount = take.events.count
         }
@@ -221,6 +264,14 @@ struct PianoRollView: View {
 
     private var shouldCenterPausedPlayheadDuringZoom: Bool {
         !isLive && !isTakePlaying && isZoomCentering
+    }
+
+    private var disableManualScrollOnCurrentPlatform: Bool {
+        #if os(iOS)
+        true
+        #else
+        false
+        #endif
     }
 
     private func resetScrubState() {
@@ -247,6 +298,13 @@ struct PianoRollView: View {
                 zoomCenteringTask = nil
             }
         }
+    }
+
+    private func primeInitialLayoutIfNeeded(size: CGSize) {
+        guard !didPrimeInitialLayout else { return }
+        guard size.width > 1, size.height > 1 else { return }
+        didPrimeInitialLayout = true
+        layoutPrimeID += 1
     }
 }
 
@@ -294,8 +352,10 @@ extension PianoRollView {
         }
         // Auto-scroll handled by onChange of playhead
 
+        // Dense MIDI can have very large overlaps at a single playhead offset.
+        // Cap scrub audition polyphony to avoid overwhelming the sampler.
         var currentlyIntersected: Set<UUID> = []
-        for note in notes {
+        for note in notes where currentlyIntersected.count < Self.maxConcurrentScrubAuditionNotes {
             if newOffset >= note.startOffset && newOffset <= (note.startOffset + note.duration) {
                 currentlyIntersected.insert(note.id)
             }
@@ -306,15 +366,18 @@ extension PianoRollView {
 
         for noteID in newlyEntered {
             if let note = notes.first(where: { $0.id == noteID }) {
-                let status = UInt8(0x90 | ((note.channel - 1) & 0x0F))
+                guard let channelNibble = midiChannelNibble(for: note.channel) else { continue }
+                let status = UInt8(0x90 | channelNibble)
+                let pitch = note.pitch & 0x7F
+                let velocity = note.velocity & 0x7F
                 let event = RecordedMIDIEvent(
                     receivedAt: Date(),
                     offsetFromTakeStart: 0,
                     kind: .noteOn,
                     channel: note.channel,
                     status: status,
-                    data1: note.pitch,
-                    data2: note.velocity
+                    data1: pitch,
+                    data2: velocity
                 )
                 viewModel.playbackEngine.playScrubEvent(event, target: viewModel.selectedPlaybackTarget)
             }
@@ -322,14 +385,16 @@ extension PianoRollView {
 
         for noteID in newlyExited {
             if let note = notes.first(where: { $0.id == noteID }) {
-                let status = UInt8(0x80 | ((note.channel - 1) & 0x0F))
+                guard let channelNibble = midiChannelNibble(for: note.channel) else { continue }
+                let status = UInt8(0x80 | channelNibble)
+                let pitch = note.pitch & 0x7F
                 let event = RecordedMIDIEvent(
                     receivedAt: Date(),
                     offsetFromTakeStart: 0,
                     kind: .noteOff,
                     channel: note.channel,
                     status: status,
-                    data1: note.pitch,
+                    data1: pitch,
                     data2: 0
                 )
                 viewModel.playbackEngine.playScrubEvent(event, target: viewModel.selectedPlaybackTarget)
@@ -343,20 +408,72 @@ extension PianoRollView {
         dragStartOffset = nil
         for noteID in dragIntersectedNotes {
             if let note = notes.first(where: { $0.id == noteID }) {
-                let status = UInt8(0x80 | ((note.channel - 1) & 0x0F))
+                guard let channelNibble = midiChannelNibble(for: note.channel) else { continue }
+                let status = UInt8(0x80 | channelNibble)
+                let pitch = note.pitch & 0x7F
                 let event = RecordedMIDIEvent(
                     receivedAt: Date(),
                     offsetFromTakeStart: 0,
                     kind: .noteOff,
                     channel: note.channel,
                     status: status,
-                    data1: note.pitch,
+                    data1: pitch,
                     data2: 0
                 )
                 viewModel.playbackEngine.playScrubEvent(event, target: viewModel.selectedPlaybackTarget)
             }
         }
         dragIntersectedNotes.removeAll()
+    }
+
+    private func handleRollTap(
+        at location: CGPoint,
+        rollWidth: CGFloat,
+        pixelsPerSecond: CGFloat,
+        viewHeight: CGFloat,
+        playOffset: TimeInterval
+    ) {
+        guard !isLive, pixelsPerSecond > 0, rollWidth > 0 else { return }
+        guard location.x.isFinite, location.y.isFinite else { return }
+
+        // Preserve playhead-circle scrubbing interactions.
+        if !isTakePlaying {
+            let playheadX = CGFloat(playOffset) * pixelsPerSecond
+            let scrubHandleCenter = CGPoint(x: playheadX, y: 12)
+            let dx = location.x - scrubHandleCenter.x
+            let dy = location.y - scrubHandleCenter.y
+            let distance = (dx * dx + dy * dy).squareRoot()
+            if distance <= 18 { return }
+        }
+
+        let clampedX = min(max(0, location.x), rollWidth)
+        let tappedOffset = min(take.duration, max(0, TimeInterval(clampedX / pixelsPerSecond)))
+        let snappedOffset = snappedSeekOffset(forTappedOffset: tappedOffset)
+        seekPlayback(to: snappedOffset)
+    }
+
+    private func seekPlayback(to offset: TimeInterval) {
+        let wasPlaying = isTakePlaying
+        if wasPlaying {
+            viewModel.playbackEngine.pause()
+        }
+
+        viewModel.playbackEngine.updatePausedOffset(to: offset, takeID: take.id)
+        localScrubOffset = offset
+
+        if wasPlaying {
+            viewModel.playbackEngine.togglePlayback(for: take, target: viewModel.selectedPlaybackTarget)
+        }
+    }
+
+    private func snappedSeekOffset(forTappedOffset tappedOffset: TimeInterval) -> TimeInterval {
+        let intersectedNotes = notes.filter { note in
+            tappedOffset >= note.startOffset && tappedOffset <= (note.startOffset + note.duration)
+        }
+        guard let earliestStart = intersectedNotes.map(\.startOffset).min() else {
+            return tappedOffset
+        }
+        return earliestStart
     }
 
     func computeNotes() {
@@ -368,5 +485,10 @@ extension PianoRollView {
         liveEventsProcessedCount = 0
         liveActiveNotes.removeAll(keepingCapacity: true)
         liveActiveCCs.removeAll(keepingCapacity: true)
+    }
+
+    private func midiChannelNibble(for channel: UInt8) -> UInt8? {
+        guard channel >= 1 && channel <= 16 else { return nil }
+        return channel - 1
     }
 }

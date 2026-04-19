@@ -1,8 +1,3 @@
-//
-//  ContentView+DetailPane.swift
-//  MIDI Scribe
-//
-
 import SwiftUI
 
 extension ContentView {
@@ -201,6 +196,9 @@ extension ContentView {
         .padding(32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .toolbar {
+            #if os(iOS)
+            iPhoneSidebarToggleToolbar()
+            #endif
             if viewModel.isTakeInProgress {
                 currentTakeActionsToolbar()
             }
@@ -299,7 +297,7 @@ extension ContentView {
                         .frame(maxWidth: .infinity)
                 }
             }
- 
+
             livePianoRoll
         }
     }
@@ -307,20 +305,18 @@ extension ContentView {
     @ViewBuilder
     private var livePianoRoll: some View {
         if let liveTake = currentLiveTake {
-#if os(iOS)
-            if UIDevice.current.userInterfaceIdiom != .phone {
-                livePianoRollZoomSliderChrome
-            }
-#else
-            livePianoRollZoomSliderChrome
-#endif
-
             PianoRollView(
                 take: liveTake,
                 viewModel: viewModel,
                 zoomLevel: $pianoRollZoomLevel,
                 isLive: true
             )
+            .overlay(alignment: .bottomTrailing) {
+                livePianoRollZoomSliderChrome
+                    .padding(.trailing, 12)
+                    .padding(.bottom, 12)
+                    .offset(liveTakeZoomSliderOverlayOffset)
+            }
             .layoutPriority(1)
         }
     }
@@ -332,7 +328,9 @@ extension ContentView {
                 .frame(width: 150)
             Image(systemName: "plus.magnifyingglass")
         }
-        .frame(maxWidth: .infinity, alignment: .trailing)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial, in: Capsule())
     }
 
     private var currentLiveTake: RecordedTake? {
@@ -346,6 +344,14 @@ extension ContentView {
             events: events,
             summary: RecordedTakeSummary.empty
         )
+    }
+
+    private var liveTakeZoomSliderOverlayOffset: CGSize {
+        #if os(iOS)
+        CGSize(width: 14, height: 14)
+        #else
+        .zero
+        #endif
     }
 
     private var currentTakeIdleContent: some View {
@@ -362,6 +368,21 @@ extension ContentView {
 
 #if os(iOS)
 extension ContentView {
+    @ToolbarContentBuilder
+    func iPhoneSidebarToggleToolbar() -> some ToolbarContent {
+        if UIDevice.current.userInterfaceIdiom == .phone {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    preferredCompactColumn = .sidebar
+                } label: {
+                    Image(systemName: "sidebar.left")
+                }
+                .accessibilityLabel("Show Takes Sidebar")
+                .help("Show Takes Sidebar")
+            }
+        }
+    }
+
     @ToolbarContentBuilder
     func iOSAppActionsToolbar() -> some ToolbarContent {
         ToolbarItemGroup(placement: .topBarTrailing) {
