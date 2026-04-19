@@ -80,14 +80,14 @@ add-midi-assets:
 add-soundbank-assets:
 	@swift "$(SOUNDBANK_ASSET_SCRIPT)" "$(SOUNDBANK_SOURCE)" "$(SOUNDBANK_ASSET_DIR)" "$(SOUNDBANK_MANIFEST)"
 
-build: test build-macos build-ipad
+build: test build-macos build-ios
 
 build-macos: 
 	mkdir -p build
 	xcodebuild -project "$(PROJECT)" -scheme "$(XCODE_SCHEME)" -configuration Debug -derivedDataPath $(DERIVED_DATA) -destination 'platform=macOS' build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
 	cp -R "$(DERIVED_DATA)/Build/Products/Debug/$(APP_NAME).app" build/
 
-build-ipad: 
+build-ios: 
 	mkdir -p build
 	xcodebuild -project "$(PROJECT)" -scheme "$(XCODE_SCHEME)" -configuration Debug -derivedDataPath $(DERIVED_DATA) -destination 'generic/platform=iOS Simulator' build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
 	cp -R "$(DERIVED_DATA)/Build/Products/Debug-iphonesimulator/$(APP_NAME).app" "build/$(APP_NAME)-iPad.app"

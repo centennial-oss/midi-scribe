@@ -52,29 +52,26 @@ struct TakeCommandState: Equatable {
     }
 }
 
+enum SampleTakeLoadResult: Equatable {
+    case success(count: Int)
+    case failure(message: String)
+}
+
 @MainActor
 final class AppState: ObservableObject {
     @Published var isShowingSettings = false
     @Published var isShowingAbout = false
-    /// True while ⌥ Option or ⌃ Control is held; reveals **File ▸ Load Sample Takes** (macOS).
-    /// Control is an alternate so Option still works when the iOS Simulator uses it for multi-touch.
-    @Published var isLoadSampleTakesMenuModifierActive = false
     @Published var sampleTakeLoadRequestID = UUID()
+    @Published var sampleTakeLoadResult: SampleTakeLoadResult?
+    @Published var isLoadingSampleTakes = false
+    @Published var dataResetRequestID = UUID()
     @Published var takeCommandState = TakeCommandState()
     @Published var takeCommandRequest: TakeCommandRequest?
 
 #if os(macOS)
-    private var flagsMonitor: Any?
     private var keyDownMonitor: Any?
 
     init() {
-        refreshModifierFlags()
-        flagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
-            Task { @MainActor in
-                self?.isLoadSampleTakesMenuModifierActive = Self.isLoadSampleTakesMenuRevealed(event.modifierFlags)
-            }
-            return event
-        }
         keyDownMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             let handled = MainActor.assumeIsolated { () -> Bool in
                 guard let self,
@@ -88,9 +85,6 @@ final class AppState: ObservableObject {
     }
 
     deinit {
-        if let flagsMonitor {
-            NSEvent.removeMonitor(flagsMonitor)
-        }
         if let keyDownMonitor {
             NSEvent.removeMonitor(keyDownMonitor)
         }
@@ -111,7 +105,18 @@ final class AppState: ObservableObject {
     }
 
     func requestLoadSampleTakes() {
+        sampleTakeLoadResult = nil
+        isLoadingSampleTakes = true
         sampleTakeLoadRequestID = UUID()
+    }
+
+    func reportSampleTakeLoadResult(_ result: SampleTakeLoadResult) {
+        isLoadingSampleTakes = false
+        sampleTakeLoadResult = result
+    }
+
+    func requestDataReset() {
+        dataResetRequestID = UUID()
     }
 
     func requestTakeCommand(_ request: TakeCommandRequest) {
@@ -119,14 +124,6 @@ final class AppState: ObservableObject {
     }
 
 #if os(macOS)
-    func refreshModifierFlags() {
-        isLoadSampleTakesMenuModifierActive = Self.isLoadSampleTakesMenuRevealed(NSEvent.modifierFlags)
-    }
-
-    private static func isLoadSampleTakesMenuRevealed(_ flags: NSEvent.ModifierFlags) -> Bool {
-        flags.contains(.option) || flags.contains(.control)
-    }
-
     private static var isTextInputActive: Bool {
         guard let responder = NSApp.keyWindow?.firstResponder else { return false }
         return responder is NSTextView || responder is NSTextField

@@ -27,10 +27,12 @@ extension ContentView {
                         .id(take.id)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .overlay(alignment: .bottomTrailing) {
-                            completedTakeZoomSliderRow(for: take)
-                                .padding(.trailing, 12)
-                                .padding(.bottom, 12)
-                                .offset(completedTakeZoomSliderOverlayOffset)
+                            if take.summary.duration >= 5.0 {
+                                completedTakeZoomSliderRow()
+                                    .padding(.trailing, 12)
+                                    .padding(.bottom, 12)
+                                    .offset(completedTakeZoomSliderOverlayOffset)
+                            }
                         }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 } else {
@@ -213,18 +215,14 @@ extension ContentView {
     }
 
     /// Zoom controls sit over the piano roll, bottom-right aligned.
-    private func completedTakeZoomSliderRow(for take: RecordedTakeListItem) -> some View {
-        let isZoomDisabled = take.summary.duration < 5.0
-        return HStack(spacing: 8) {
+    private func completedTakeZoomSliderRow() -> some View {
+        HStack(spacing: 8) {
             Image(systemName: "minus.magnifyingglass")
-                .foregroundStyle(isZoomDisabled ? .secondary : .primary)
 
             Slider(value: $pianoRollZoomLevel, in: 0...1)
                 .frame(width: 150)
-                .disabled(isZoomDisabled)
 
             Image(systemName: "plus.magnifyingglass")
-                .foregroundStyle(isZoomDisabled ? .secondary : .primary)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)

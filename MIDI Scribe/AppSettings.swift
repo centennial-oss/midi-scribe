@@ -71,7 +71,7 @@ final class AppSettings: ObservableObject {
             userDefaults.object(forKey: Self.speakerOutputProgramKey) as? Int
         )
         echoScribedToSpeakers =
-            userDefaults.object(forKey: Self.echoScribedToSpeakersKey) as? Bool ?? false
+            userDefaults.object(forKey: Self.echoScribedToSpeakersKey) as? Bool ?? true
         userDefaults.set(speakerOutputProgram, forKey: Self.speakerOutputProgramKey)
 
         userDefaultsObserver = NotificationCenter.default.publisher(
@@ -87,6 +87,17 @@ final class AppSettings: ObservableObject {
         !disableScribing
     }
 
+    func resetAllPreferences() {
+        if let bundleID = Bundle.main.bundleIdentifier {
+            userDefaults.removePersistentDomain(forName: bundleID)
+        } else {
+            userDefaults.dictionaryRepresentation().keys.forEach { key in
+                userDefaults.removeObject(forKey: key)
+            }
+        }
+        reloadFromUserDefaults()
+    }
+
     private func reloadFromUserDefaults() {
         let updatedDisableScribing = userDefaults.object(forKey: Self.disableScribingKey) as? Bool ?? false
         let updatedMonitoredMIDIChannel =
@@ -98,7 +109,7 @@ final class AppSettings: ObservableObject {
         let updatedSpeakerOutputProgram =
             Self.validSpeakerOutputProgram(userDefaults.object(forKey: Self.speakerOutputProgramKey) as? Int)
         let updatedEchoScribedToSpeakers =
-            userDefaults.object(forKey: Self.echoScribedToSpeakersKey) as? Bool ?? false
+            userDefaults.object(forKey: Self.echoScribedToSpeakersKey) as? Bool ?? true
 
         if disableScribing != updatedDisableScribing {
             disableScribing = updatedDisableScribing

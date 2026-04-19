@@ -56,8 +56,13 @@ actor TakePersistenceService {
 
     func deleteTake(id takeID: UUID) async throws {
         try await run { context in
-            guard let take = try Self.fetchTake(id: takeID, in: context) else { return }
-            context.delete(take)
+            // Store-level predicate delete avoids faulting a potentially large
+            // event relationship graph into memory before removal.
+            let idString = takeID.uuidString
+            try context.delete(
+                model: StoredTake.self,
+                where: #Predicate<StoredTake> { $0.takeID == idString }
+            )
             try context.save()
         }
     }

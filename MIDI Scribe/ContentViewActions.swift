@@ -45,7 +45,7 @@ extension ContentView {
         guard let take = viewModel.fullTake(id: listItem.id) else { return }
 
         let container = modelContext.container
-        Task.detached(priority: .utility) {
+        Task.detached(priority: .userInitiated) {
             let context = ModelContext(container)
             let takeID = take.id.uuidString
             let descriptor = FetchDescriptor<StoredTake>(
@@ -112,7 +112,27 @@ extension ContentView {
         if viewModel.persistenceService == nil {
             viewModel.persistenceService = TakePersistenceService(container: container)
         }
-        viewModel.loadSampleTakes()
+        Task {
+            let result = await viewModel.loadSampleTakes()
+            switch result {
+            case .success(let count):
+                appState.reportSampleTakeLoadResult(.success(count: count))
+            case .failure(let error):
+                appState.reportSampleTakeLoadResult(.failure(message: error.localizedDescription))
+            }
+        }
+    }
+
+    func resetAfterDataErase() {
+        viewModel.playbackEngine.stopAndReset()
+        viewModel.materializedTakes = [:]
+        viewModel.recentTakes = []
+        viewModel.lastCompletedTake = nil
+        viewModel.selectedSidebarItem = .currentTake
+        viewModel.multiSelection = []
+        pendingDeleteTakeID = nil
+        appState.takeCommandRequest = nil
+        appState.takeCommandState = TakeCommandState()
     }
 
     func handleTakeCommandRequest(_ request: TakeCommandRequest?) {

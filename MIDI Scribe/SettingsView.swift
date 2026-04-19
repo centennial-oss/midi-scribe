@@ -10,19 +10,18 @@ import SwiftData
 #if os(macOS)
 import AppKit
 #endif
-#if os(iOS)
-import UIKit
-#endif
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
+    @ObservedObject var appState: AppState
     @ObservedObject var settings: AppSettings
     let onClose: () -> Void
     /// Invoked from **iPhone** “Load Sample Takes…” only (no menu bar on phone).
     let onLoadSampleTakes: () -> Void
 
     @State private var isConfirmingEraseAll = false
-    @State private var eraseResultMessage: String?
+    @State private var isConfirmingResetPreferences = false
+    @State private var alertState: SettingsAlertState?
     @State private var isErasing = false
 
     private let allowedDelayValues: [Double] =
@@ -71,16 +70,33 @@ struct SettingsView: View {
                     }
                 }
 
-                Section("Danger Zone") {
-#if os(iOS)
-                    if UIDevice.current.userInterfaceIdiom == .phone {
-                        Button("Load Sample Takes…") {
-                            onLoadSampleTakes()
+                Section("Demo Data") {
+                    Button {
+                        onLoadSampleTakes()
+                    } label: {
+                        HStack(spacing: 8) {
+                            if appState.isLoadingSampleTakes {
+                                ProgressView()
+                                    .controlSize(.small)
+                                Text("Loading…")
+                            } else {
+                                Text("Load Sample Takes")
+                            }
                         }
                     }
-#endif
+                    .disabled(appState.isLoadingSampleTakes)
+                    Text("Adds several public-domain songs to your Recent Takes list.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Danger Zone") {
+                    Button("Reset All Preferences", role: .destructive) {
+                        isConfirmingResetPreferences = true
+                    }
+
                     HStack {
-                        Button("Erase All Data", role: .destructive) {
+                        Button("Erase All Takes + Reset Preferences", role: .destructive) {
                             isConfirmingEraseAll = true
                         }
                         .disabled(isErasing)
@@ -91,12 +107,6 @@ struct SettingsView: View {
                             Text("Erasing…")
                                 .foregroundStyle(.secondary)
                         }
-                    }
-
-                    if let eraseResultMessage {
-                        Text(eraseResultMessage)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -115,9 +125,60 @@ struct SettingsView: View {
             } message: {
                 Text(
                     "This will permanently delete every recorded take and all of their MIDI events. "
-                        + "MIDI Scribe will need to be quit and relaunched afterward. "
                         + "This action cannot be undone."
                 )
+            }
+            .alert("Reset All Preferences?", isPresented: $isConfirmingResetPreferences) {
+                Button("Reset", role: .destructive) {
+                    settings.resetAllPreferences()
+                    alertState = .preferencesReset
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will clear all saved preferences and restore defaults.")
+            }
+            .alert(item: $alertState) { state in
+                switch state {
+                case .sampleTakesLoaded(let count):
+                    return Alert(
+                        title: Text("Sample Takes Loaded"),
+                        message: Text("Added \(count) sample take\(count == 1 ? "" : "s") to Recent Takes."),
+                        dismissButton: .default(Text("OK"))
+                    )
+                case .sampleTakesFailed(let message):
+                    return Alert(
+                        title: Text("Unable to Load Sample Takes"),
+                        message: Text(message),
+                        dismissButton: .default(Text("OK"))
+                    )
+                case .eraseAllSucceeded:
+                    return Alert(
+                        title: Text("Data Erased"),
+                        message: Text("All save data erased. MIDI Scribe has been reset."),
+                        dismissButton: .default(Text("OK"))
+                    )
+                case .eraseAllFailed(let message):
+                    return Alert(
+                        title: Text("Erase Failed"),
+                        message: Text(message),
+                        dismissButton: .default(Text("OK"))
+                    )
+                case .preferencesReset:
+                    return Alert(
+                        title: Text("Preferences Reset"),
+                        message: Text("All saved preferences were reset to defaults."),
+                        dismissButton: .default(Text("OK"))
+                    )
+                }
+            }
+            .onChange(of: appState.sampleTakeLoadResult) { _, result in
+                guard let result else { return }
+                switch result {
+                case .success(let count):
+                    alertState = .sampleTakesLoaded(count: count)
+                case .failure(let message):
+                    alertState = .sampleTakesFailed(message: message)
+                }
             }
         }
         .frame(minWidth: 460, minHeight: 280)
@@ -126,32 +187,18 @@ struct SettingsView: View {
     private func eraseAllData() {
         guard !isErasing else { return }
         isErasing = true
-        eraseResultMessage = nil
 
         let container = modelContext.container
         Task {
-            let result: Result<URL, Error> = await Task.detached(priority: .userInitiated) {
-                // Locate the underlying store file(s) from the container's
-                // configuration, then delete them (plus the SQLite sidecar
-                // files -shm and -wal). This is the only reliable path:
-                // `delete(model:)` can fail on mandatory inverse nullify,
-                // and `ModelContainer.deleteAllData()` is documented-broken.
+            let result: Result<Void, Error> = await Task.detached(priority: .userInitiated) {
+                let context = ModelContext(container)
                 do {
-                    let storeURL = container.configurations.first?.url
-                        ?? URL.applicationSupportDirectory.appending(path: "default.store")
-
-                    let fileManager = FileManager.default
-                    let candidates = [
-                        storeURL,
-                        storeURL.appendingPathExtension("shm"),
-                        storeURL.appendingPathExtension("wal"),
-                        URL(fileURLWithPath: storeURL.path + "-shm"),
-                        URL(fileURLWithPath: storeURL.path + "-wal")
-                    ]
-                    for url in candidates where fileManager.fileExists(atPath: url.path) {
-                        try fileManager.removeItem(at: url)
-                    }
-                    return .success(storeURL)
+                    // Use store-level bulk delete on the parent model only.
+                    // Deleting child rows directly can violate the mandatory
+                    // inverse constraint on StoredMIDIEvent.take.
+                    try context.delete(model: StoredTake.self)
+                    try context.save()
+                    return .success(())
                 } catch {
                     return .failure(error)
                 }
@@ -160,9 +207,11 @@ struct SettingsView: View {
             isErasing = false
             switch result {
             case .success:
-                eraseResultMessage = "All data erased. Please quit and relaunch MIDI Scribe to continue."
+                settings.resetAllPreferences()
+                appState.requestDataReset()
+                alertState = .eraseAllSucceeded
             case .failure(let error):
-                eraseResultMessage = "Failed to erase: \(error.localizedDescription)"
+                alertState = .eraseAllFailed(message: "Failed to erase: \(error.localizedDescription)")
             }
         }
     }
@@ -191,6 +240,29 @@ struct SettingsView: View {
             abs(lhs.element - seconds) < abs(rhs.element - seconds)
         }
         return closest?.offset ?? 0
+    }
+}
+
+private enum SettingsAlertState: Identifiable {
+    case sampleTakesLoaded(count: Int)
+    case sampleTakesFailed(message: String)
+    case eraseAllSucceeded
+    case eraseAllFailed(message: String)
+    case preferencesReset
+
+    var id: String {
+        switch self {
+        case .sampleTakesLoaded(let count):
+            return "sample-loaded-\(count)"
+        case .sampleTakesFailed(let message):
+            return "sample-failed-\(message)"
+        case .eraseAllSucceeded:
+            return "erase-succeeded"
+        case .eraseAllFailed(let message):
+            return "erase-failed-\(message)"
+        case .preferencesReset:
+            return "preferences-reset"
+        }
     }
 }
 

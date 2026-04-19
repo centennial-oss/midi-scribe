@@ -169,6 +169,7 @@ struct PianoRollView: View {
                         .gesture(
                             MagnificationGesture()
                                 .onChanged { value in
+                                    guard !isLive else { return }
                                     if !isPinchZooming {
                                         isPinchZooming = true
                                         beginPausedZoomCentering(debounce: false)
@@ -176,6 +177,7 @@ struct PianoRollView: View {
                                     currentMagnification = value
                                 }
                                 .onEnded { value in
+                                    guard !isLive else { return }
                                     let delta = (value - 1.0) * 0.5
                                     zoomLevel = max(0.0, min(1.0, zoomLevel + delta))
                                     currentMagnification = 1.0
@@ -228,7 +230,11 @@ struct PianoRollView: View {
                 // hover tooltips aren't usable at that density anyway.
             }
         }
-        .overlay(PianoRollScrollWheelZoom(zoomLevel: $zoomLevel))
+        .overlay {
+            if !isLive {
+                PianoRollScrollWheelZoom(zoomLevel: $zoomLevel)
+            }
+        }
         .onAppear {
             computeNotes()
             liveEventsProcessedCount = take.events.count

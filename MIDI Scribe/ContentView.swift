@@ -159,6 +159,9 @@ struct ContentView: View {
         .onChange(of: appState.sampleTakeLoadRequestID) { _, _ in
             loadSampleTakes()
         }
+        .onChange(of: appState.dataResetRequestID) { _, _ in
+            resetAfterDataErase()
+        }
         .onChange(of: appState.takeCommandRequest) { _, request in
             handleTakeCommandRequest(request)
         }

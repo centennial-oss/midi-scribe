@@ -38,7 +38,7 @@ struct MIDIScribeApp: App {
 #endif
                 }
                 .sheet(isPresented: $appState.isShowingSettings) {
-                    SettingsView(settings: settings, onClose: {
+                    SettingsView(appState: appState, settings: settings, onClose: {
                         appState.dismissSettings()
                     }, onLoadSampleTakes: {
                         appState.requestLoadSampleTakes()
@@ -136,20 +136,6 @@ struct MIDIScribeApp: App {
                     }
                 }
                 .disabled(!state.canPerformTakeAction)
-
-#if os(macOS)
-                if appState.isLoadSampleTakesMenuModifierActive {
-                    Divider()
-                    Button("Load Sample Takes") {
-                        appState.requestLoadSampleTakes()
-                    }
-                }
-#else
-                Divider()
-                Button("Load Sample Takes") {
-                    appState.requestLoadSampleTakes()
-                }
-#endif
             }
 
 #if os(macOS)
@@ -168,17 +154,6 @@ struct MIDIScribeApp: App {
                 }
             }
 #else
-            /// iOS maps the stock “Settings” / gear affordance to the system Settings app. Use a
-            /// plain Text title so this command only runs `presentSettings()` (in-app sheet).
-            CommandGroup(replacing: .appSettings) {
-                Button {
-                    appState.presentSettings()
-                } label: {
-                    Text("Preferences…")
-                }
-                .keyboardShortcut(",", modifiers: [.command])
-            }
-
             CommandGroup(replacing: .appInfo) {
                 Button("About MIDI Scribe") {
                     appState.presentAbout()

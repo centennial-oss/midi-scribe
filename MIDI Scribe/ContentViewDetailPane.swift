@@ -308,29 +308,11 @@ extension ContentView {
             PianoRollView(
                 take: liveTake,
                 viewModel: viewModel,
-                zoomLevel: $pianoRollZoomLevel,
+                zoomLevel: .constant(0.0),
                 isLive: true
             )
-            .overlay(alignment: .bottomTrailing) {
-                livePianoRollZoomSliderChrome
-                    .padding(.trailing, 12)
-                    .padding(.bottom, 12)
-                    .offset(liveTakeZoomSliderOverlayOffset)
-            }
             .layoutPriority(1)
         }
-    }
-
-    private var livePianoRollZoomSliderChrome: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "minus.magnifyingglass")
-            Slider(value: $pianoRollZoomLevel, in: 0...1)
-                .frame(width: 150)
-            Image(systemName: "plus.magnifyingglass")
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(.ultraThinMaterial, in: Capsule())
     }
 
     private var currentLiveTake: RecordedTake? {
@@ -344,14 +326,6 @@ extension ContentView {
             events: events,
             summary: RecordedTakeSummary.empty
         )
-    }
-
-    private var liveTakeZoomSliderOverlayOffset: CGSize {
-        #if os(iOS)
-        CGSize(width: 14, height: 14)
-        #else
-        .zero
-        #endif
     }
 
     private var currentTakeIdleContent: some View {

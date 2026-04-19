@@ -63,7 +63,16 @@ extension ContentView {
 
         Section {
             sidebarSelectableRow(item: .currentTake) {
-                Text("Current Take")
+                HStack(spacing: 8) {
+                    Text("Current Take")
+                    Spacer(minLength: 8)
+                    if viewModel.isTakeInProgress {
+                        Image(systemName: "circle.fill")
+                            .foregroundStyle(.red)
+                            .font(.caption2)
+                            .accessibilityLabel("Recording in progress")
+                    }
+                }
             }
         }
 
@@ -150,7 +159,7 @@ extension ContentView {
     @ViewBuilder
     private var playbackOutputPicker: some View {
         Picker("Playback to", selection: $viewModel.selectedPlaybackTarget) {
-            Text("OS Speakers").tag(PlaybackOutputTarget.osSpeakers)
+            Text("Speakers").tag(PlaybackOutputTarget.osSpeakers)
             ForEach(1...16, id: \.self) { channel in
                 Text("MIDI Channel \(channel)").tag(PlaybackOutputTarget.midiChannel(channel))
             }
