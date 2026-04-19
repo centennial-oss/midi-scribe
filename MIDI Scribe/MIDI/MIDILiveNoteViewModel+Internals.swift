@@ -16,10 +16,46 @@ extension MIDILiveNoteViewModel {
 
     func handleRecordedEvent(_ event: RecordedMIDIEvent) {
         guard settings.isScribingEnabled else { return }
+        // Play first, synchronously, so speaker echo isn't delayed by
+        // subsequent SwiftData/UI work on this tick.
         playbackEngine.playLiveEventToSpeakers(event)
+        // Defer the live piano roll update to the next runloop tick. The
+        // @Published mutation triggers a SwiftUI diff of the live piano
+        // roll that, when executed inline, adds audible latency to the
+        // echoed note.
+        Task { @MainActor [weak self] in
+            self?.appendToLiveTake(event)
+        }
         Task {
             await takeLifecycle.appendEvent(event, timeout: settings.newTakePauseSeconds)
         }
+    }
+
+    /// Mirror the lifecycle actor's event normalization on the main actor so
+    /// the live piano roll has up-to-date, origin-relative events without a
+    /// cross-actor hop on every note.
+    private func appendToLiveTake(_ event: RecordedMIDIEvent) {
+        let takeStart: Date
+        if let existing = liveTakeStartedAt {
+            takeStart = existing
+        } else {
+            takeStart = event.receivedAt
+            liveTakeStartedAt = event.receivedAt
+            liveTakeID = UUID()
+            liveTakeEvents.removeAll(keepingCapacity: true)
+        }
+
+        let normalized = RecordedMIDIEvent(
+            id: event.id,
+            receivedAt: event.receivedAt,
+            offsetFromTakeStart: max(event.receivedAt.timeIntervalSince(takeStart), 0),
+            kind: event.kind,
+            channel: event.channel,
+            status: event.status,
+            data1: event.data1,
+            data2: event.data2
+        )
+        liveTakeEvents.append(normalized)
     }
 
     func handleScribingEnabledChanged(isEnabled: Bool) {
@@ -48,6 +84,10 @@ extension MIDILiveNoteViewModel {
         } else {
             durationTicker?.cancel()
             durationTicker = nil
+            if liveTakeStartedAt != nil {
+                liveTakeStartedAt = nil
+                liveTakeEvents.removeAll(keepingCapacity: false)
+            }
         }
     }
 

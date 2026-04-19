@@ -12,7 +12,31 @@ extension ContentView {
                 completedTakeToolbar(for: take)
                 completedTakeProgressAndErrors
                 takeTitleView(for: take)
-                completedTakeMetadata(for: take)
+
+                HStack(alignment: .top, spacing: 32) {
+                    completedTakeMetadata(for: take)
+                    Spacer()
+                    // Zoom Buttons
+                    let isZoomDisabled = take.summary.duration < 5.0
+                    HStack(spacing: 8) {
+                        Image(systemName: "minus.magnifyingglass")
+                            .foregroundStyle(isZoomDisabled ? .secondary : .primary)
+
+                        Slider(value: $pianoRollZoomLevel, in: 0...1)
+                            .frame(width: 150)
+                            .disabled(isZoomDisabled)
+
+                        Image(systemName: "plus.magnifyingglass")
+                            .foregroundStyle(isZoomDisabled ? .secondary : .primary)
+                    }
+                }
+
+                if let fullTake = viewModel.fullTake(id: take.id) {
+                    PianoRollView(take: fullTake, viewModel: viewModel, zoomLevel: $pianoRollZoomLevel)
+                } else {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             } else {
                 Text("Take not found.")
                     .foregroundStyle(.secondary)
@@ -104,14 +128,24 @@ extension ContentView {
     }
 
     private func completedTakeMetadata(for take: RecordedTakeListItem) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            labeledValue("Duration", viewModel.completedTakeDurationText(take))
-            labeledValue("Events", "\(take.summary.eventCount)")
-            labeledValue("Note On / Off", "\(take.summary.noteOnCount) / \(take.summary.noteOffCount)")
-            labeledValue("Channels", viewModel.completedTakeChannelsText(take))
-            labeledValue("Range", viewModel.completedTakeRangeText(take))
+        HStack(alignment: .firstTextBaseline, spacing: 24) {
+            inlineLabeledValue("Duration", viewModel.completedTakeDurationText(take))
+            inlineLabeledValue("Events", "\(take.summary.eventCount)")
+            inlineLabeledValue("Note On / Off", "\(take.summary.noteOnCount) / \(take.summary.noteOffCount)")
+            inlineLabeledValue("Channels", viewModel.completedTakeChannelsText(take))
+            inlineLabeledValue("Range", viewModel.completedTakeRangeText(take))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func inlineLabeledValue(_ label: String, _ value: String) -> some View {
+        HStack(spacing: 6) {
+            Text("\(label):")
+                .font(.headline)
+            Text(value)
+                .font(.body.monospaced())
+                .foregroundStyle(.secondary)
+        }
     }
 
     @ViewBuilder

@@ -25,6 +25,12 @@ final class MIDIPlaybackEngine: ObservableObject {
     /// Nil if there is no paused position (never played, reset, or finished).
     @Published private(set) var pausedAtOffset: TimeInterval?
 
+    var currentPlaybackTime: TimeInterval {
+        if let pausedAtOffset { return pausedAtOffset }
+        guard isPlaying, let playbackStartedAt else { return 0 }
+        return playbackSegmentStartOffset + max(Date().timeIntervalSince(playbackStartedAt), 0)
+    }
+
     private let settings: AppSettings
     private let audioEngine = AVAudioEngine()
     private var sampler = AVAudioUnitSampler()
@@ -108,6 +114,23 @@ final class MIDIPlaybackEngine: ObservableObject {
         sendAllNotesOff()
         resetPlaybackPosition()
     }
+
+    func updatePausedOffset(to offset: TimeInterval) {
+        let safeOffset = max(0, offset)
+        pausedAtOffset = safeOffset
+        playbackResumeOffset = safeOffset
+        if let playbackTake {
+            playbackResumeIndex = firstEventIndex(in: playbackTake, atOrAfter: safeOffset)
+        }
+    }
+
+    func playScrubEvent(_ event: RecordedMIDIEvent, target: PlaybackOutputTarget) {
+        play(event: event, target: target)
+    }
+
+    func stopScrubbingNotes() {
+        sendAllNotesOff()
+    }
 }
 
 extension MIDIPlaybackEngine {
@@ -117,7 +140,18 @@ extension MIDIPlaybackEngine {
         }
 
         if currentTakeID != take.id || currentTarget != target {
+            // Preserve any scrub position the user set via
+            // `updatePausedOffset` before the engine was bound to this
+            // take (e.g. dragging the playhead before ever pressing
+            // Play). Otherwise `resetPlaybackPosition` would snap the
+            // resume offset back to 0 and playback would start at the
+            // beginning instead of where the user dropped the playhead.
+            let preservedResumeOffset = playbackResumeOffset
             resetPlaybackPosition()
+            if preservedResumeOffset > 0 {
+                playbackResumeOffset = preservedResumeOffset
+                playbackResumeIndex = firstEventIndex(in: take, atOrAfter: preservedResumeOffset)
+            }
         }
 
         playbackTake = take
@@ -274,6 +308,16 @@ extension MIDIPlaybackEngine {
         isPlaying = false
         sendAllNotesOff()
         resetPlaybackPosition()
+    }
+
+    private func firstEventIndex(in take: RecordedTake, atOrAfter offset: TimeInterval) -> Int {
+        // Events are appended in receive order, which is time-sorted.
+        // Walk forward until we find the first event at or after the
+        // target offset; this bounds the skipped prefix of playback.
+        for (index, event) in take.events.enumerated() where event.offsetFromTakeStart >= offset {
+            return index
+        }
+        return take.events.count
     }
 
     private func resetPlaybackPosition() {

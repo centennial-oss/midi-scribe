@@ -268,7 +268,42 @@ extension ContentView {
                         .frame(maxWidth: .infinity)
                 }
             }
+
+            livePianoRoll
         }
+    }
+
+    @ViewBuilder
+    private var livePianoRoll: some View {
+        if let liveTake = currentLiveTake {
+            HStack(spacing: 8) {
+                Image(systemName: "minus.magnifyingglass")
+                Slider(value: $pianoRollZoomLevel, in: 0...1)
+                    .frame(width: 150)
+                Image(systemName: "plus.magnifyingglass")
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+
+            PianoRollView(
+                take: liveTake,
+                viewModel: viewModel,
+                zoomLevel: $pianoRollZoomLevel,
+                isLive: true
+            )
+        }
+    }
+
+    private var currentLiveTake: RecordedTake? {
+        guard let startedAt = viewModel.liveTakeStartedAt else { return nil }
+        let events = viewModel.liveTakeEvents
+        let endedAt = events.last?.receivedAt ?? startedAt
+        return RecordedTake(
+            id: viewModel.liveTakeID,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            events: events,
+            summary: RecordedTakeSummary.empty
+        )
     }
 
     private var currentTakeIdleContent: some View {

@@ -43,6 +43,7 @@ struct ContentView: View {
     /// requires a different final selection).
     @State var preEditSelection: SidebarItem?
     @State var isPresentingBulkDeleteConfirm = false
+    @State var pianoRollZoomLevel: CGFloat = 0.0
 
     init(settings: AppSettings) {
         self.settings = settings

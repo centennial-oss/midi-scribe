@@ -17,6 +17,16 @@ final class MIDILiveNoteViewModel: ObservableObject {
     @Published var currentNoteText = ""
     @Published var currentChannelText = ""
     @Published var currentTakeSnapshot = CurrentTakeSnapshot.empty
+    /// Incrementally-grown list of events in the take currently being
+    /// recorded. Kept on the main actor so the live piano roll can render
+    /// in real time without copying the full events array from the
+    /// lifecycle actor on every note. Cleared when a take ends.
+    @Published var liveTakeEvents: [RecordedMIDIEvent] = []
+    /// When a take starts we stamp its id here so the live piano roll has
+    /// a stable identity for `onChange(of: take.id)` hooks.
+    @Published var liveTakeID: UUID = UUID()
+    /// Time the first event for the live take was received.
+    @Published var liveTakeStartedAt: Date?
     @Published var recentTakes: [RecordedTakeListItem] = []
     @Published var lastCompletedTake: RecordedTakeListItem?
     /// Lazy cache of fully-materialized takes (with events). Only populated
