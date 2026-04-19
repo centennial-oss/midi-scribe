@@ -1,10 +1,15 @@
-.PHONY: build build-release-unsigned generate-appicons add-midi-assets test clean generate-build-info lint lint-fix-safe
+.PHONY: build build-release-unsigned generate-appicons add-midi-assets add-soundbank-assets test clean generate-build-info lint lint-fix-safe
 
 SWIFTLINT ?= $(shell command -v swiftlint 2>/dev/null)
 
 # Must match the Xcode scheme name and the on-disk folder `MIDI Scribe/`.
+PROJECT := MIDI Scribe.xcodeproj
 XCODE_SCHEME := MIDI Scribe
+APP_NAME := MIDI Scribe
 APP_DIR := MIDI Scribe
+BUNDLE_ID ?= org.centennialoss.consolation
+DERIVED_DATA := build/DerivedData
+DIST_DERIVED_DATA := dist/DerivedData
 
 # App icon pipeline:
 #   1. Composite assets/app-icon-large-transparent.png over assets/app-icon-background-large.png → assets/app-icon-large.png
@@ -19,6 +24,10 @@ MIDI_ASSET_SCRIPT := scripts/add-midi-assets.swift
 MIDI_TESTDATA_DIR := testdata
 MIDI_SAMPLE_ASSET_DIR := $(APP_DIR)/Assets.xcassets/SampleTakes
 MIDI_SAMPLE_MANIFEST := $(APP_DIR)/SampleMIDIFiles.generated.swift
+SOUNDBANK_ASSET_SCRIPT := scripts/add-soundbank-assets.swift
+SOUNDBANK_SOURCE := soundbanks/GeneralUser-GS/GeneralUser-GS.sf2
+SOUNDBANK_ASSET_DIR := $(APP_DIR)/Assets.xcassets/SoundBanks
+SOUNDBANK_MANIFEST := $(APP_DIR)/SoundBankAssets.generated.swift
 
 # Transparent icon: source of truth is assets/app-icon-large-transparent.png → 128x128 to both:
 APPICON_TRANSPARENT_SRC := assets/app-icon-large-transparent.png
@@ -68,13 +77,20 @@ generate-build-info:
 add-midi-assets:
 	@swift "$(MIDI_ASSET_SCRIPT)" "$(MIDI_TESTDATA_DIR)" "$(MIDI_SAMPLE_ASSET_DIR)" "$(MIDI_SAMPLE_MANIFEST)"
 
-build: test
+add-soundbank-assets:
+	@swift "$(SOUNDBANK_ASSET_SCRIPT)" "$(SOUNDBANK_SOURCE)" "$(SOUNDBANK_ASSET_DIR)" "$(SOUNDBANK_MANIFEST)"
+
+build: test build-macos build-ipad
+
+build-macos: 
 	mkdir -p build
-	@if [ -n "$(TAGVER)" ]; then \
-		printf 'MARKETING_VERSION = %s\nINFOPLIST_KEY_NSHumanReadableCopyright = Copyright © 2026 Centennial OSS\n' "$(TAGVER)" > "$(APP_DIR)/Version.xcconfig"; \
-	fi
-	xcodebuild -scheme "$(XCODE_SCHEME)" -configuration Debug -derivedDataPath build/DerivedData build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
-	cp -R "build/DerivedData/Build/Products/Debug/MIDI Scribe.app" build/
+	xcodebuild -project "$(PROJECT)" -scheme "$(XCODE_SCHEME)" -configuration Debug -derivedDataPath $(DERIVED_DATA) -destination 'platform=macOS' build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+	cp -R "$(DERIVED_DATA)/Build/Products/Debug/$(APP_NAME).app" build/
+
+build-ipad: 
+	mkdir -p build
+	xcodebuild -project "$(PROJECT)" -scheme "$(XCODE_SCHEME)" -configuration Debug -derivedDataPath $(DERIVED_DATA) -destination 'generic/platform=iOS Simulator' build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+	cp -R "$(DERIVED_DATA)/Build/Products/Debug-iphonesimulator/$(APP_NAME).app" "build/$(APP_NAME)-iPad.app"
 
 build-release-unsigned:
 	mkdir -p dist

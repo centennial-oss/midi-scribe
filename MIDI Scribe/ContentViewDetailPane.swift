@@ -25,7 +25,10 @@ extension ContentView {
                 editingTakesDetail
             }
         }
-        .modifier(iPhoneGlobalAppToolbarModifier(appState: appState))
+#if os(iOS)
+        .navigationBarBackButtonHidden(true)
+        .modifier(IPhoneGlobalAppToolbarModifier(appState: appState, preferredCompactColumn: $preferredCompactColumn))
+#endif
     }
 
     var editingTakesDetail: some View {
@@ -331,17 +334,30 @@ extension ContentView {
 
 // MARK: - iPhone app toolbar (detail column)
 
+#if os(iOS)
 /// `NavigationSplitView`'s own `.toolbar` applies to the sidebar on compact width; this attaches
 /// Settings / About to the detail stack so they appear on Current Take and every other detail.
-private struct iPhoneGlobalAppToolbarModifier: ViewModifier {
+/// A leading control restores the sidebar column when the split is stacked (compact-width iPhone).
+private struct IPhoneGlobalAppToolbarModifier: ViewModifier {
     let appState: AppState
+    @Binding var preferredCompactColumn: NavigationSplitViewColumn
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     func body(content: Content) -> some View {
-#if os(iOS)
         Group {
             if UIDevice.current.userInterfaceIdiom == .phone {
                 content
                     .toolbar {
+                        if horizontalSizeClass != .regular {
+                            ToolbarItem(placement: .topBarLeading) {
+                                Button {
+                                    preferredCompactColumn = .sidebar
+                                } label: {
+                                    Image(systemName: "sidebar.left")
+                                }
+                                .accessibilityLabel("Show sidebar")
+                            }
+                        }
                         ToolbarItemGroup(placement: .topBarTrailing) {
                             Button {
                                 appState.presentSettings()
@@ -362,8 +378,6 @@ private struct iPhoneGlobalAppToolbarModifier: ViewModifier {
                 content
             }
         }
-#else
-        content
-#endif
     }
 }
+#endif

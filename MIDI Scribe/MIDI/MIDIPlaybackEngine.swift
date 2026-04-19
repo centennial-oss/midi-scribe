@@ -33,7 +33,7 @@ final class MIDIPlaybackEngine: ObservableObject {
 
     private let settings: AppSettings
     private let audioEngine = AVAudioEngine()
-    private var sampler = AVAudioUnitSampler()
+    private var speakerInstrument: AVAudioUnitMIDIInstrument = AVAudioUnitSampler()
     private var settingsCancellable: AnyCancellable?
     private var playbackTask: Task<Void, Never>?
     private var playbackTake: RecordedTake?
@@ -207,25 +207,30 @@ extension MIDIPlaybackEngine {
             #endif
             try audioEngine.start()
         } catch {
+            print("MIDI Scribe playback audio setup failed: \(error)")
         }
     }
 
     private func reloadInstrument() {
         do {
-            if !audioEngine.isRunning {
-                try audioEngine.start()
+            let wasRunning = audioEngine.isRunning
+            if wasRunning {
+                audioEngine.stop()
             }
             try rebuildSampler()
+            if wasRunning {
+                try audioEngine.start()
+            }
         } catch {
+            print("MIDI Scribe playback instrument reload failed: \(error)")
         }
     }
 
-    private var soundBankURL: URL {
-        #if os(macOS)
-        URL(fileURLWithPath: "/System/Library/Components/CoreAudio.component/Contents/Resources/gs_instruments.dls")
-        #else
-        URL(fileURLWithPath: "/System/Library/Audio/Sounds/Banks/gs_instruments.dls")
-        #endif
+    private func resolvedSoundBankURL() throws -> URL {
+        try SoundBankAssets.soundBankURL()
+        // macOS fallback if GeneralUser-GS does not work well enough:
+        // URL(fileURLWithPath:
+        //     "/System/Library/Components/CoreAudio.component/Contents/Resources/gs_instruments.dls")
     }
 
     private func configureMIDIOutput() {
@@ -244,14 +249,8 @@ extension MIDIPlaybackEngine {
     }
 
     private func playThroughSpeakers(_ event: RecordedMIDIEvent) {
-        switch event.kind {
-        case .noteOn:
-            sampler.startNote(event.data1, withVelocity: event.data2 ?? 0, onChannel: event.channel - 1)
-        case .noteOff:
-            sampler.stopNote(event.data1, onChannel: event.channel - 1)
-        default:
-            sampler.sendMIDIEvent(event.status, data1: event.data1, data2: event.data2 ?? 0)
-        }
+        guard event.kind != .programChange else { return }
+        speakerInstrument.sendMIDIEvent(event.status, data1: event.data1, data2: event.data2 ?? 0)
     }
 
     private func sendToMIDIDestinations(_ event: RecordedMIDIEvent, channelOverride: Int) {
@@ -287,9 +286,6 @@ extension MIDIPlaybackEngine {
     }
 
     private func sendAllNotesOff() {
-        // Send the standard "All Notes Off" + sustain release control changes
-        // per channel. sampler.reset() cleans up any stragglers; iterating
-        // all 16 * 256 notes is unnecessary and was a noticeable stall.
         for channel in 1...16 {
             sendControlChange(64, value: 0, on: channel)
             sendControlChange(120, value: 0, on: channel)
@@ -297,7 +293,7 @@ extension MIDIPlaybackEngine {
             sendControlChange(123, value: 0, on: channel)
         }
 
-        sampler.reset()
+        speakerInstrument.reset()
     }
 
     private func captureResumePosition() {
@@ -335,29 +331,59 @@ extension MIDIPlaybackEngine {
     }
 
     private func rebuildSampler() throws {
-        let wasAttached = sampler.engine === audioEngine
+        let wasAttached = speakerInstrument.engine === audioEngine
         if wasAttached {
             sendAllNotesOff()
-            audioEngine.disconnectNodeInput(sampler)
-            audioEngine.disconnectNodeOutput(sampler)
-            audioEngine.detach(sampler)
+            audioEngine.disconnectNodeInput(speakerInstrument)
+            audioEngine.disconnectNodeOutput(speakerInstrument)
+            audioEngine.detach(speakerInstrument)
         }
+        let soundBankURL = try resolvedSoundBankURL()
 
-        let newSampler = AVAudioUnitSampler()
-        audioEngine.attach(newSampler)
-        audioEngine.connect(newSampler, to: audioEngine.mainMixerNode, format: nil)
-        try newSampler.loadSoundBankInstrument(
+        #if os(iOS)
+        let description = AudioComponentDescription(
+            componentType: kAudioUnitType_MusicDevice,
+            componentSubType: kAudioUnitSubType_MIDISynth,
+            componentManufacturer: kAudioUnitManufacturer_Apple,
+            componentFlags: 0,
+            componentFlagsMask: 0
+        )
+        let newInstrument = AVAudioUnitMIDIInstrument(audioComponentDescription: description)
+        audioEngine.attach(newInstrument)
+        audioEngine.connect(newInstrument, to: audioEngine.mainMixerNode, format: nil)
+        var bankURL = soundBankURL as CFURL
+        print("MIDI Scribe iOS playback synth: loading sound bank \(soundBankURL.path)")
+        let status = withUnsafePointer(to: &bankURL) { pointer in
+            AudioUnitSetProperty(
+                newInstrument.audioUnit, AudioUnitPropertyID(kMusicDeviceProperty_SoundBankURL),
+                AudioUnitScope(kAudioUnitScope_Global), 0, pointer, UInt32(MemoryLayout<CFURL>.size)
+            )
+        }
+        if status != noErr {
+            print("MIDI Scribe iOS playback synth: sound bank load failed OSStatus \(status)")
+        }
+        for channel in UInt8(0) ... UInt8(15) {
+            newInstrument.sendMIDIEvent(0xC0 | channel, data1: UInt8(clamping: speakerProgram))
+        }
+        print("MIDI Scribe iOS playback synth: selected GM program \(speakerProgram)")
+        speakerInstrument = newInstrument
+        #else
+        let newInstrument = AVAudioUnitSampler()
+        audioEngine.attach(newInstrument)
+        audioEngine.connect(newInstrument, to: audioEngine.mainMixerNode, format: nil)
+        try newInstrument.loadSoundBankInstrument(
             at: soundBankURL,
             program: UInt8(clamping: speakerProgram),
             bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB),
             bankLSB: UInt8(kAUSampler_DefaultBankLSB)
         )
-        sampler = newSampler
+        speakerInstrument = newInstrument
+        #endif
     }
 
     private func sendControlChange(_ controller: UInt8, value: UInt8, on channel: Int) {
         let status = UInt8(0xB0 | (channel - 1))
-        sampler.sendMIDIEvent(status, data1: controller, data2: value)
+        speakerInstrument.sendMIDIEvent(status, data1: controller, data2: value)
 
         let event = RecordedMIDIEvent(
             receivedAt: Date(),

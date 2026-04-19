@@ -6,6 +6,8 @@
 import SwiftUI
 #if os(macOS)
 import AppKit
+#elseif os(iOS)
+import UIKit
 #endif
 
 extension ContentView {
@@ -28,37 +30,41 @@ extension ContentView {
     /// Rows shared by macOS (`List(selection:)`) and iOS (plain `List` + tap targets).
     @ViewBuilder
     private var sidebarListRows: some View {
-        VStack(spacing: 10) {
-            HStack {
-                Text("Scribing Enabled")
-                Spacer()
-                Toggle("", isOn: Binding(
-                    get: { settings.isScribingEnabled },
-                    set: { settings.disableScribing = !$0 }
-                ))
-                .labelsHidden()
-                .toggleStyle(.switch)
-            }
+        // Use `Section` boundaries instead of a raw `Divider()` so UIKit List does not insert an extra
+        // blank row between controls and "Current Take" (iPhone / iPad).
+        Section {
+            VStack(spacing: 10) {
+                HStack {
+                    Text("Scribing Enabled")
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { settings.isScribingEnabled },
+                        set: { settings.disableScribing = !$0 }
+                    ))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                }
 
-            HStack {
-                Text("Mute Input")
-                Spacer()
-                Toggle("", isOn: Binding(
-                    get: { !settings.echoScribedToSpeakers },
-                    set: { settings.echoScribedToSpeakers = !$0 }
-                ))
-                .labelsHidden()
-                .toggleStyle(.switch)
-            }
+                HStack {
+                    Text("Mute Input")
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { !settings.echoScribedToSpeakers },
+                        set: { settings.echoScribedToSpeakers = !$0 }
+                    ))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                }
 
-            playbackOutputPicker
-                .padding(.top, 4)
+                playbackOutputPicker
+                    .padding(.top, 4)
+            }
         }
 
-        Divider()
-
-        sidebarSelectableRow(item: .currentTake) {
-            Text("Current Take")
+        Section {
+            sidebarSelectableRow(item: .currentTake) {
+                Text("Current Take")
+            }
         }
 
         if !viewModel.starredTakes.isEmpty {
@@ -108,9 +114,29 @@ extension ContentView {
             .tag(item)
 #else
         Button {
+            let isReselectingSameRow = (viewModel.selectedSidebarItem == item)
             sidebarSelectionBinding.wrappedValue = item
+#if os(iOS)
+            // Re-selecting the active row does not change `onChange` / split state; `preferredCompactColumn`
+            // may already be `.detail` while the sidebar is still visible. Bounce through `.sidebar` so
+            // the split view always applies a transition back to the detail column.
+            if !isEditingList {
+                if isReselectingSameRow {
+                    preferredCompactColumn = .sidebar
+                    DispatchQueue.main.async {
+                        preferredCompactColumn = .detail
+                    }
+                } else {
+                    preferredCompactColumn = .detail
+                }
+            }
+#endif
         } label: {
             content()
+                // Plain `Button` only hit-tests the label’s intrinsic size; the row background spans the
+                // full width, so taps on empty trailing space must still activate the row.
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .listRowBackground(

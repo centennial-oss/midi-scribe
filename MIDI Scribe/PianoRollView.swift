@@ -5,38 +5,6 @@
 
 import SwiftUI
 
-struct PianoRollNote: Identifiable {
-    let id = UUID()
-    let pitch: UInt8
-    let channel: UInt8
-    let velocity: UInt8
-    let startOffset: TimeInterval
-    var duration: TimeInterval
-}
-
-enum PianoRollCCKind {
-    case sustain
-    case sostenuto
-    case soft
-    case other
-
-    var color: Color {
-        switch self {
-        case .sustain: return .purple.opacity(0.8)
-        case .sostenuto: return .orange.opacity(0.8)
-        case .soft: return .blue.opacity(0.8)
-        case .other: return .yellow.opacity(0.8)
-        }
-    }
-}
-
-struct PianoRollCC: Identifiable {
-    let id = UUID()
-    let kind: PianoRollCCKind
-    let startOffset: TimeInterval
-    var duration: TimeInterval
-}
-
 struct PianoRollView: View {
     private static let rollCornerRadius: CGFloat = 8
 
@@ -103,7 +71,7 @@ struct PianoRollView: View {
                 let layoutWidth = max(geo.size.width, 1)
                 let layoutHeight = max(geo.size.height, 1)
                 let availableHeight = layoutHeight - 12 // Leave 12px for the scrubber head at the top
-                let keyHeight = max(3.5, availableHeight / 88.0)
+                let keyHeight = max(3.15, availableHeight / 88.0)
                 let rollHeight = keyHeight * 88.0
                 let viewHeight = rollHeight + 12
 

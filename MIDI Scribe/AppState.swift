@@ -54,7 +54,8 @@ struct TakeCommandState: Equatable {
 final class AppState: ObservableObject {
     @Published var isShowingSettings = false
     @Published var isShowingAbout = false
-    /// True while ⌥ Option or ⌃ Control is held; reveals **File ▸ Load Sample Takes** (macOS). Control is an alternate so Option still works when the iOS Simulator uses it for multi-touch.
+    /// True while ⌥ Option or ⌃ Control is held; reveals **File ▸ Load Sample Takes** (macOS).
+    /// Control is an alternate so Option still works when the iOS Simulator uses it for multi-touch.
     @Published var isLoadSampleTakesMenuModifierActive = false
     @Published var sampleTakeLoadRequestID = UUID()
     @Published var takeCommandState = TakeCommandState()

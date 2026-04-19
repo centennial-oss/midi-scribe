@@ -11,6 +11,7 @@ import Foundation
 @MainActor
 final class AppSettings: ObservableObject {
     static let midiChannelAllValue = 0
+    static let defaultSpeakerOutputProgram = 2
 
     @Published var disableScribing: Bool {
         didSet {
@@ -66,9 +67,12 @@ final class AppSettings: ObservableObject {
         newTakePauseSeconds = userDefaults.object(forKey: Self.newTakePauseSecondsKey) as? Double ?? 180.0
         recentTakesShownInMenus =
             userDefaults.object(forKey: Self.recentTakesShownInMenusKey) as? Int ?? 10
-        speakerOutputProgram = userDefaults.object(forKey: Self.speakerOutputProgramKey) as? Int ?? 0
+        speakerOutputProgram = Self.validSpeakerOutputProgram(
+            userDefaults.object(forKey: Self.speakerOutputProgramKey) as? Int
+        )
         echoScribedToSpeakers =
             userDefaults.object(forKey: Self.echoScribedToSpeakersKey) as? Bool ?? false
+        userDefaults.set(speakerOutputProgram, forKey: Self.speakerOutputProgramKey)
 
         userDefaultsObserver = NotificationCenter.default.publisher(
             for: UserDefaults.didChangeNotification,
@@ -92,7 +96,7 @@ final class AppSettings: ObservableObject {
         let updatedRecentTakesShownInMenus =
             userDefaults.object(forKey: Self.recentTakesShownInMenusKey) as? Int ?? 10
         let updatedSpeakerOutputProgram =
-            userDefaults.object(forKey: Self.speakerOutputProgramKey) as? Int ?? 0
+            Self.validSpeakerOutputProgram(userDefaults.object(forKey: Self.speakerOutputProgramKey) as? Int)
         let updatedEchoScribedToSpeakers =
             userDefaults.object(forKey: Self.echoScribedToSpeakersKey) as? Bool ?? false
 
@@ -114,10 +118,22 @@ final class AppSettings: ObservableObject {
 
         if speakerOutputProgram != updatedSpeakerOutputProgram {
             speakerOutputProgram = updatedSpeakerOutputProgram
+        } else if userDefaults.object(forKey: Self.speakerOutputProgramKey) as? Int != updatedSpeakerOutputProgram {
+            userDefaults.set(updatedSpeakerOutputProgram, forKey: Self.speakerOutputProgramKey)
         }
 
         if echoScribedToSpeakers != updatedEchoScribedToSpeakers {
             echoScribedToSpeakers = updatedEchoScribedToSpeakers
         }
+    }
+
+    private static func validSpeakerOutputProgram(_ program: Int?) -> Int {
+        guard
+            let program,
+            GeneralMIDI.programs.contains(where: { $0.program == program })
+        else {
+            return defaultSpeakerOutputProgram
+        }
+        return program
     }
 }

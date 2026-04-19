@@ -11,6 +11,8 @@ import UniformTypeIdentifiers
 import Combine
 #if os(macOS)
 import AppKit
+#elseif os(iOS)
+import UIKit
 #endif
 
 enum SidebarItem: Hashable {
@@ -44,6 +46,11 @@ struct ContentView: View {
     @State var preEditSelection: SidebarItem?
     @State var isPresentingBulkDeleteConfirm = false
     @State var pianoRollZoomLevel: CGFloat = 0.0
+#if os(iOS)
+    /// When the split collapses to one column (typical iPhone landscape), this controls whether the
+    /// sidebar or detail is on top. `.detail` matches standard push behavior after choosing a row.
+    @State var preferredCompactColumn: NavigationSplitViewColumn = .detail
+#endif
 
     init(settings: AppSettings) {
         self.settings = settings
@@ -59,6 +66,24 @@ struct ContentView: View {
     }
 
     private var baseContent: some View {
+#if os(iOS)
+        NavigationSplitView(preferredCompactColumn: $preferredCompactColumn) {
+            sidebar
+        } detail: {
+            detailContent
+        }
+        .navigationSplitViewStyle(.balanced)
+        .onChange(of: viewModel.selectedSidebarItem) { _, _ in
+            phoneFocusDetailColumnAfterSidebarSelection()
+        }
+        .onAppear {
+            phoneFocusDetailColumnAfterSidebarSelection()
+            DispatchQueue.main.async {
+                phoneFocusDetailColumnAfterSidebarSelection()
+            }
+        }
+        .frame(minWidth: 0, minHeight: 320)
+#else
         NavigationSplitView {
             sidebar
 #if os(macOS)
@@ -68,7 +93,15 @@ struct ContentView: View {
             detailContent
         }
         .frame(minWidth: 520, minHeight: 320)
+#endif
     }
+
+#if os(iOS)
+    private func phoneFocusDetailColumnAfterSidebarSelection() {
+        guard UIDevice.current.userInterfaceIdiom == .phone else { return }
+        preferredCompactColumn = .detail
+    }
+#endif
 
     private func lifecycleContent(_ content: some View) -> some View {
         observerContent(setupContent(content))
