@@ -83,4 +83,28 @@ extension MIDIPlaybackEngine {
         try? await Task.sleep(nanoseconds: 1_000_000)
         return 0
     }
+
+    func snapResumePositionToActiveNoteStart() {
+        guard let playbackTake else { return }
+        guard let snappedOffset = activeNoteStartOffset(in: playbackTake, at: playbackResumeOffset) else { return }
+        playbackResumeOffset = snappedOffset
+        playbackResumeIndex = firstEventIndex(in: playbackTake, atOrAfter: snappedOffset)
+    }
+
+    private func activeNoteStartOffset(in take: RecordedTake, at offset: TimeInterval) -> TimeInterval? {
+        var activeByChannelAndPitch: [UInt16: TimeInterval] = [:]
+        for event in take.events.sorted(by: { $0.offsetFromTakeStart < $1.offsetFromTakeStart }) {
+            if event.offsetFromTakeStart > offset { break }
+            guard event.channel >= 1, event.channel <= 16 else { continue }
+            guard let pitch = event.noteNumber else { continue }
+            let key = (UInt16(event.channel) << 8) | UInt16(pitch)
+
+            if event.kind == .noteOn, (event.velocity ?? 0) > 0 {
+                activeByChannelAndPitch[key] = event.offsetFromTakeStart
+            } else if event.kind == .noteOff || (event.kind == .noteOn && event.velocity == 0) {
+                activeByChannelAndPitch.removeValue(forKey: key)
+            }
+        }
+        return activeByChannelAndPitch.values.min()
+    }
 }

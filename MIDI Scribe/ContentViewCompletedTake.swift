@@ -23,7 +23,12 @@ extension ContentView {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 if let fullTake = viewModel.fullTake(id: take.id) {
-                    PianoRollView(take: fullTake, viewModel: viewModel, zoomLevel: $pianoRollZoomLevel)
+                    PianoRollView(
+                        take: fullTake,
+                        viewModel: viewModel,
+                        zoomLevel: $pianoRollZoomLevel,
+                        scrollToStartRequestID: pianoRollScrollToStartRequestID
+                    )
                         .id(take.id)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .overlay(alignment: .bottomTrailing) {
@@ -84,7 +89,7 @@ extension ContentView {
                 systemImage: "backward.end.fill",
                 disabled: viewModel.isTakeActionInProgress
             ) {
-                viewModel.rewindPlaybackToBeginning(for: take.id)
+                rewindPlaybackToBeginning(for: take.id)
             }
 
             toolbarIconButton(playLabel, systemImage: playIcon, disabled: viewModel.isTakeActionInProgress) {
@@ -100,6 +105,7 @@ extension ContentView {
     @ToolbarContentBuilder
     private func completedTakeActionsToolbar(for take: RecordedTakeListItem) -> some ToolbarContent {
         let splitLabel = splitTakeLabel(for: take)
+        let isSplitDisabled = !viewModel.canSplit(takeID: take.id) || viewModel.isTakeActionInProgress
         let starLabel = take.isStarred ? "Unstar" : "Star"
         let starIcon = take.isStarred ? "star.fill" : "star"
 
@@ -111,7 +117,9 @@ extension ContentView {
             toolbarIconButton(
                 splitLabel,
                 systemImage: "square.split.2x1",
-                disabled: !viewModel.canSplit(takeID: take.id) || viewModel.isTakeActionInProgress
+                disabled: isSplitDisabled,
+                foregroundStyle: isSplitDisabled ? Color.secondary : nil,
+                opacity: isSplitDisabled ? 0.35 : 1
             ) {
                 viewModel.splitCurrentPausedTake()
             }
@@ -139,7 +147,7 @@ extension ContentView {
                 disabled: viewModel.isTakeActionInProgress,
                 role: .destructive
             ) {
-                pendingDeleteTakeID = take.id
+                beginDeleteTake(id: take.id)
             }
         }
     }
@@ -150,11 +158,13 @@ extension ContentView {
         disabled: Bool,
         role: ButtonRole? = nil,
         foregroundStyle: Color? = nil,
+        opacity: Double = 1,
         action: @escaping () -> Void
     ) -> some View {
         Button(role: role, action: action) {
             Image(systemName: systemImage)
-                .foregroundStyle(foregroundStyle ?? .primary)
+                .foregroundStyle(foregroundStyle ?? (disabled ? Color.secondary : Color.primary))
+                .opacity(opacity)
         }
         .disabled(disabled)
         .help(label)

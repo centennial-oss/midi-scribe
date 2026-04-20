@@ -9,6 +9,7 @@ import Foundation
 extension MIDILiveNoteViewModel {
     func handleEligibleInput(_ receivedAt: Date) {
         guard settings.isScribingEnabled else { return }
+        guard currentTakeSnapshot.isInProgress else { return }
         selectedSidebarItem = .currentTake
         Task {
             await takeLifecycle.ingestInput(at: receivedAt, timeout: settings.newTakePauseSeconds)
@@ -17,6 +18,10 @@ extension MIDILiveNoteViewModel {
 
     func handleRecordedEvent(_ event: RecordedMIDIEvent) {
         guard settings.isScribingEnabled else { return }
+        let isTakeInProgress = currentTakeSnapshot.isInProgress || hasStartedRecordableTake
+        guard isTakeInProgress || settings.shouldStartTake(event) else { return }
+
+        hasStartedRecordableTake = true
         selectedSidebarItem = .currentTake
         // Play first, synchronously, so speaker echo isn't delayed by
         // subsequent SwiftData/UI work on this tick.
@@ -30,6 +35,9 @@ extension MIDILiveNoteViewModel {
         }
         Task {
             await takeLifecycle.appendEvent(event, timeout: settings.newTakePauseSeconds)
+            if isTakeInProgress, settings.shouldEndTake(event) {
+                await takeLifecycle.endCurrentTake()
+            }
         }
     }
 
@@ -86,6 +94,7 @@ extension MIDILiveNoteViewModel {
         } else {
             durationTicker?.cancel()
             durationTicker = nil
+            hasStartedRecordableTake = false
             if liveTakeStartedAt != nil {
                 liveTakeStartedAt = nil
                 liveTakeEvents.removeAll(keepingCapacity: false)

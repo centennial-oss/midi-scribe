@@ -30,84 +30,101 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Picker("MIDI Input Channel", selection: $settings.monitoredMIDIChannel) {
-                    Text("All Channels").tag(AppSettings.midiChannelAllValue)
-                    ForEach(1...16, id: \.self) { channel in
-                        Text("Channel \(channel)").tag(channel)
-                    }
-                }
-
-                HStack {
-                    Text("End Take when Idle For")
-                    Spacer()
-#if os(macOS)
-                    DiscreteSettingsSlider(
-                        value: newTakeDelaySliderValue,
-                        range: 0...Double(allowedDelayValues.count - 1)
-                    )
-                    .frame(maxWidth: 175)
-#else
-                    Slider(value: newTakeDelaySliderValue, in: 0...Double(allowedDelayValues.count - 1), step: 1)
-                        .frame(maxWidth: 175)
-#endif
-                    Text(formattedDelay(settings.newTakePauseSeconds))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 58, alignment: .trailing)
-                }
-
-                Stepper(value: $settings.recentTakesShownInMenus, in: 1...99) {
-                    HStack {
-                        Text("# Recent Takes to Keep")
-                        Spacer()
-                        Text("\(settings.recentTakesShownInMenus)")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Picker("Playback Instrument", selection: $settings.speakerOutputProgram) {
-                    ForEach(GeneralMIDI.programs) { program in
-                        Text(program.name).tag(program.program)
-                    }
-                }
-
-                Section("Demo Data") {
-                    Button {
-                        onLoadSampleTakes()
-                    } label: {
-                        HStack(spacing: 8) {
-                            if appState.isLoadingSampleTakes {
-                                ProgressView()
-                                    .controlSize(.small)
-                                Text("Loading…")
-                            } else {
-                                Text("Load Sample Takes")
-                            }
+                Section {
+                    Picker("MIDI Input Channel", selection: $settings.monitoredMIDIChannel) {
+                        Text("All Channels").tag(AppSettings.midiChannelAllValue)
+                        ForEach(1...16, id: \.self) { channel in
+                            Text("Channel \(channel)").tag(channel)
                         }
                     }
-                    .disabled(appState.isLoadingSampleTakes)
-                    Text("Adds several public-domain songs to your Recent Takes list.")
+
+                    Picker("Playback Instrument", selection: $settings.speakerOutputProgram) {
+                        ForEach(GeneralMIDI.programs) { program in
+                            Text(program.name).tag(program.program)
+                        }
+                    }
+                    HStack {
+                        Text("End Take when Idle For")
+                        Spacer()
+    #if os(macOS)
+                        DiscreteSettingsSlider(
+                            value: newTakeDelaySliderValue,
+                            range: 0...Double(allowedDelayValues.count - 1)
+                        )
+                        .frame(maxWidth: 175)
+    #else
+                        Slider(value: newTakeDelaySliderValue, in: 0...Double(allowedDelayValues.count - 1), step: 1)
+                            .frame(maxWidth: 175)
+    #endif
+                        Text(formattedDelay(settings.newTakePauseSeconds))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 58, alignment: .trailing)
+                    }
+
+                    Stepper(value: $settings.recentTakesShownInMenus, in: 1...99) {
+                        HStack {
+                            Text("# Recent Takes to Keep")
+                            Spacer()
+                            Text("\(settings.recentTakesShownInMenus)")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                TakeStartEndControlSection(settings: settings)
+
+                Section {
+                    HStack {
+                        Text("Sample Take Data")
+                        Spacer()
+                        Button {
+                            onLoadSampleTakes()
+                        } label: {
+                            HStack(spacing: 8) {
+                                if appState.isLoadingSampleTakes {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("Loading…")
+                                } else {
+                                    Text("Load Sample Takes")
+                                }
+                            }
+                        }
+                        .disabled(appState.isLoadingSampleTakes)
+                    }
+                    Text("Adds several public-domain classical songs to your Recent Takes list.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
 
-                Section("Danger Zone") {
-                    Button("Reset All Preferences", role: .destructive) {
-                        isConfirmingResetPreferences = true
-                    }
-
-                    HStack {
-                        Button("Erase All Takes + Reset Preferences", role: .destructive) {
-                            isConfirmingEraseAll = true
+                Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Danger Zone")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.red)
+                        HStack {
+                            Button("Reset All Preferences", role: .destructive) {
+                                isConfirmingResetPreferences = true
+                            }
+                            .disabled(isErasing)
+                            Spacer()
+                            Button(role: .destructive) {
+                                isConfirmingEraseAll = true
+                            } label: {
+                                HStack(spacing: 8) {
+                                    if isErasing {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                        Text("Erasing…")
+                                    } else {
+                                        Text("Erase All Takes + Reset Preferences")
+                                    }
+                                }
+                            }
+                            .disabled(isErasing)
                         }
-                        .disabled(isErasing)
-
-                        if isErasing {
-                            ProgressView()
-                                .controlSize(.small)
-                            Text("Erasing…")
-                                .foregroundStyle(.secondary)
-                        }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .formStyle(.grouped)
@@ -142,7 +159,7 @@ struct SettingsView: View {
                 case .sampleTakesLoaded(let count):
                     return Alert(
                         title: Text("Sample Takes Loaded"),
-                        message: Text("Added \(count) sample take\(count == 1 ? "" : "s") to Recent Takes."),
+                         message: Text("Added \(count) sample take\(count == 1 ? "" : "s") to Recent Takes."),
                         dismissButton: .default(Text("OK"))
                     )
                 case .sampleTakesFailed(let message):
@@ -241,6 +258,83 @@ struct SettingsView: View {
         }
         return closest?.offset ?? 0
     }
+
+}
+
+private struct TakeStartEndControlSection: View {
+    @ObservedObject var settings: AppSettings
+
+    var body: some View {
+        Section {
+            HStack(alignment: .top, spacing: 24) {
+                startSignalGroup
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+
+                controlSignalGroup(
+                    title: "End a Take With",
+                    signals: TakeControlSignal.takeEndOptions,
+                    selection: $settings.takeEndControlChanges
+                )
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+        }
+    }
+
+    private var startSignalGroup: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Start a Take With")
+            .font(.system(size: 14, weight: .semibold))
+            Toggle(
+                TakeControlSignal.notes.name,
+                isOn: $settings.startTakeWithNoteEvents
+            )
+            .toggleStyle(RoundCheckboxToggleStyle())
+
+            ForEach(TakeControlSignal.takeStartOptions.filter { $0 != .notes }) { signal in
+                Toggle(
+                    "\(signal.name) \(signal.detail)",
+                    isOn: controlSignalBinding(signal, selection: $settings.takeStartControlChanges)
+                )
+                .toggleStyle(RoundCheckboxToggleStyle())
+            }
+        }
+    }
+
+    private func controlSignalGroup(
+        title: String,
+        signals: [TakeControlSignal],
+        selection: Binding<Set<UInt8>>
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+            .font(.system(size: 14, weight: .semibold))
+            ForEach(signals) { signal in
+                Toggle(
+                    "\(signal.name) \(signal.detail)",
+                    isOn: controlSignalBinding(signal, selection: selection)
+                )
+                .toggleStyle(RoundCheckboxToggleStyle())
+            }
+        }
+    }
+
+    private func controlSignalBinding(
+        _ signal: TakeControlSignal,
+        selection: Binding<Set<UInt8>>
+    ) -> Binding<Bool> {
+        Binding(
+            get: {
+                signal.controlChangeNumbers.isSubset(of: selection.wrappedValue)
+            },
+            set: { isSelected in
+                if isSelected {
+                    selection.wrappedValue.formUnion(signal.controlChangeNumbers)
+                } else {
+                    selection.wrappedValue.subtract(signal.controlChangeNumbers)
+                }
+            }
+        )
+    }
 }
 
 private enum SettingsAlertState: Identifiable {
@@ -265,49 +359,3 @@ private enum SettingsAlertState: Identifiable {
         }
     }
 }
-
-#if os(macOS)
-private struct DiscreteSettingsSlider: NSViewRepresentable {
-    @Binding var value: Double
-    let range: ClosedRange<Double>
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(value: $value)
-    }
-
-    func makeNSView(context: Context) -> NSSlider {
-        let slider = NSSlider(
-            value: value,
-            minValue: range.lowerBound,
-            maxValue: range.upperBound,
-            target: context.coordinator,
-            action: #selector(Coordinator.valueChanged(_:))
-        )
-        slider.numberOfTickMarks = 0
-        slider.allowsTickMarkValuesOnly = false
-        slider.isContinuous = true
-        return slider
-    }
-
-    func updateNSView(_ nsView: NSSlider, context: Context) {
-        nsView.minValue = range.lowerBound
-        nsView.maxValue = range.upperBound
-        if nsView.doubleValue != value {
-            nsView.doubleValue = value
-        }
-    }
-
-    final class Coordinator: NSObject {
-        private var value: Binding<Double>
-
-        init(value: Binding<Double>) {
-            self.value = value
-        }
-
-        @objc
-        func valueChanged(_ sender: NSSlider) {
-            value.wrappedValue = sender.doubleValue.rounded()
-        }
-    }
-}
-#endif

@@ -23,6 +23,7 @@ extension ContentView {
     // MARK: - Rename flow
 
     func beginRename(_ take: RecordedTakeListItem) {
+        viewModel.playbackEngine.pause()
         renamingTakeID = take.id
         renameDraft = take.userTitle ?? take.baseTitle
     }
@@ -62,6 +63,7 @@ extension ContentView {
     }
 
     func exportTake(id: UUID) {
+        viewModel.playbackEngine.pause()
         exportErrorMessage = nil
 
         if let cached = viewModel.fullTake(id: id) {
@@ -93,6 +95,37 @@ extension ContentView {
         exportSuggestedName = document.suggestedFileName
         exportDocument = document
         isPresentingExporter = true
+    }
+
+    func beginDeleteTake(id: UUID) {
+        viewModel.playbackEngine.pause()
+        pendingDeleteTakeID = id
+    }
+
+    func beginBulkDeleteConfirmation() {
+        viewModel.playbackEngine.pause()
+        isPresentingBulkDeleteConfirm = true
+    }
+
+    func beginSettingsPresentation() {
+        viewModel.playbackEngine.pause()
+        appState.presentSettings()
+    }
+
+    func beginAboutPresentation() {
+        viewModel.playbackEngine.pause()
+        appState.presentAbout()
+    }
+
+    func handleModalPresentationRequest(_ request: AppModalPresentationRequest?) {
+        guard let request else { return }
+        defer { appState.modalPresentationRequest = nil }
+        switch request {
+        case .settings:
+            beginSettingsPresentation()
+        case .about:
+            beginAboutPresentation()
+        }
     }
 
     func deleteTake(id: UUID) {
@@ -138,19 +171,48 @@ extension ContentView {
     func handleTakeCommandRequest(_ request: TakeCommandRequest?) {
         guard let request else { return }
         defer { appState.takeCommandRequest = nil }
-        guard canPerformTakeCommand(takeID: request.takeID) else { return }
+        if let takeID = request.takeID {
+            guard canPerformTakeCommand(takeID: takeID) else { return }
+        } else {
+            guard canPerformCurrentTakeCommand() else { return }
+        }
 
         performTakeCommand(request)
     }
 
     func performTakeCommand(_ request: TakeCommandRequest) {
+        if performCurrentTakeCommand(request) {
+            return
+        }
+
+        performSavedTakeCommand(request)
+    }
+
+    func performCurrentTakeCommand(_ request: TakeCommandRequest) -> Bool {
         switch request {
-        case .togglePlayback(let takeID):
-            viewModel.togglePlayback(for: takeID)
-        case .rewindPlayback(let takeID):
-            viewModel.rewindPlaybackToBeginning(for: takeID)
-        case .restartPlayback(let takeID):
-            viewModel.restartPlayback(for: takeID)
+        case .endCurrentTake:
+            viewModel.endTake()
+            return true
+        case .cancelCurrentTake:
+            viewModel.cancelTake()
+            return true
+        default:
+            return false
+        }
+    }
+
+    func performSavedTakeCommand(_ request: TakeCommandRequest) {
+        if performPlaybackCommand(request) {
+            return
+        }
+
+        switch request {
+        case .endCurrentTake,
+             .cancelCurrentTake,
+             .togglePlayback,
+             .rewindPlayback,
+             .restartPlayback:
+            break
         case .split(let takeID):
             guard viewModel.canSplit(takeID: takeID) else { return }
             viewModel.splitCurrentPausedTake()
@@ -163,8 +225,28 @@ extension ContentView {
         case .zoomOut:
             adjustPianoRollZoom(by: -0.1)
         case .delete(let takeID):
-            pendingDeleteTakeID = takeID
+            beginDeleteTake(id: takeID)
         }
+    }
+
+    func performPlaybackCommand(_ request: TakeCommandRequest) -> Bool {
+        switch request {
+        case .togglePlayback(let takeID):
+            viewModel.togglePlayback(for: takeID)
+        case .rewindPlayback(let takeID):
+            rewindPlaybackToBeginning(for: takeID)
+        case .restartPlayback(let takeID):
+            viewModel.restartPlayback(for: takeID)
+        default:
+            return false
+        }
+
+        return true
+    }
+
+    func rewindPlaybackToBeginning(for takeID: UUID) {
+        viewModel.rewindPlaybackToBeginning(for: takeID)
+        pianoRollScrollToStartRequestID += 1
     }
 
     func adjustPianoRollZoom(by delta: CGFloat) {
@@ -172,6 +254,14 @@ extension ContentView {
     }
 
     func updateTakeCommandState() {
+        if viewModel.isTakeInProgress {
+            appState.takeCommandState = TakeCommandState(
+                isCurrentTakeInProgress: true,
+                isActionInProgress: viewModel.isTakeActionInProgress
+            )
+            return
+        }
+
         guard let takeID = selectedSavedTakeID,
               let take = viewModel.recentTake(id: takeID) else {
             appState.takeCommandState = TakeCommandState()
@@ -200,5 +290,9 @@ extension ContentView {
 
     func canPerformTakeCommand(takeID: UUID) -> Bool {
         selectedSavedTakeID == takeID && !viewModel.isTakeActionInProgress
+    }
+
+    func canPerformCurrentTakeCommand() -> Bool {
+        viewModel.isTakeInProgress && !viewModel.isTakeActionInProgress
     }
 }

@@ -174,13 +174,9 @@ extension ContentView {
                 Button {
                     toggleMultiSelection(take.id)
                 } label: {
-                    Image(systemName: viewModel.multiSelection.contains(take.id)
-                        ? "checkmark.circle.fill"
-                        : "circle")
-                        .font(.body)
-                        .foregroundStyle(viewModel.multiSelection.contains(take.id)
-                            ? Color.accentColor
-                            : Color.secondary)
+                    RoundCheckbox(isOn: viewModel.multiSelection.contains(take.id)) {
+                        EmptyView()
+                    }
                 }
                 .buttonStyle(.plain)
                 .disabled(viewModel.isTakeActionInProgress)
@@ -211,7 +207,7 @@ extension ContentView {
             .disabled(viewModel.isTakeActionInProgress)
             Divider()
             Button("Delete", role: .destructive) {
-                pendingDeleteTakeID = take.id
+                beginDeleteTake(id: take.id)
             }
             .disabled(viewModel.isTakeActionInProgress)
         }

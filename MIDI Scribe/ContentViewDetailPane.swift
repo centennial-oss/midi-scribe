@@ -100,7 +100,7 @@ extension ContentView {
                 .disabled(viewModel.isTakeActionInProgress)
 
                 Button(role: .destructive) {
-                    isPresentingBulkDeleteConfirm = true
+                    beginBulkDeleteConfirmation()
                 } label: {
                     Label("Delete", systemImage: "trash")
                 }
@@ -361,14 +361,14 @@ extension ContentView {
     func iOSAppActionsToolbar() -> some ToolbarContent {
         ToolbarItemGroup(placement: .topBarTrailing) {
             Button {
-                appState.presentSettings()
+                beginSettingsPresentation()
             } label: {
                 Image(systemName: "gearshape")
             }
             .accessibilityLabel("Preferences")
 
             Button {
-                appState.presentAbout()
+                beginAboutPresentation()
             } label: {
                 Image(systemName: "info.circle")
             }

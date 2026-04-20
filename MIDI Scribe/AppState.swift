@@ -12,6 +12,8 @@ import AppKit
 #endif
 
 enum TakeCommandRequest: Equatable {
+    case endCurrentTake
+    case cancelCurrentTake
     case togglePlayback(UUID)
     case rewindPlayback(UUID)
     case restartPlayback(UUID)
@@ -22,8 +24,11 @@ enum TakeCommandRequest: Equatable {
     case zoomOut(UUID)
     case delete(UUID)
 
-    var takeID: UUID {
+    var takeID: UUID? {
         switch self {
+        case .endCurrentTake,
+             .cancelCurrentTake:
+            return nil
         case .togglePlayback(let takeID),
              .rewindPlayback(let takeID),
              .restartPlayback(let takeID),
@@ -40,6 +45,7 @@ enum TakeCommandRequest: Equatable {
 
 struct TakeCommandState: Equatable {
     var takeID: UUID?
+    var isCurrentTakeInProgress = false
     var isSavedTake = false
     var isPlaying = false
     var isStarred = false
@@ -50,11 +56,20 @@ struct TakeCommandState: Equatable {
     var canPerformTakeAction: Bool {
         isSavedTake && !isActionInProgress
     }
+
+    var canPerformCurrentTakeAction: Bool {
+        isCurrentTakeInProgress && !isActionInProgress
+    }
 }
 
 enum SampleTakeLoadResult: Equatable {
     case success(count: Int)
     case failure(message: String)
+}
+
+enum AppModalPresentationRequest: Equatable {
+    case settings
+    case about
 }
 
 @MainActor
@@ -67,6 +82,7 @@ final class AppState: ObservableObject {
     @Published var dataResetRequestID = UUID()
     @Published var takeCommandState = TakeCommandState()
     @Published var takeCommandRequest: TakeCommandRequest?
+    @Published var modalPresentationRequest: AppModalPresentationRequest?
 
 #if os(macOS)
     private var keyDownMonitor: Any?
@@ -75,10 +91,8 @@ final class AppState: ObservableObject {
         keyDownMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             let handled = MainActor.assumeIsolated { () -> Bool in
                 guard let self,
-                      !Self.isTextInputActive,
-                      self.takeCommandState.canPerformTakeAction,
-                      let takeID = self.takeCommandState.takeID else { return false }
-                return self.handleLocalKeyDown(event, takeID: takeID)
+                      !Self.isTextInputActive else { return false }
+                return self.handleLocalKeyDown(event)
             }
             return handled ? nil : event
         }
@@ -102,6 +116,10 @@ final class AppState: ObservableObject {
 
     func presentAbout() {
         isShowingAbout = true
+    }
+
+    func requestModalPresentation(_ request: AppModalPresentationRequest) {
+        modalPresentationRequest = request
     }
 
     func requestLoadSampleTakes() {
@@ -129,7 +147,13 @@ final class AppState: ObservableObject {
         return responder is NSTextView || responder is NSTextField
     }
 
-    private func handleLocalKeyDown(_ event: NSEvent, takeID: UUID) -> Bool {
+    private func handleLocalKeyDown(_ event: NSEvent) -> Bool {
+        if handleCurrentTakeShortcut(event) {
+            return true
+        }
+
+        guard takeCommandState.canPerformTakeAction, let takeID = takeCommandState.takeID else { return false }
+
         if event.charactersIgnoringModifiers == " ",
            event.modifierFlags.isDisjoint(with: .deviceIndependentFlagsMask) {
             requestTakeCommand(.togglePlayback(takeID))
@@ -156,6 +180,23 @@ final class AppState: ObservableObject {
         default:
             return false
         }
+    }
+
+    private func handleCurrentTakeShortcut(_ event: NSEvent) -> Bool {
+        guard event.modifierFlags.isDisjoint(with: .deviceIndependentFlagsMask),
+              takeCommandState.canPerformCurrentTakeAction else { return false }
+
+        if event.charactersIgnoringModifiers == " " {
+            requestTakeCommand(.endCurrentTake)
+            return true
+        }
+
+        if event.keyCode == 53 {
+            requestTakeCommand(.cancelCurrentTake)
+            return true
+        }
+
+        return false
     }
 
     private func handlePlainTakeShortcut(_ event: NSEvent, takeID: UUID) -> Bool {

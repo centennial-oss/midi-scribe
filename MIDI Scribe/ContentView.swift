@@ -46,6 +46,7 @@ struct ContentView: View {
     @State var preEditSelection: SidebarItem?
     @State var isPresentingBulkDeleteConfirm = false
     @State var pianoRollZoomLevel: CGFloat = 0.0
+    @State var pianoRollScrollToStartRequestID = 0
 #if os(iOS)
     /// When the split collapses to one column (typical iPhone landscape), this controls whether the
     /// sidebar or detail is on top. `.detail` matches standard push behavior after choosing a row.
@@ -165,6 +166,9 @@ struct ContentView: View {
         .onChange(of: appState.takeCommandRequest) { _, request in
             handleTakeCommandRequest(request)
         }
+        .onChange(of: appState.modalPresentationRequest) { _, request in
+            handleModalPresentationRequest(request)
+        }
         .onReceive(viewModel.objectWillChange) { _ in
             DispatchQueue.main.async {
                 updateTakeCommandState()
@@ -272,3 +276,79 @@ struct ContentView: View {
 
     private var bulkDeleteConfirmationTitle: String { "Delete \(viewModel.multiSelection.count) Takes?" }
 }
+
+struct RoundCheckbox<Label: View>: View {
+    let isOn: Bool
+    @ViewBuilder let label: () -> Label
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                .imageScale(.medium)
+                .foregroundStyle(isOn ? Color.accentColor : Color.secondary)
+            label()
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+struct RoundCheckboxToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button {
+            configuration.isOn.toggle()
+        } label: {
+            RoundCheckbox(isOn: configuration.isOn) {
+                configuration.label
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityValue(configuration.isOn ? Text("On") : Text("Off"))
+    }
+}
+
+#if os(macOS)
+struct DiscreteSettingsSlider: NSViewRepresentable {
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(value: $value)
+    }
+
+    func makeNSView(context: Context) -> NSSlider {
+        let slider = NSSlider(
+            value: value,
+            minValue: range.lowerBound,
+            maxValue: range.upperBound,
+            target: context.coordinator,
+            action: #selector(Coordinator.valueChanged(_:))
+        )
+        slider.numberOfTickMarks = 0
+        slider.allowsTickMarkValuesOnly = false
+        slider.isContinuous = true
+        return slider
+    }
+
+    func updateNSView(_ nsView: NSSlider, context: Context) {
+        nsView.minValue = range.lowerBound
+        nsView.maxValue = range.upperBound
+        if nsView.doubleValue != value {
+            nsView.doubleValue = value
+        }
+    }
+
+    final class Coordinator: NSObject {
+        private var value: Binding<Double>
+
+        init(value: Binding<Double>) {
+            self.value = value
+        }
+
+        @objc
+        func valueChanged(_ sender: NSSlider) {
+            value.wrappedValue = sender.doubleValue.rounded()
+        }
+    }
+}
+#endif

@@ -55,13 +55,21 @@ struct MIDIScribeApp: App {
                 let state = appState.takeCommandState
                 let takeID = state.takeID
 
-                Button(state.isPlaying ? "Pause" : "Play") {
-                    if let takeID {
+                Button(state.isCurrentTakeInProgress ? "End Take" : (state.isPlaying ? "Pause" : "Play")) {
+                    if state.canPerformCurrentTakeAction {
+                        appState.requestTakeCommand(.endCurrentTake)
+                    } else if let takeID {
                         appState.requestTakeCommand(.togglePlayback(takeID))
                     }
                 }
                 .keyboardShortcut(" ", modifiers: [])
-                .disabled(!state.canPerformTakeAction)
+                .disabled(!state.canPerformCurrentTakeAction && !state.canPerformTakeAction)
+
+                Button("Cancel Take", role: .destructive) {
+                    appState.requestTakeCommand(.cancelCurrentTake)
+                }
+                .keyboardShortcut(.escape, modifiers: [])
+                .disabled(!state.canPerformCurrentTakeAction)
 
                 Button(state.isPlaying ? "Pause and Rewind to Beginning" : "Rewind to Beginning") {
                     if let takeID {
@@ -141,7 +149,7 @@ struct MIDIScribeApp: App {
 #if os(macOS)
             CommandGroup(replacing: .appSettings) {
                 Button {
-                    appState.presentSettings()
+                    appState.requestModalPresentation(.settings)
                 } label: {
                     Label("Settings...", systemImage: "gearshape")
                 }
@@ -150,13 +158,13 @@ struct MIDIScribeApp: App {
 
             CommandGroup(replacing: .appInfo) {
                 Button("About MIDI Scribe") {
-                    appState.presentAbout()
+                    appState.requestModalPresentation(.about)
                 }
             }
 #else
             CommandGroup(replacing: .appInfo) {
                 Button("About MIDI Scribe") {
-                    appState.presentAbout()
+                    appState.requestModalPresentation(.about)
                 }
             }
 #endif

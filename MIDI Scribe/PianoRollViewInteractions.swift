@@ -54,6 +54,7 @@ extension PianoRollView {
     }
 
     func handleScrubEnd() {
+        snapPausedPlaybackToIntersectedNoteStart()
         logScrubAuditionSummary()
         dragStartOffset = nil
         viewModel.playbackEngine.stopScrubbingNotes()
@@ -86,6 +87,14 @@ extension PianoRollView {
         if viewModel.playbackEngine.currentTakeID != take.id {
             localScrubOffset = offset
         }
+    }
+
+    private func snapPausedPlaybackToIntersectedNoteStart() {
+        let offset = currentPlaybackOffset
+        let snappedOffset = snappedSeekOffset(forTappedOffset: offset)
+        guard snappedOffset != offset else { return }
+        viewModel.playbackEngine.updatePausedOffset(to: snappedOffset, takeID: take.id)
+        localScrubOffset = snappedOffset
     }
 
     private func updateScrubAutoScrollState(

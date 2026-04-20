@@ -87,6 +87,7 @@ final class MIDIPlaybackEngine: ObservableObject {
         playbackTask = nil
         isPlaying = false
         sendAllNotesOff()
+        snapResumePositionToActiveNoteStart()
         pausedAtOffset = playbackResumeOffset > 0 ? playbackResumeOffset : nil
     }
 
@@ -250,8 +251,6 @@ extension MIDIPlaybackEngine {
             sendControlChange(121, value: 0, on: channel)
             sendControlChange(123, value: 0, on: channel)
         }
-
-        speakerInstrument.reset()
     }
 
     private func captureResumePosition() {

@@ -66,6 +66,7 @@ final class MIDILiveNoteViewModel: ObservableObject {
     private var playbackEngineCancellable: AnyCancellable?
     var monitorRetryTask: Task<Void, Never>?
     var completedTakeSelectionMode: CompletedTakeSelectionMode = .showCompleted
+    var hasStartedRecordableTake = false
 
     /// Most recent bulk-operation result. UI consumes this to decide which
     /// sidebar item to select after exiting Edit mode.

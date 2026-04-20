@@ -34,6 +34,7 @@ struct PianoRollView: View {
     let take: RecordedTake
     @ObservedObject var viewModel: MIDILiveNoteViewModel
     @Binding var zoomLevel: CGFloat
+    var scrollToStartRequestID = 0
     /// When true, the piano roll is rendering a take that is actively being
     /// recorded. In this mode the playhead tracks the live tail of the
     /// take, the scrub circle is hidden, and the scroll view auto-follows
@@ -66,7 +67,7 @@ struct PianoRollView: View {
     /// for this piano roll (e.g. before the user has ever pressed Play).
     /// Without this, the engine's `currentPlaybackTime` would stay at 0
     /// during a drag because `currentTakeID` hasn't been assigned yet.
-    @State var localScrubOffset: TimeInterval?
+    @State var localScrubOffset: TimeInterval?; @State var isScrubHandleHovered = false
 
     /// To smoothly zoom on iOS:
     @State private var currentMagnification: CGFloat = 1.0
@@ -102,6 +103,9 @@ struct PianoRollView: View {
                 let rollWidth = max(layoutWidth, Self.timelineLeadingInset + (secondsLength * pixelsPerSecond))
 
                 let playOffset = currentPlaybackOffset
+                let playheadColor = (dragStartOffset != nil || isScrubHandleHovered)
+                    ? Color.accentColor
+                    : playheadChrome
 
                 ScrollView(.horizontal) {
                     ScrollViewReader { proxy in
@@ -135,17 +139,20 @@ struct PianoRollView: View {
                             }
 
                             Rectangle()
-                                .fill(playheadChrome)
+                                .fill(playheadColor)
                                 .frame(width: 2, height: rollHeight)
                                 .padding(.top, 12)
                                 .offset(x: headX)
 
                             if !isTakePlaying && !isLive {
                                 Circle()
-                                    .fill(playheadChrome)
+                                    .fill(playheadColor)
                                     .frame(width: 24, height: 24)
                                     .contentShape(Circle())
                                     .offset(x: headX - 11, y: Self.playheadKnobVerticalOffset)
+                                    .onHover { isHovering in
+                                        isScrubHandleHovered = isHovering
+                                    }
                                     .gesture(
                                         DragGesture(minimumDistance: 0, coordinateSpace: .global)
                                             .onChanged { value in
@@ -190,6 +197,10 @@ struct PianoRollView: View {
                         }
                         .onChange(of: zoomLevel) { _, _ in
                             beginPausedZoomCentering(debounce: true)
+                        }
+                        .onChange(of: scrollToStartRequestID) { _, _ in
+                            guard !isLive else { return }
+                            proxy.scrollTo("playhead", anchor: .leading)
                         }
                         .gesture(
                             MagnificationGesture()
@@ -285,6 +296,9 @@ struct PianoRollView: View {
         }
     }
 
+}
+
+extension PianoRollView {
     var isTakePlaying: Bool {
         viewModel.isPlaying(takeID: take.id)
     }
@@ -308,9 +322,7 @@ struct PianoRollView: View {
         scrubEdgeAutoScrollDirection = 0
         scrubLastDragTranslationWidth = nil
     }
-}
 
-extension PianoRollView {
     private func beginPausedZoomCentering(debounce: Bool) {
         guard !isLive, !isTakePlaying else { return }
         if !isZoomCentering {
