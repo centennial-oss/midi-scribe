@@ -125,6 +125,14 @@ struct MIDIScribeApp: App {
                 .keyboardShortcut("s", modifiers: [])
                 .disabled(!state.canPerformTakeAction)
 
+                Button("Rename Take") {
+                    if let takeID {
+                        appState.requestTakeCommand(.rename(takeID))
+                    }
+                }
+                .keyboardShortcut("r", modifiers: [])
+                .disabled(!state.canRenameTake)
+
                 Button("Delete Take", role: .destructive) {
                     if let takeID {
                         appState.requestTakeCommand(.delete(takeID))

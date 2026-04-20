@@ -20,6 +20,7 @@ enum TakeCommandRequest: Equatable {
     case restartPlayback(UUID)
     case split(UUID)
     case toggleStar(UUID)
+    case rename(UUID)
     case export(UUID)
     case zoomIn(UUID)
     case zoomOut(UUID)
@@ -36,6 +37,7 @@ enum TakeCommandRequest: Equatable {
              .restartPlayback(let takeID),
              .split(let takeID),
              .toggleStar(let takeID),
+             .rename(let takeID),
              .export(let takeID),
              .zoomIn(let takeID),
              .zoomOut(let takeID),
@@ -58,6 +60,10 @@ struct TakeCommandState: Equatable {
 
     var canPerformTakeAction: Bool {
         isSavedTake && !isActionInProgress
+    }
+
+    var canRenameTake: Bool {
+        canPerformTakeAction && !isPlaying
     }
 
     var canPerformCurrentTakeAction: Bool {
@@ -215,6 +221,9 @@ final class AppState: ObservableObject {
             requestTakeCommand(.split(takeID))
         case "s", "S":
             requestTakeCommand(.toggleStar(takeID))
+        case "r", "R":
+            guard takeCommandState.canRenameTake else { return false }
+            requestTakeCommand(.rename(takeID))
         default:
             return false
         }

@@ -226,27 +226,26 @@ extension ContentView {
             return
         }
 
+        if performZoomCommand(request) {
+            return
+        }
+
         switch request {
-        case .startCurrentTake,
-             .endCurrentTake,
-             .cancelCurrentTake,
-             .togglePlayback,
-             .rewindPlayback,
-             .restartPlayback:
-            break
         case .split(let takeID):
             guard viewModel.canSplit(takeID: takeID) else { return }
             viewModel.splitCurrentPausedTake()
         case .toggleStar(let takeID):
             viewModel.toggleStar(takeID: takeID)
+        case .rename(let takeID):
+            guard !viewModel.isPlaying(takeID: takeID),
+                  let take = viewModel.recentTake(id: takeID) else { return }
+            beginRename(take)
         case .export(let takeID):
             exportTake(id: takeID)
-        case .zoomIn:
-            adjustPianoRollZoom(by: 0.1)
-        case .zoomOut:
-            adjustPianoRollZoom(by: -0.1)
         case .delete(let takeID):
             beginDeleteTake(id: takeID)
+        default:
+            break
         }
     }
 
@@ -258,6 +257,19 @@ extension ContentView {
             rewindPlaybackToBeginning(for: takeID)
         case .restartPlayback(let takeID):
             viewModel.restartPlayback(for: takeID)
+        default:
+            return false
+        }
+
+        return true
+    }
+
+    func performZoomCommand(_ request: TakeCommandRequest) -> Bool {
+        switch request {
+        case .zoomIn:
+            adjustPianoRollZoom(by: 0.1)
+        case .zoomOut:
+            adjustPianoRollZoom(by: -0.1)
         default:
             return false
         }

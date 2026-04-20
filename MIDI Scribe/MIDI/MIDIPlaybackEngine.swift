@@ -4,6 +4,7 @@ import Combine
 import CoreAudio
 import CoreMIDI
 import Foundation
+import os
 
 // swiftlint:disable file_length
 enum PlaybackOutputTarget: Hashable {
@@ -36,6 +37,26 @@ final class MIDIPlaybackEngine: ObservableObject {
     private var outputClient = MIDIClientRef()
     private var outputPort = MIDIPortRef()
     private var speakerProgram: Int
+    /// Serializes mutations to `speakerInstrument` / `audioEngine` (rebuilds, detaches,
+    /// starts/stops) against `sendMIDIEvent` calls. The audio render thread dereferences
+    /// state set up from the main thread; without this gate, tearing down the sampler
+    /// while a scrub-driven `sendMIDIEvent` is still resolving can race with the
+    /// IOThread.client callback and produce EXC_BAD_ACCESS crashes. os_unfair_lock is
+    /// safe to acquire briefly from the main thread; we never hold it across awaits.
+    private var samplerLock = os_unfair_lock()
+    /// `true` while the sampler is being replaced. While set, scrub-path sends are
+    /// dropped rather than routed to a half-torn-down sampler.
+    private var samplerIsRebuilding = false
+    /// Rolling counters for scrub-path drops, logged periodically in debug builds.
+    private var scrubDropReasons: [String: Int] = [:]
+    private var lastScrubDropLogUptime: TimeInterval = 0
+    /// Observes `AVAudioEngineConfigurationChange`. When the OS changes the audio
+    /// graph (output device change, sample rate change, another app taking exclusive
+    /// audio, headphones plug/unplug, etc.), the engine is stopped and AUSampler
+    /// state — including the loaded sound bank — can silently revert to defaults.
+    /// Without re-loading the sound bank the sampler keeps rendering, but with the
+    /// default/empty patch that users hear as "wrong instrument / bank 0".
+    private var configurationChangeObserver: NSObjectProtocol?
     #if os(macOS)
     private var lastSpeakerOutputDeviceID: AudioDeviceID?
     #endif
@@ -50,6 +71,7 @@ final class MIDIPlaybackEngine: ObservableObject {
         #endif
         configureAudio()
         configureMIDIOutput()
+        observeAudioEngineConfigurationChanges()
 
         settingsCancellable = settings.$speakerOutputProgram
             .removeDuplicates()
@@ -64,8 +86,34 @@ final class MIDIPlaybackEngine: ObservableObject {
 
     deinit {
         playbackTask?.cancel()
+        if let configurationChangeObserver {
+            NotificationCenter.default.removeObserver(configurationChangeObserver)
+        }
         if outputPort != 0 { MIDIPortDispose(outputPort) }
         if outputClient != 0 { MIDIClientDispose(outputClient) }
+    }
+
+    private func observeAudioEngineConfigurationChanges() {
+        configurationChangeObserver = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            // The notification can arrive on a background thread. Hop to the main
+            // actor before touching engine / sampler state.
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                #if DEBUG
+                NSLog(
+                    "MIDI Scribe speaker program debug: AVAudioEngineConfigurationChange " +
+                        "program=\(self.speakerProgram) engineRunning=\(self.audioEngine.isRunning)"
+                )
+                #endif
+                // Re-attach and re-load the sound bank so the sampler doesn't keep
+                // rendering with a reset/default patch (symptom: "audio is bank 0").
+                self.reloadInstrument()
+            }
+        }
     }
     func togglePlayback(for take: RecordedTake, target: PlaybackOutputTarget) {
         if isPlaying(take: take, target: target) {
@@ -87,7 +135,7 @@ final class MIDIPlaybackEngine: ObservableObject {
     func rewindToBeginning(takeID: UUID? = nil) { pause(); resetPlaybackPosition(); currentTakeID = takeID }
     func playLiveEventToSpeakers(_ event: RecordedMIDIEvent) {
         guard settings.echoScribedToSpeakers else { return }
-        playThroughSpeakers(event)
+        playThroughSpeakers(event, allowRebuild: true)
     }
 
     func pause() {
@@ -126,7 +174,14 @@ final class MIDIPlaybackEngine: ObservableObject {
         isPlaying = true; pausedAtOffset = nil; playbackStartedAt = Date()
         playbackSegmentStartOffset = playbackResumeOffset
     }
-    func playScrubEvent(_ event: RecordedMIDIEvent, target: PlaybackOutputTarget) { play(event: event, target: target) }
+    func playScrubEvent(_ event: RecordedMIDIEvent, target: PlaybackOutputTarget) {
+        switch target {
+        case .osSpeakers:
+            playThroughSpeakers(event, allowRebuild: false)
+        case .midiChannel(let channel):
+            sendToMIDIDestinations(event, channelOverride: channel)
+        }
+    }
     func stopScrubbingNotes() { sendAllNotesOff() }
 }
 extension MIDIPlaybackEngine {
@@ -148,19 +203,27 @@ extension MIDIPlaybackEngine {
         }
     }
     private func reloadInstrument() {
-        do {
-            let wasRunning = audioEngine.isRunning
-            if wasRunning {
-                audioEngine.stop()
+        withSamplerRebuildGate {
+            do {
+                let wasRunning = audioEngine.isRunning
+                if wasRunning {
+                    catchObjC("audioEngine.stop") { self.audioEngine.stop() }
+                }
+                try rebuildSampler()
+                if wasRunning {
+                    catchObjC("audioEngine.start") {
+                        do { try self.audioEngine.start() } catch {
+                            #if DEBUG
+                            NSLog("MIDI Scribe playback audio start failed: \(error)")
+                            #endif
+                        }
+                    }
+                }
+            } catch {
+                #if DEBUG
+                NSLog("MIDI Scribe playback instrument reload failed: \(error)")
+                #endif
             }
-            try rebuildSampler()
-            if wasRunning {
-                try audioEngine.start()
-            }
-        } catch {
-            #if DEBUG
-            NSLog("MIDI Scribe playback instrument reload failed: \(error)")
-            #endif
         }
     }
 
@@ -169,21 +232,59 @@ extension MIDIPlaybackEngine {
         let deviceID = currentDefaultOutputDeviceID()
         guard deviceID != lastSpeakerOutputDeviceID else { return }
         lastSpeakerOutputDeviceID = deviceID
-        do {
-            sendAllNotesOff()
-            audioEngine.stop()
-            audioEngine = AVAudioEngine()
-            speakerInstrument = AVAudioUnitSampler()
-            try rebuildSampler()
-            try audioEngine.start()
-        } catch {
-            #if DEBUG
-            NSLog("MIDI Scribe playback output route refresh failed: \(error)")
-            #endif
+        withSamplerRebuildGate {
+            do {
+                sendAllNotesOff()
+                catchObjC("audioEngine.stop") { self.audioEngine.stop() }
+                audioEngine = AVAudioEngine()
+                // NOTE: Don't pre-assign `speakerInstrument = AVAudioUnitSampler()`
+                // here. `rebuildSampler()` creates its own new instrument and only
+                // assigns it to `speakerInstrument` after `loadSoundBankInstrument`
+                // succeeds. A pre-assigned, never-loaded sampler would otherwise
+                // become the active instrument if the rebuild partially failed,
+                // producing the "audio is bank 0" symptom.
+                try rebuildSampler()
+                catchObjC("audioEngine.start") {
+                    do { try self.audioEngine.start() } catch {
+                        #if DEBUG
+                        NSLog("MIDI Scribe playback audio start failed: \(error)")
+                        #endif
+                    }
+                }
+            } catch {
+                #if DEBUG
+                NSLog("MIDI Scribe playback output route refresh failed: \(error)")
+                #endif
+            }
         }
         #elseif os(iOS)
         return
         #endif
+    }
+
+    /// Runs `body` with `samplerIsRebuilding` set so that concurrent scrub sends are
+    /// dropped (and normal sends spin-wait briefly). Also holds `samplerLock` across
+    /// the mutation, ensuring no in-flight `sendMIDIEvent` is running against the
+    /// same sampler instance we're about to detach.
+    private func withSamplerRebuildGate(_ body: () -> Void) {
+        os_unfair_lock_lock(&samplerLock)
+        samplerIsRebuilding = true
+        os_unfair_lock_unlock(&samplerLock)
+        body()
+        os_unfair_lock_lock(&samplerLock)
+        samplerIsRebuilding = false
+        os_unfair_lock_unlock(&samplerLock)
+    }
+
+    private func catchObjC(_ label: String, _ block: () -> Void) {
+        var caught: NSError?
+        let didSucceed = MSCatchObjCException(block, &caught)
+        if !didSucceed {
+            NSLog(
+                "MIDI Scribe playback: caught \(label) exception " +
+                    "error=\(caught?.localizedDescription ?? "nil")"
+            )
+        }
     }
 
     #if os(macOS)
@@ -210,18 +311,90 @@ extension MIDIPlaybackEngine {
     func play(event: RecordedMIDIEvent, target: PlaybackOutputTarget) {
         switch target {
         case .osSpeakers:
-            playThroughSpeakers(event)
+            playThroughSpeakers(event, allowRebuild: true)
         case .midiChannel(let channel):
             sendToMIDIDestinations(event, channelOverride: channel)
         }
     }
-    private func playThroughSpeakers(_ event: RecordedMIDIEvent) {
+    /// Routes a MIDI event to the internal AUSampler.
+    ///
+    /// - Parameter allowRebuild: When `true` (normal playback), the engine/sampler
+    ///   may be rebuilt synchronously if it has become detached. When `false`
+    ///   (scrub audition), we never rebuild — we simply drop the event. Scrub is
+    ///   best-effort audio feedback and rebuilding the sampler while the user is
+    ///   dragging the playhead is the most dangerous path: it tears down AUSampler
+    ///   state that the IOThread.client render callback may still be referencing.
+    private func playThroughSpeakers(_ event: RecordedMIDIEvent, allowRebuild: Bool) {
         guard !event.isPresetSelectionEvent else { return }
-        guard ensureSpeakerAudioReady() else { return }
         guard let status = statusByte(for: event.kind, channel: Int(event.channel)) else { return }
         let data1 = event.data1 & 0x7F
         let data2 = (event.data2 ?? 0) & 0x7F
-        speakerInstrument.sendMIDIEvent(status, data1: data1, data2: data2)
+
+        os_unfair_lock_lock(&samplerLock)
+        if samplerIsRebuilding {
+            os_unfair_lock_unlock(&samplerLock)
+            recordScrubDrop("rebuilding", allowRebuild: allowRebuild)
+            return
+        }
+        let ready = speakerInstrumentIsReadyLocked(allowRebuild: allowRebuild)
+        guard ready else {
+            os_unfair_lock_unlock(&samplerLock)
+            recordScrubDrop("notReady", allowRebuild: allowRebuild)
+            return
+        }
+        let sampler = speakerInstrument
+        sendMIDIEventSafely(to: sampler, status: status, data1: data1, data2: data2)
+        os_unfair_lock_unlock(&samplerLock)
+    }
+
+    /// Calls `sendMIDIEvent` inside an Objective-C `@try`/`@catch`. AVAudioEngine /
+    /// AUSampler occasionally raise `NSInternalInconsistencyException` when the
+    /// engine state changes underneath a send (e.g. configuration change / output
+    /// device switch during a scrub). Swift cannot catch these natively and they
+    /// terminate the app; the bridging helper turns them into a no-op plus a log.
+    private func sendMIDIEventSafely(
+        to sampler: AVAudioUnitMIDIInstrument,
+        status: UInt8,
+        data1: UInt8,
+        data2: UInt8
+    ) {
+        var caught: NSError?
+        let didSucceed = MSCatchObjCException({
+            sampler.sendMIDIEvent(status, data1: data1, data2: data2)
+        }, &caught)
+        if !didSucceed {
+            NSLog(
+                "MIDI Scribe playback: caught sendMIDIEvent exception " +
+                    "status=\(status) data1=\(data1) data2=\(data2) error=\(caught?.localizedDescription ?? "nil")"
+            )
+        }
+    }
+
+    private func recordScrubDrop(_ reason: String, allowRebuild: Bool) {
+        guard !allowRebuild else { return }
+        #if DEBUG
+        scrubDropReasons[reason, default: 0] += 1
+        let now = ProcessInfo.processInfo.systemUptime
+        if now - lastScrubDropLogUptime > 1.0, !scrubDropReasons.isEmpty {
+            lastScrubDropLogUptime = now
+            NSLog("MIDI Scribe scrub audition drops: \(scrubDropReasons)")
+            scrubDropReasons.removeAll(keepingCapacity: true)
+        }
+        #endif
+    }
+
+    /// Must be called with `samplerLock` held.
+    private func speakerInstrumentIsReadyLocked(allowRebuild: Bool) -> Bool {
+        if speakerInstrument.engine === audioEngine, audioEngine.isRunning {
+            return true
+        }
+        guard allowRebuild else { return false }
+        samplerIsRebuilding = true
+        os_unfair_lock_unlock(&samplerLock)
+        let didSucceed = ensureSpeakerAudioReadyOutsideLock()
+        os_unfair_lock_lock(&samplerLock)
+        samplerIsRebuilding = false
+        return didSucceed
     }
     private func sendToMIDIDestinations(_ event: RecordedMIDIEvent, channelOverride: Int) {
         guard outputPort != 0 else { return }
@@ -330,14 +503,19 @@ extension MIDIPlaybackEngine {
         let wasAttached = speakerInstrument.engine === audioEngine
         if wasAttached {
             sendAllNotesOff()
-            audioEngine.disconnectNodeInput(speakerInstrument)
-            audioEngine.disconnectNodeOutput(speakerInstrument)
-            audioEngine.detach(speakerInstrument)
+            let previous = speakerInstrument
+            catchObjC("audioEngine.disconnect/detach") {
+                self.audioEngine.disconnectNodeInput(previous)
+                self.audioEngine.disconnectNodeOutput(previous)
+                self.audioEngine.detach(previous)
+            }
         }
         let soundBankURL = try resolvedSoundBankURL()
         let newInstrument = AVAudioUnitSampler()
-        audioEngine.attach(newInstrument)
-        audioEngine.connect(newInstrument, to: audioEngine.mainMixerNode, format: nil)
+        catchObjC("audioEngine.attach/connect") {
+            self.audioEngine.attach(newInstrument)
+            self.audioEngine.connect(newInstrument, to: self.audioEngine.mainMixerNode, format: nil)
+        }
         let program = UInt8(clamping: speakerProgram)
         let bankMSB = UInt8(kAUSampler_DefaultMelodicBankMSB)
         let bankLSB = UInt8(kAUSampler_DefaultBankLSB)
@@ -347,21 +525,57 @@ extension MIDIPlaybackEngine {
                 "program=\(program) bankMSB=\(bankMSB) bankLSB=\(bankLSB) url=\(soundBankURL.lastPathComponent)"
         )
         #endif
-        try newInstrument.loadSoundBankInstrument(
-            at: soundBankURL,
-            program: program,
-            bankMSB: bankMSB,
-            bankLSB: bankLSB
-        )
+        do {
+            try newInstrument.loadSoundBankInstrument(
+                at: soundBankURL,
+                program: program,
+                bankMSB: bankMSB,
+                bankLSB: bankLSB
+            )
+        } catch {
+            // If loading failed, don't leave `newInstrument` attached as a silent /
+            // default-patch sampler (which the user perceives as "wrong bank / bank
+            // 0"). Detach it and rethrow so the caller knows the rebuild failed.
+            catchObjC("audioEngine.detach (failed-load cleanup)") {
+                self.audioEngine.disconnectNodeInput(newInstrument)
+                self.audioEngine.disconnectNodeOutput(newInstrument)
+                self.audioEngine.detach(newInstrument)
+            }
+            NSLog("MIDI Scribe playback: loadSoundBankInstrument failed program=\(program) error=\(error)")
+            throw error
+        }
+        // Belt-and-suspenders: explicitly pin the current program on the new sampler.
+        // `loadSoundBankInstrument` should have done this, but AUSampler has been
+        // observed to reset its program to 0 after engine-configuration changes on
+        // recent OSes, so we re-send the program change explicitly.
+        pinProgramChange(on: newInstrument, program: program)
         speakerInstrument = newInstrument
+    }
+
+    /// Emits an explicit bank-select + program-change sequence on the given sampler
+    /// so its current program cannot drift to 0 because of an internal AU reset.
+    private func pinProgramChange(on sampler: AVAudioUnitMIDIInstrument, program: UInt8) {
+        let bankMSB = UInt8(kAUSampler_DefaultMelodicBankMSB)
+        let bankLSB = UInt8(kAUSampler_DefaultBankLSB)
+        for channel in 0..<UInt8(16) {
+            let controlChangeStatus: UInt8 = 0xB0 | channel
+            let programChangeStatus: UInt8 = 0xC0 | channel
+            catchObjC("sampler.sendMIDIEvent (pin program)") {
+                sampler.sendMIDIEvent(controlChangeStatus, data1: 0, data2: bankMSB)   // CC#0  bank MSB
+                sampler.sendMIDIEvent(controlChangeStatus, data1: 32, data2: bankLSB)  // CC#32 bank LSB
+                sampler.sendMIDIEvent(programChangeStatus, data1: program, data2: 0)   // program change
+            }
+        }
     }
 
     private func sendControlChange(_ controller: UInt8, value: UInt8, on channel: Int) {
         guard let channelNibble = midiChannelNibble(for: channel) else { return }
         let status = UInt8(0xB0 | channelNibble)
-        if ensureSpeakerAudioReady() {
-            speakerInstrument.sendMIDIEvent(status, data1: controller, data2: value)
+        os_unfair_lock_lock(&samplerLock)
+        if !samplerIsRebuilding, speakerInstrumentIsReadyLocked(allowRebuild: true) {
+            sendMIDIEventSafely(to: speakerInstrument, status: status, data1: controller, data2: value)
         }
+        os_unfair_lock_unlock(&samplerLock)
 
         let event = RecordedMIDIEvent(
             receivedAt: Date(),
@@ -402,7 +616,9 @@ extension MIDIPlaybackEngine {
         return command | channelNibble
     }
 
-    private func ensureSpeakerAudioReady() -> Bool {
+    /// Rebuild / restart path used by the normal playback send. Must NOT hold
+    /// `samplerLock` when called, because `rebuildSampler()` itself takes it.
+    private func ensureSpeakerAudioReadyOutsideLock() -> Bool {
         if speakerInstrument.engine !== audioEngine {
             do {
                 try rebuildSampler()
@@ -414,12 +630,21 @@ extension MIDIPlaybackEngine {
             }
         }
         if !audioEngine.isRunning {
-            do {
-                try audioEngine.start()
-            } catch {
-                #if DEBUG
-                NSLog("MIDI Scribe playback audio start failed: \(error)")
-                #endif
+            var caught: NSError?
+            let didSucceed = MSCatchObjCException({
+                do {
+                    try self.audioEngine.start()
+                } catch {
+                    #if DEBUG
+                    NSLog("MIDI Scribe playback audio start failed: \(error)")
+                    #endif
+                }
+            }, &caught)
+            if !didSucceed {
+                NSLog(
+                    "MIDI Scribe playback: caught audioEngine.start exception " +
+                        "error=\(caught?.localizedDescription ?? "nil")"
+                )
                 return false
             }
         }

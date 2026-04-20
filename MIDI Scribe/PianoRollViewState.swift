@@ -35,6 +35,21 @@ extension PianoRollView {
         !isLive && !isTakePlaying && isZoomCentering
     }
 
+    func shouldFollowPlayingPlayhead(at date: Date) -> Bool {
+        guard isTakePlaying else { return false }
+        guard let playbackCenteringAnimationEndsAt else { return true }
+        return date >= playbackCenteringAnimationEndsAt
+    }
+
+    func beginPlaybackCenteringAnimation(proxy: ScrollViewProxy) {
+        guard !isLive else { return }
+        let duration: TimeInterval = 0.4
+        playbackCenteringAnimationEndsAt = Date().addingTimeInterval(duration)
+        withAnimation(.easeOut(duration: duration)) {
+            proxy.scrollTo("playhead", anchor: .center)
+        }
+    }
+
     func resetScrubState() {
         dragStartOffset = nil
         dragIntersectedNotes.removeAll()
@@ -45,6 +60,7 @@ extension PianoRollView {
         viewModel.playbackEngine.stopScrubbingNotes()
         scrubEdgeAutoScrollDirection = 0
         scrubLastDragTranslationWidth = nil
+        playbackCenteringAnimationEndsAt = nil
     }
 
     func beginPausedZoomCentering(debounce: Bool) {

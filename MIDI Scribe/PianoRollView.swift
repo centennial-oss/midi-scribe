@@ -64,12 +64,9 @@ struct PianoRollView: View {
     /// deduplicated counter so repeated redraws do not inflate the value.
     @State var ignoredMalformedEventIDs: Set<UUID> = []
 
-    @State var dragStartOffset: TimeInterval?
-    @State var dragIntersectedNotes: Set<UUID> = []
-    @State var lastScrubAuditionUptime: TimeInterval?
-    @State var scrubAuditionDiagnostics = ScrubAuditionDiagnostics()
-    @State var lastPlaybackModelDiagnosticUptime: TimeInterval?
-    @State var scrubEdgeAutoScrollDirection: CGFloat = 0
+    @State var dragStartOffset: TimeInterval?; @State var dragIntersectedNotes: Set<UUID> = []
+    @State var lastScrubAuditionUptime: TimeInterval?; @State var scrubAuditionDiagnostics = ScrubAuditionDiagnostics()
+    @State var lastPlaybackModelDiagnosticUptime: TimeInterval?; @State var scrubEdgeAutoScrollDirection: CGFloat = 0
     @State var scrubLastDragTranslationWidth: CGFloat?
     /// Local scrub offset used when the playback engine has no active take
     /// for this piano roll (e.g. before the user has ever pressed Play).
@@ -78,10 +75,9 @@ struct PianoRollView: View {
     @State var localScrubOffset: TimeInterval?; @State var isScrubHandleHovered = false
 
     /// To smoothly zoom on iOS:
-    @State private var currentMagnification: CGFloat = 1.0
-    @State var isZoomCentering = false
-    @State var isPinchZooming = false
-    @State var zoomCenteringTask: Task<Void, Never>?
+    @State private var currentMagnification: CGFloat = 1.0; @State var isZoomCentering = false
+    @State var isPinchZooming = false; @State var zoomCenteringTask: Task<Void, Never>?
+    @State var playbackCenteringAnimationEndsAt: Date?
     /// iOS can deliver an initial 0x0 layout pass for this view. Prime once
     /// when we observe a usable size to force a deterministic first render.
     @State var didPrimeInitialLayout = false
@@ -191,7 +187,7 @@ struct PianoRollView: View {
                         .contentShape(Rectangle())
                         .transaction { $0.animation = nil }
                         .onChange(of: context.date) { _, _ in
-                            if isTakePlaying || shouldCenterPausedPlayheadDuringZoom {
+                            if shouldFollowPlayingPlayhead(at: context.date) || shouldCenterPausedPlayheadDuringZoom {
                                 proxy.scrollTo("playhead", anchor: .center)
                             } else if isLive && rollWidth > layoutWidth {
                                 proxy.scrollTo("playhead", anchor: .trailing)
@@ -211,6 +207,13 @@ struct PianoRollView: View {
                         }
                         .onChange(of: zoomLevel) { _, _ in
                             beginPausedZoomCentering(debounce: true)
+                        }
+                        .onChange(of: isTakePlaying) { _, isPlaying in
+                            if isPlaying {
+                                beginPlaybackCenteringAnimation(proxy: proxy)
+                            } else {
+                                playbackCenteringAnimationEndsAt = nil
+                            }
                         }
                         .onChange(of: scrollToStartRequestID) { _, _ in
                             guard !isLive else { return }
