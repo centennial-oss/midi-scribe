@@ -53,6 +53,8 @@ struct ContentView: View {
     @State var completedTakeRenderDelayRequestID = 0
     @State var completedTakeReadyToRenderID: UUID?
     @State var swipeRevealedTakeID: UUID?
+    @State var hasEvaluatedWelcomeSheet = false
+    @State var isPresentingWelcomeSheet = false
 #if os(iOS)
     /// When the split collapses to one column (typical iPhone landscape), this controls whether the
     /// sidebar or detail is on top. `.detail` matches standard push behavior after choosing a row.
@@ -73,7 +75,11 @@ struct ContentView: View {
     }
 
     private var configuredContent: some View {
-        idleTimerContent(alertContent(exportContent(deleteDialogContent(observerContent(setupContent(baseContent))))))
+        idleTimerContent(
+            welcomeSheetContent(
+                alertContent(exportContent(deleteDialogContent(observerContent(setupContent(baseContent)))))
+            )
+        )
     }
 
     private var baseContent: some View {
@@ -153,6 +159,7 @@ struct ContentView: View {
                 return (try? context.fetch(descriptor))?.first?.recordedTake
             }
             viewModel.setRecentTakes(storedRecentTakes.map(\.listItem))
+            evaluateWelcomeSheetPresentationIfNeeded()
         }
     }
 
@@ -287,7 +294,7 @@ struct ContentView: View {
         } message: {
             Text("Enter a new name for this take.")
         }
-        .alert(bulkDeleteConfirmationTitle, isPresented: $isPresentingBulkDeleteConfirm) {
+        .alert("Delete \(viewModel.multiSelection.count) Takes?", isPresented: $isPresentingBulkDeleteConfirm) {
             Button("Delete", role: .destructive) {
                 viewModel.deleteSelectedTakes()
             }
@@ -296,8 +303,6 @@ struct ContentView: View {
             Text("This will permanently delete the selected takes. This action cannot be undone.")
         }
     }
-
-    private var bulkDeleteConfirmationTitle: String { "Delete \(viewModel.multiSelection.count) Takes?" }
 }
 
 struct RoundCheckbox<Label: View>: View {

@@ -68,6 +68,7 @@ final class MIDILiveNoteViewModel: ObservableObject {
     var completedTakeSelectionMode: CompletedTakeSelectionMode = .showCompleted
     var hasStartedRecordableTake = false
     var materializingTakeIDs: Set<UUID> = []
+    var playbackRequestAfterCurrentTakeEnds: DeferredPlaybackRequest?
 
     /// Most recent bulk-operation result. UI consumes this to decide which
     /// sidebar item to select after exiting Edit mode.
@@ -150,6 +151,10 @@ final class MIDILiveNoteViewModel: ObservableObject {
         return Date().timeIntervalSince(lastEventAt) > Self.idleTimeoutDisplayDelay
     }
 
+    var shouldShowCurrentNoteText: Bool {
+        !currentNoteText.isEmpty && currentNoteText != emptyLiveValuePlaceholder
+    }
+
     var idleTimeoutText: String {
         guard let lastEventAt = currentTakeSnapshot.lastEventAt else { return "" }
         let remaining = max(settings.newTakePauseSeconds - Date().timeIntervalSince(lastEventAt), 0)
@@ -199,21 +204,6 @@ final class MIDILiveNoteViewModel: ObservableObject {
         } else if let lastCompletedTake, let refreshed = takes.first(where: { $0.id == lastCompletedTake.id }) {
             self.lastCompletedTake = refreshed
         }
-    }
-
-    var currentTakePromptText: String {
-        let tail = "\(monitoredChannelPrompt)to begin a new Take."
-        if !settings.isScribingEnabled {
-            return "Enable scribing, then start playing your MIDI instrument \(tail)"
-        }
-        return "Start playing your MIDI instrument \(tail)"
-    }
-
-    var monitoredChannelPrompt: String {
-        if settings.monitoredMIDIChannel == AppSettings.midiChannelAllValue {
-            return ""
-        }
-        return "on Channel \(settings.monitoredMIDIChannel) "
     }
 
     func clearLastBulkResult() {
@@ -305,6 +295,11 @@ final class MIDILiveNoteViewModel: ObservableObject {
                     self.handleCompletedTakeSelection(for: listItem)
                 }
             }
+            await takeLifecycle.setOnTakeDiscarded { [weak self] in
+                Task { @MainActor [weak self] in
+                    self?.handleDiscardedTake()
+                }
+            }
         }
     }
 
@@ -325,4 +320,11 @@ final class MIDILiveNoteViewModel: ObservableObject {
 enum CompletedTakeSelectionMode {
     case showCompleted
     case stayOnCurrent
+    case preserveSelection(SidebarItem)
+}
+
+struct DeferredPlaybackRequest {
+    let takeID: UUID
+    let restart: Bool
+    let target: PlaybackOutputTarget
 }

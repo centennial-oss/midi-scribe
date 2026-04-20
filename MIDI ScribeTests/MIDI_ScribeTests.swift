@@ -12,7 +12,7 @@ import Testing
 struct MIDIScribeTests {
 
     @MainActor
-    @Test func controlChangeTakeTriggersOnlyFireOnPressedValues() async throws {
+    @Test func controlChangeTakeStartFiresOnReleaseAndTakeEndFiresOnPress() async throws {
         let suiteName = "MIDIScribeTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
@@ -23,11 +23,13 @@ struct MIDIScribeTests {
         settings.takeEndControlChanges = [66]
 
         let pressed = controlChange(controller: 66, value: 127)
+        let lightPress = controlChange(controller: 66, value: 12)
         let released = controlChange(controller: 66, value: 0)
 
-        #expect(settings.shouldStartTake(pressed))
+        #expect(!settings.shouldStartTake(pressed))
+        #expect(!settings.shouldStartTake(lightPress))
         #expect(settings.shouldEndTake(pressed))
-        #expect(!settings.shouldStartTake(released))
+        #expect(settings.shouldStartTake(released))
         #expect(!settings.shouldEndTake(released))
     }
 

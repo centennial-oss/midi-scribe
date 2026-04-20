@@ -21,8 +21,6 @@ struct SettingsView: View {
     /// Invoked from **iPhone** “Load Sample Takes…” only (no menu bar on phone).
     let onLoadSampleTakes: () -> Void
 
-    @State private var isConfirmingEraseAll = false
-    @State private var isConfirmingResetPreferences = false
     @State private var alertState: SettingsAlertState?
     @State private var isErasing = false
 
@@ -106,12 +104,12 @@ struct SettingsView: View {
                             .foregroundStyle(.red)
                         HStack {
                             Button("Reset All Preferences", role: .destructive) {
-                                isConfirmingResetPreferences = true
+                                alertState = .confirmResetPreferences
                             }
                             .disabled(isErasing)
                             Spacer()
                             Button(role: .destructive) {
-                                isConfirmingEraseAll = true
+                                alertState = .confirmEraseAllData
                             } label: {
                                 HStack(spacing: 8) {
                                     if isErasing {
@@ -136,28 +134,31 @@ struct SettingsView: View {
                     Button("Close", action: onClose)
                 }
             }
-            .alert("Erase All Data?", isPresented: $isConfirmingEraseAll) {
-                Button("Yes, I Understand", role: .destructive) {
-                    eraseAllData()
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text(
-                    "This will permanently delete every recorded take and all of their MIDI events. "
-                        + "This action cannot be undone."
-                )
-            }
-            .alert("Reset All Preferences?", isPresented: $isConfirmingResetPreferences) {
-                Button("Reset", role: .destructive) {
-                    settings.resetAllPreferences()
-                    alertState = .preferencesReset
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This will clear all saved preferences and restore defaults.")
-            }
             .alert(item: $alertState) { state in
                 switch state {
+                case .confirmEraseAllData:
+                    return Alert(
+                        title: Text("Erase All Data?"),
+                        message: Text(
+                            "This will permanently delete every recorded take and all MIDI events, "
+                                + "then clear all saved preferences and restore defaults. "
+                                + "This action cannot be undone."
+                        ),
+                        primaryButton: .destructive(Text("Erase All Data")) {
+                            eraseAllData()
+                        },
+                        secondaryButton: .cancel()
+                    )
+                case .confirmResetPreferences:
+                    return Alert(
+                        title: Text("Reset All Preferences?"),
+                        message: Text("This will clear all saved preferences and restore defaults."),
+                        primaryButton: .destructive(Text("Reset")) {
+                            settings.resetAllPreferences()
+                            alertState = .preferencesReset
+                        },
+                        secondaryButton: .cancel()
+                    )
                 case .sampleTakesLoaded(let count):
                     return Alert(
                         title: Text("Sample Takes Loaded"),
@@ -343,6 +344,8 @@ private struct TakeStartEndControlSection: View {
 }
 
 private enum SettingsAlertState: Identifiable {
+    case confirmEraseAllData
+    case confirmResetPreferences
     case sampleTakesLoaded(count: Int)
     case sampleTakesFailed(message: String)
     case eraseAllSucceeded
@@ -351,6 +354,10 @@ private enum SettingsAlertState: Identifiable {
 
     var id: String {
         switch self {
+        case .confirmEraseAllData:
+            return "confirm-erase-all-data"
+        case .confirmResetPreferences:
+            return "confirm-reset-preferences"
         case .sampleTakesLoaded(let count):
             return "sample-loaded-\(count)"
         case .sampleTakesFailed(let message):

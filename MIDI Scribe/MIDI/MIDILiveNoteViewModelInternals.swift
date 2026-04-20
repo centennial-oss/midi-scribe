@@ -21,8 +21,7 @@ extension MIDILiveNoteViewModel {
         guard !event.isPresetSelectionEvent else { return }
         let isTakeInProgress = currentTakeSnapshot.isInProgress || hasStartedRecordableTake
         let shouldStartTake = settings.shouldStartTake(event)
-        let isTakeStartControlChange = event.kind == .controlChange
-            && settings.takeStartControlChanges.contains(event.data1)
+        let isTakeStartControlChange = event.kind == .controlChange && shouldStartTake
         guard isTakeInProgress || shouldStartTake else { return }
 
         hasStartedRecordableTake = true
@@ -141,9 +140,29 @@ extension MIDILiveNoteViewModel {
             selectedSidebarItem = .recentTake(take.id)
         case .stayOnCurrent:
             selectedSidebarItem = .currentTake
+        case .preserveSelection(let selection):
+            selectedSidebarItem = selection
         }
 
         completedTakeSelectionMode = .showCompleted
+        performDeferredPlaybackRequestIfNeeded()
+    }
+
+    func performDeferredPlaybackRequestIfNeeded() {
+        if let request = playbackRequestAfterCurrentTakeEnds {
+            playbackRequestAfterCurrentTakeEnds = nil
+            loadFullTakeAndPlay(
+                takeID: request.takeID,
+                restart: request.restart,
+                target: request.target,
+                saveCurrentTakeFirst: false
+            )
+        }
+    }
+
+    func handleDiscardedTake() {
+        completedTakeSelectionMode = .showCompleted
+        performDeferredPlaybackRequestIfNeeded()
     }
 
     func startMonitorWithRetry(resetBackoff: Bool) {

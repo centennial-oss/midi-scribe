@@ -39,6 +39,7 @@ struct CurrentTakeSnapshot: Sendable, Equatable {
 actor TakeLifecycleController {
     var onSnapshotChanged: (@Sendable (CurrentTakeSnapshot) -> Void)?
     var onTakeCompleted: (@Sendable (RecordedTake) -> Void)?
+    var onTakeDiscarded: (@Sendable () -> Void)?
 
     private var startedAt: Date?
     private var lastEventAt: Date?
@@ -88,8 +89,19 @@ actor TakeLifecycleController {
         publish()
     }
 
-    func endCurrentTake() {
-        guard startedAt != nil else { return }
+    @discardableResult
+    func endCurrentTake() -> Bool {
+        guard startedAt != nil else { return false }
+        if events.isEmpty {
+            startedAt = nil
+            lastEventAt = nil
+            summaryBuilder = RecordedTakeSummaryBuilder()
+            timeoutGeneration += 1
+            onTakeDiscarded?()
+            publish()
+            return false
+        }
+
         let completedTake = RecordedTake(
             startedAt: startedAt ?? Date(),
             endedAt: lastEventAt ?? startedAt ?? Date(),
@@ -102,6 +114,7 @@ actor TakeLifecycleController {
         timeoutGeneration += 1
         onTakeCompleted?(completedTake)
         publish()
+        return true
     }
 
     func discardCurrentTake() {
@@ -111,6 +124,7 @@ actor TakeLifecycleController {
         events = []
         summaryBuilder = RecordedTakeSummaryBuilder()
         timeoutGeneration += 1
+        onTakeDiscarded?()
         publish()
     }
 
@@ -121,6 +135,10 @@ actor TakeLifecycleController {
 
     func setOnTakeCompleted(_ callback: @escaping @Sendable (RecordedTake) -> Void) {
         onTakeCompleted = callback
+    }
+
+    func setOnTakeDiscarded(_ callback: @escaping @Sendable () -> Void) {
+        onTakeDiscarded = callback
     }
 
     private func scheduleTimeout(generation: Int, timeout: TimeInterval) {

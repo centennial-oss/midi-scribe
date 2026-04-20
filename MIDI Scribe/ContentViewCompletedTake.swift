@@ -37,6 +37,9 @@ extension ContentView {
 
             completedTakeMetadata(for: take)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                #if os(macOS)
+                .padding(.top, 8)
+                #endif
                 #if os(iOS)
                 .padding(completedTakePhoneBleedInsets)
                 #endif
@@ -269,7 +272,7 @@ extension ContentView {
             #else
             HStack(spacing: 6) {
                 Text(viewModel.completedTakeDurationText(take))
-                    .font(.body.monospaced())
+                    .font(.takeMetadataValue)
                     .foregroundStyle(.secondary)
             }
             inlineLabeledValue("Notes", "\(max(take.summary.noteOnCount, take.summary.noteOffCount))")
@@ -306,9 +309,9 @@ extension ContentView {
     private func inlineLabeledValue(_ label: String, _ value: String) -> some View {
         HStack(spacing: 6) {
             Text("\(label):")
-                .font(.headline)
+                .font(.takeMetadataLabel)
             Text(value)
-                .font(.body.monospaced())
+                .font(.takeMetadataValue)
                 .foregroundStyle(.secondary)
         }
     }

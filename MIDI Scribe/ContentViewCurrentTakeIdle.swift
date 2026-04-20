@@ -1,0 +1,81 @@
+//
+//  ContentViewCurrentTakeIdle.swift
+//  MIDI Scribe
+//
+
+import SwiftUI
+
+extension ContentView {
+    var currentTakeIdleContent: some View {
+        VStack(spacing: 10) {
+            if !viewModel.settings.isScribingEnabled {
+                Text(viewModel.currentTakePromptText)
+                    .font(.title3)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+            }
+
+            if viewModel.settings.isScribingEnabled {
+                Button {
+                    viewModel.startTake()
+                } label: {
+                    Text("Start a New Take")
+                        .foregroundStyle(.white)
+                }
+                .buttonStyle(.glassProminent)
+                #if os(iOS)
+                .buttonBorderShape(.roundedRectangle(radius: 30))
+                #endif
+                .controlSize(.extraLarge)
+
+                if !currentTakeStartMethods.isEmpty {
+                    currentTakeStartMethodList
+                }
+                configureStartMethodsPrompt
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var configureStartMethodsPrompt: some View {
+        Text("Configure more ways to start a new Take in Settings")
+            .font(currentTakeStartMethodFont)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .padding(.top, 12)
+    }
+
+    private var currentTakeStartMethodList: some View {
+        VStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Other ways to start a new Take:")
+                    .font(currentTakeStartMethodFont)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 10)
+                ForEach(currentTakeStartMethods, id: \.self) { method in
+                    Text("‣ \(method)")
+                        .font(currentTakeStartMethodFont)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.95)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+            .fixedSize(horizontal: true, vertical: false)
+        }
+        .multilineTextAlignment(.center)
+    }
+
+    private var currentTakeStartMethodFont: Font {
+        .body
+    }
+
+    private var currentTakeStartMethods: [String] {
+        var methods: [String] = []
+        #if os(macOS)
+        methods.append("Space Bar")
+        #endif
+        methods.append(contentsOf: viewModel.currentTakeStartMethods)
+        return methods
+    }
+}

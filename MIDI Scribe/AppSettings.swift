@@ -85,6 +85,7 @@ final class AppSettings: ObservableObject {
     private static let startTakeWithNoteEventsKey = "startTakeWithNoteEvents"
     private static let takeStartControlChangesKey = "takeStartControlChanges"
     private static let takeEndControlChangesKey = "takeEndControlChanges"
+    private static let welcomeSheetShownKey = "welcomeSheetShown"
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
@@ -134,12 +135,20 @@ final class AppSettings: ObservableObject {
         !disableScribing
     }
 
+    var hasWelcomeSheetShownValue: Bool {
+        userDefaults.object(forKey: Self.welcomeSheetShownKey) != nil
+    }
+
+    func markWelcomeSheetShown() {
+        userDefaults.set(true, forKey: Self.welcomeSheetShownKey)
+    }
+
     func shouldStartTake(_ event: RecordedMIDIEvent) -> Bool {
         switch event.kind {
         case .noteOn:
             return startTakeWithNoteEvents
         case .controlChange:
-            return isPressedControlChange(event) && takeStartControlChanges.contains(event.data1)
+            return isReleasedControlChange(event) && takeStartControlChanges.contains(event.data1)
         default:
             return false
         }
@@ -152,6 +161,11 @@ final class AppSettings: ObservableObject {
     private func isPressedControlChange(_ event: RecordedMIDIEvent) -> Bool {
         guard event.kind == .controlChange, let value = event.data2 else { return false }
         return value >= 64
+    }
+
+    private func isReleasedControlChange(_ event: RecordedMIDIEvent) -> Bool {
+        guard event.kind == .controlChange, let value = event.data2 else { return false }
+        return value < 10
     }
 
     func resetAllPreferences() {

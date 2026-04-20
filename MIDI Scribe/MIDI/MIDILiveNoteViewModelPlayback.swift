@@ -39,28 +39,51 @@ extension MIDILiveNoteViewModel {
             playbackEngine.pause()
             return
         }
-        loadFullTakeAndPlay(takeID: takeID, restart: false)
+        loadFullTakeAndPlay(takeID: takeID, restart: false, target: selectedPlaybackTarget)
     }
 
     func restartPlayback(for takeID: UUID) {
-        loadFullTakeAndPlay(takeID: takeID, restart: true)
+        loadFullTakeAndPlay(takeID: takeID, restart: true, target: selectedPlaybackTarget)
     }
 
     func rewindPlaybackToBeginning(for takeID: UUID) {
         playbackEngine.rewindToBeginning(takeID: takeID)
     }
 
-    private func loadFullTakeAndPlay(takeID: UUID, restart: Bool) {
-        if let cached = materializedTakes[takeID] {
-            if restart {
-                playbackEngine.restartPlayback(for: cached, target: selectedPlaybackTarget)
-            } else {
-                playbackEngine.togglePlayback(for: cached, target: selectedPlaybackTarget)
+    func loadFullTakeAndPlay(
+        takeID: UUID,
+        restart: Bool,
+        target: PlaybackOutputTarget,
+        saveCurrentTakeFirst: Bool = true
+    ) {
+        if saveCurrentTakeFirst, isTakeInProgress {
+            completedTakeSelectionMode = .preserveSelection(selectedSidebarItem)
+            playbackRequestAfterCurrentTakeEnds = DeferredPlaybackRequest(
+                takeID: takeID,
+                restart: restart,
+                target: target
+            )
+            Task {
+                let completedTake = await takeLifecycle.endCurrentTake()
+                if !completedTake {
+                    await MainActor.run { [weak self] in
+                        self?.completedTakeSelectionMode = .showCompleted
+                        self?.performDeferredPlaybackRequestIfNeeded()
+                    }
+                }
             }
             return
         }
 
-        let target = selectedPlaybackTarget
+        if let cached = materializedTakes[takeID] {
+            if restart {
+                playbackEngine.restartPlayback(for: cached, target: target)
+            } else {
+                playbackEngine.togglePlayback(for: cached, target: target)
+            }
+            return
+        }
+
         let resolver = resolveFullTake
         Task { [weak self] in
             let take: RecordedTake? = await Task.detached(priority: .userInitiated) { [resolver] in

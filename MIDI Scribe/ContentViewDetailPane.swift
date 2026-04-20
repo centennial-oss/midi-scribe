@@ -186,15 +186,20 @@ extension ContentView {
     }
 
     var currentTakeDetail: some View {
-        VStack(spacing: 32) {
+        VStack(spacing: viewModel.isTakeInProgress ? 6 : 32) {
             if viewModel.isTakeInProgress {
                 currentTakeInProgressContent
+                    #if os(macOS)
+                    .padding(.top, 8)
+                    #endif
             } else {
                 currentTakeIdleContent
             }
         }
-        .padding(32)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, viewModel.isTakeInProgress ? 24 : 32)
+        .padding(.top, viewModel.isTakeInProgress ? 0 : 32)
+        .padding(.bottom, viewModel.isTakeInProgress ? 12 : 32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .toolbar {
             #if os(iOS)
             iPhoneSidebarToggleToolbar()
@@ -243,62 +248,76 @@ extension ContentView {
     }
 
     private var currentTakeInProgressContent: some View {
-        VStack(spacing: 48) {
-            VStack(spacing: 12) {
-                Text("Current Take Duration")
-                    .font(.headline)
-
-                Text(viewModel.currentTakeDurationText)
-                    .font(.system(size: 36, weight: .semibold, design: .rounded))
-                    .frame(maxWidth: .infinity, minHeight: 44)
-            }
-
-            VStack(spacing: 16) {
-                Text("Current MIDI Note(s)")
-                    .font(.headline)
-
-                Text(viewModel.currentNoteText)
-                    .font(.system(size: 44, weight: .semibold, design: .rounded))
-                    .frame(maxWidth: .infinity, minHeight: 60)
-
-                if let errorText = viewModel.errorText {
-                    Text(errorText)
-                        .font(.footnote)
-                        .foregroundStyle(.red)
-                        .multilineTextAlignment(.center)
-                }
-            }
-
-            VStack(spacing: 16) {
-                Text("Current MIDI Channel(s)")
-                    .font(.headline)
-
-                Text(viewModel.currentChannelText)
-                    .font(.system(size: 44, weight: .semibold, design: .rounded))
-                    .frame(maxWidth: .infinity, minHeight: 60)
-            }
-            .padding(.top, 8)
-
-            VStack(spacing: 12) {
-                Text("Recorded Take Summary")
-                    .font(.headline)
-
-                Text(viewModel.currentTakeSummaryText)
-                    .font(.body.monospaced())
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-
-                if viewModel.shouldShowIdleTimeoutText {
-                    Text(viewModel.idleTimeoutText)
-                        .font(.body.monospaced())
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                }
-            }
+        VStack(spacing: 6) {
+            currentTakeMetadata
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             livePianoRoll
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var currentTakeMetadata: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(viewModel.currentTakeDurationText)
+                .font(.takeMetadataValue)
+                .foregroundStyle(.secondary)
+
+            currentTakeInlineLabeledValue("Notes", currentTakeNotesCountText)
+            currentTakeInlineLabeledValue("Range", currentTakeRangeText)
+            currentTakeInlineLabeledValue("Channels", currentTakeChannelsText)
+
+            Spacer(minLength: 24)
+
+            if viewModel.shouldShowCurrentNoteText {
+                currentTakeInlineLabeledValue("Now", viewModel.currentNoteText)
+            }
+
+            if viewModel.shouldShowIdleTimeoutText {
+                Text("/")
+                    .font(.takeMetadataValue)
+                    .foregroundStyle(.secondary)
+                Text(viewModel.idleTimeoutText)
+                    .font(.takeMetadataValue)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let errorText = viewModel.errorText {
+                Text("/")
+                    .font(.takeMetadataValue)
+                    .foregroundStyle(.secondary)
+                Text(errorText)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.85)
+    }
+
+    private var currentTakeNotesCountText: String {
+        let summary = viewModel.currentTakeSnapshot.summary
+        return "\(max(summary.noteOnCount, summary.noteOffCount))"
+    }
+
+    private var currentTakeRangeText: String {
+        let summary = viewModel.currentTakeSnapshot.summary
+        return viewModel.formatNoteRange(lowest: summary.lowestNote, highest: summary.highestNote)
+    }
+
+    private var currentTakeChannelsText: String {
+        let channels = viewModel.currentTakeSnapshot.summary.uniqueChannels.map(String.init).joined(separator: ", ")
+        return channels.isEmpty ? "None" : channels
+    }
+
+    private func currentTakeInlineLabeledValue(_ label: String, _ value: String) -> some View {
+        HStack(spacing: 6) {
+            Text("\(label):")
+                .font(.takeMetadataLabel)
+            Text(value)
+                .font(.takeMetadataValue)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -328,16 +347,6 @@ extension ContentView {
         )
     }
 
-    private var currentTakeIdleContent: some View {
-        VStack(spacing: 20) {
-            Text(viewModel.currentTakePromptText)
-                .font(.title3)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
 }
 
 #if os(iOS)
