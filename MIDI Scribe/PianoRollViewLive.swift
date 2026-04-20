@@ -207,22 +207,8 @@ struct PianoRollDrawContext {
 extension PianoRollView {
     func drawNotesAndCCs(
         into context: GraphicsContext,
-        keyHeight: CGFloat,
-        pixelsPerSecond: CGFloat,
-        playOffset: TimeInterval,
-        idleNoteColor: Color,
-        playingNoteColor: Color
+        drawContext: PianoRollDrawContext
     ) {
-        let drawContext = PianoRollDrawContext(
-            keyHeight: keyHeight,
-            noteHeight: max(1, keyHeight - 1),
-            ccHeight: max(4, keyHeight),
-            pixelsPerSecond: pixelsPerSecond,
-            timelineLeadingInset: Self.timelineLeadingInset,
-            playOffset: playOffset,
-            idleNoteColor: idleNoteColor,
-            playingNoteColor: playingNoteColor
-        )
         let tail = take.duration
 
         for note in notes {

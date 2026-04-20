@@ -25,18 +25,18 @@ struct PianoRollView: View {
     }
 
     /// Lime note bars on the roll when not under the playhead.
-    private var noteBarIdleColor: Color {
+    var noteBarIdleColor: Color {
         colorScheme == .dark ? Color(red: 0.6, green: 1.0, blue: 0.2) : Color(red: 0.1, green: 0.5, blue: 0.05)
     }
 
     /// Pink / fuchsia note bars while the playhead is over the note.
-    private var noteBarPlayingColor: Color {
+    var noteBarPlayingColor: Color {
         colorScheme == .dark ? Color(red: 1.0, green: 0.2, blue: 0.8) : Color(red: 0.9, green: 0.1, blue: 0.7)
     }
 
     /// Stroke around the clipped roll (`rollCornerRadius`).
     private var rollBorderColor: Color {
-        colorScheme == .dark ? Color.black : Color(red: 0.3, green: 0.3, blue: 0.3)
+        colorScheme == .dark ? Color.black : Color(red: 0.6, green: 0.6, blue: 0.6)
     }
 
     let take: RecordedTake
@@ -79,13 +79,13 @@ struct PianoRollView: View {
 
     /// To smoothly zoom on iOS:
     @State private var currentMagnification: CGFloat = 1.0
-    @State private var isZoomCentering = false
-    @State private var isPinchZooming = false
-    @State private var zoomCenteringTask: Task<Void, Never>?
+    @State var isZoomCentering = false
+    @State var isPinchZooming = false
+    @State var zoomCenteringTask: Task<Void, Never>?
     /// iOS can deliver an initial 0x0 layout pass for this view. Prime once
     /// when we observe a usable size to force a deterministic first render.
-    @State private var didPrimeInitialLayout = false
-    @State private var layoutPrimeID = 0
+    @State var didPrimeInitialLayout = false
+    @State var layoutPrimeID = 0
 
     var body: some View {
         TimelineView(.animation(paused: !shouldAnimatePianoRoll)) { context in
@@ -128,13 +128,14 @@ struct PianoRollView: View {
                             // views on every new event (which caused
                             // live-recording lag after ~1500 notes).
                             Canvas { context, _ in
-                                drawNotesAndCCs(
-                                    into: context,
+                                let drawContext = makeDrawContext(
                                     keyHeight: keyHeight,
                                     pixelsPerSecond: pixelsPerSecond,
-                                    playOffset: playOffset,
-                                    idleNoteColor: noteBarIdleColor,
-                                    playingNoteColor: noteBarPlayingColor
+                                    playOffset: playOffset
+                                )
+                                drawNotesAndCCs(
+                                    into: context,
+                                    drawContext: drawContext
                                 )
                             }
                             .frame(width: rollWidth, height: viewHeight)
@@ -311,98 +312,6 @@ struct PianoRollView: View {
                 ingestNewLiveEvents(upTo: newCount)
             }
         }
-    }
-
-}
-
-extension PianoRollView {
-    var isTakePlaying: Bool {
-        viewModel.isPlaying(takeID: take.id)
-    }
-
-    private var shouldAnimatePianoRoll: Bool {
-        isTakePlaying || dragStartOffset != nil || isLive || isZoomCentering
-    }
-
-    private var shouldCenterPausedPlayheadDuringZoom: Bool {
-        !isLive && !isTakePlaying && isZoomCentering
-    }
-
-    private func resetScrubState() {
-        dragStartOffset = nil
-        dragIntersectedNotes.removeAll()
-        lastScrubAuditionUptime = nil
-        scrubAuditionDiagnostics = ScrubAuditionDiagnostics()
-        lastPlaybackModelDiagnosticUptime = nil
-        localScrubOffset = nil
-        viewModel.playbackEngine.stopScrubbingNotes()
-        scrubEdgeAutoScrollDirection = 0
-        scrubLastDragTranslationWidth = nil
-    }
-
-    private func beginPausedZoomCentering(debounce: Bool) {
-        guard !isLive, !isTakePlaying else { return }
-        if !isZoomCentering {
-            isZoomCentering = true
-        }
-        guard debounce else { return }
-
-        zoomCenteringTask?.cancel()
-        zoomCenteringTask = Task {
-            try? await Task.sleep(for: .milliseconds(150))
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                guard !isPinchZooming else { return }
-                isZoomCentering = false
-                zoomCenteringTask = nil
-            }
-        }
-    }
-
-    private func primeInitialLayoutIfNeeded(size: CGSize) {
-        guard !didPrimeInitialLayout else { return }
-        guard size.width > 1, size.height > 1 else { return }
-        didPrimeInitialLayout = true
-        layoutPrimeID += 1
-    }
-
-    var currentPlaybackOffset: TimeInterval {
-        if isLive {
-            return take.duration
-        }
-        if viewModel.playbackEngine.currentTakeID == take.id {
-            return viewModel.playbackEngine.currentPlaybackTime
-        }
-        return localScrubOffset ?? 0
-    }
-
-    private func isNotePlaying(_ note: PianoRollNote, currentOffset: TimeInterval) -> Bool {
-        return currentOffset >= note.startOffset && currentOffset <= (note.startOffset + note.duration)
-    }
-
-    private func pitchToY(pitch: UInt8, keyHeight: CGFloat) -> CGFloat {
-        // 88 keys: A0 is pitch 21, C8 is pitch 108.
-        let safePitch = max(21, min(108, pitch))
-        let inverted = 108 - safePitch
-        return CGFloat(inverted) * keyHeight
-    }
-
-    private func pitchToName(pitch: UInt8) -> String {
-        let notes = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "G♯", "A", "B♭", "B"]
-        let octave = Int(pitch) / 12 - 1
-        let noteIndex = Int(pitch) % 12
-        return "\(notes[noteIndex])\(octave)"
-    }
-
-    func computeNotes() {
-        computeNoteEvents()
-        computeCCs()
-    }
-
-    func resetLiveCursors() {
-        liveEventsProcessedCount = 0
-        liveActiveNotes.removeAll(keepingCapacity: true)
-        liveActiveCCs.removeAll(keepingCapacity: true)
     }
 
 }

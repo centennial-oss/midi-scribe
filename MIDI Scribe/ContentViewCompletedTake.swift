@@ -16,51 +16,7 @@ extension ContentView {
 
     func completedTakeDetail(for takeID: UUID) -> some View {
         VStack(spacing: 6) {
-            if let take = viewModel.recentTake(id: takeID) {
-                completedTakeProgressAndErrors
-
-                completedTakeMetadata(for: take)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    #if os(iOS)
-                    .padding(completedTakePhonePianoRollHorizontalBleedInsets)
-                    #endif
-
-                if completedTakeReadyToRenderID == take.id,
-                   let fullTake = viewModel.materializedTake(id: take.id) {
-                    PianoRollView(
-                        take: fullTake,
-                        viewModel: viewModel,
-                        zoomLevel: $pianoRollZoomLevel,
-                        scrollToStartRequestID: pianoRollScrollToStartRequestID
-                    )
-                        .id(take.id)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .overlay(alignment: .bottomTrailing) {
-                            if take.summary.duration >= 5.0 {
-                                completedTakeZoomSliderRow()
-                                    .padding(.trailing, 14)
-                                    .padding(.bottom, 0)
-                                    .offset(completedTakeZoomSliderOverlayOffset)
-                            }
-                        }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    #if os(iOS)
-                    .padding(completedTakePhonePianoRollHorizontalBleedInsets)
-                    #endif
-                } else {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .task(id: completedTakeRenderTaskID(for: take.id)) {
-                            await waitForCompletedTakeDetailTransition()
-                            viewModel.materializeTakeForDisplay(id: take.id)
-                            completedTakeReadyToRenderID = take.id
-                        }
-                }
-            } else {
-                Text("Take not found.")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+            completedTakeDetailBody(for: takeID)
         }
         .padding(.horizontal, 24)
         .padding(.top, 0)
@@ -74,6 +30,62 @@ extension ContentView {
         .navigationTitle(completedTakeNavigationTitle(for: takeID))
     }
 
+    @ViewBuilder
+    private func completedTakeDetailBody(for takeID: UUID) -> some View {
+        if let take = viewModel.recentTake(id: takeID) {
+            completedTakeProgressAndErrors
+
+            completedTakeMetadata(for: take)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                #if os(iOS)
+                .padding(completedTakePhoneBleedInsets)
+                #endif
+
+            if completedTakeReadyToRenderID == take.id,
+               let fullTake = viewModel.materializedTake(id: take.id) {
+                completedTakePianoRoll(fullTake: fullTake, listItem: take)
+            } else {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .task(id: completedTakeRenderTaskID(for: take.id)) {
+                        await waitForCompletedTakeDetailTransition()
+                        viewModel.materializeTakeForDisplay(id: take.id)
+                        completedTakeReadyToRenderID = take.id
+                    }
+            }
+        } else {
+            Text("Take not found.")
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private func completedTakePianoRoll(
+        fullTake: RecordedTake,
+        listItem: RecordedTakeListItem
+    ) -> some View {
+        PianoRollView(
+            take: fullTake,
+            viewModel: viewModel,
+            zoomLevel: $pianoRollZoomLevel,
+            scrollToStartRequestID: pianoRollScrollToStartRequestID
+        )
+        .id(listItem.id)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay(alignment: .bottomTrailing) {
+            if listItem.summary.duration >= 5.0 {
+                completedTakeZoomSliderRow()
+                    .padding(.trailing, 16)
+                    .padding(.bottom, 0)
+                    .offset(completedTakeZoomSliderOverlayOffset)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        #if os(iOS)
+        .padding(completedTakePhoneBleedInsets)
+        #endif
+    }
+
     @ToolbarContentBuilder
     private func completedTakeToolbar(for take: RecordedTakeListItem) -> some ToolbarContent {
         #if os(iOS)
@@ -81,7 +93,7 @@ extension ContentView {
         #endif
         completedTakePlaybackToolbar(for: take)
         #if os(iOS)
-        if !shouldHideCompletedTakeActionsToolbarOnPhone {
+        if !hideTakeActionsToolbarOnPhone {
             ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
             completedTakeActionsToolbar(for: take)
         }
@@ -249,12 +261,12 @@ extension ContentView {
             if UIDevice.current.userInterfaceIdiom == .phone {
                 Text(take.displayTitle)
                     .font(.headline)
-                if !shouldHideCompletedTakeActionsToolbarOnPhone {
+                if !hideTakeActionsToolbarOnPhone {
                     Text("/")
                         .foregroundStyle(.secondary)
                 }
             }
-            if UIDevice.current.userInterfaceIdiom != .phone || !shouldHideCompletedTakeActionsToolbarOnPhone {
+            if UIDevice.current.userInterfaceIdiom != .phone || !hideTakeActionsToolbarOnPhone {
                 HStack(spacing: 6) {
                     Text(viewModel.completedTakeDurationText(take))
                         .font(.body.monospaced())
@@ -355,13 +367,13 @@ extension ContentView {
     }
 
     #if os(iOS)
-    /// Bleed the completed-take metadata row and piano roll past `completedTakeDetail`’s horizontal padding on iPhone
-    /// so they align with each other and sit closer to the leading edge and the Dynamic Island / notch on the trailing side.
-    private var completedTakePhonePianoRollHorizontalBleedInsets: EdgeInsets {
+    /// Bleed the completed-take metadata row and piano roll past
+    /// `completedTakeDetail`'s horizontal padding on iPhone so they align.
+    private var completedTakePhoneBleedInsets: EdgeInsets {
         UIDevice.current.userInterfaceIdiom == .phone
             ? EdgeInsets(
                 top: 0,
-                leading: shouldHideCompletedTakeActionsToolbarOnPhone ? -10 : -30,
+                leading: hideTakeActionsToolbarOnPhone ? -10 : -30,
                 bottom: 0,
                 trailing: -20
             )
