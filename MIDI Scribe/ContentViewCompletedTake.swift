@@ -22,7 +22,8 @@ extension ContentView {
                 completedTakeMetadata(for: take)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                if let fullTake = viewModel.fullTake(id: take.id) {
+                if completedTakeReadyToRenderID == take.id,
+                   let fullTake = viewModel.materializedTake(id: take.id) {
                     PianoRollView(
                         take: fullTake,
                         viewModel: viewModel,
@@ -43,6 +44,11 @@ extension ContentView {
                 } else {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .task(id: completedTakeRenderTaskID(for: take.id)) {
+                            await waitForCompletedTakeDetailTransition()
+                            viewModel.materializeTakeForDisplay(id: take.id)
+                            completedTakeReadyToRenderID = take.id
+                        }
                 }
             } else {
                 Text("Take not found.")
@@ -105,12 +111,23 @@ extension ContentView {
     @ToolbarContentBuilder
     private func completedTakeActionsToolbar(for take: RecordedTakeListItem) -> some ToolbarContent {
         let splitLabel = splitTakeLabel(for: take)
-        let isSplitDisabled = !viewModel.canSplit(takeID: take.id) || viewModel.isTakeActionInProgress
+        let isPlaybackInProgress = viewModel.isPlaying(takeID: take.id)
+        let actionDisabled = viewModel.isTakeActionInProgress
+        let isRenameDisabled = isPlaybackInProgress || actionDisabled
+        let isSplitDisabled = !viewModel.canSplit(takeID: take.id) || actionDisabled
+        let isExportDisabled = isPlaybackInProgress || actionDisabled
+        let isDeleteDisabled = isPlaybackInProgress || actionDisabled
         let starLabel = take.isStarred ? "Unstar" : "Star"
         let starIcon = take.isStarred ? "star.fill" : "star"
 
         ToolbarItemGroup(placement: completedTakeToolbarPlacement) {
-            toolbarIconButton("Rename Take", systemImage: "pencil", disabled: viewModel.isTakeActionInProgress) {
+            toolbarIconButton(
+                "Rename Take",
+                systemImage: "pencil",
+                disabled: isRenameDisabled,
+                foregroundStyle: isRenameDisabled ? Color.secondary : nil,
+                opacity: isRenameDisabled ? 0.35 : 1
+            ) {
                 beginRename(take)
             }
 
@@ -127,28 +144,39 @@ extension ContentView {
             toolbarIconButton(
                 starLabel,
                 systemImage: starIcon,
-                disabled: viewModel.isTakeActionInProgress,
+                disabled: actionDisabled,
                 foregroundStyle: take.isStarred ? .yellow : nil
             ) {
                 viewModel.toggleStar(takeID: take.id)
             }
 
-            toolbarIconButton(
-                "Export .mid",
-                systemImage: "square.and.arrow.up",
-                disabled: viewModel.isTakeActionInProgress
-            ) {
-                exportTake(id: take.id)
-            }
+            exportTakeToolbarButton(takeID: take.id, disabled: isExportDisabled)
+            deleteTakeToolbarButton(takeID: take.id, disabled: isDeleteDisabled)
+        }
+    }
 
-            toolbarIconButton(
-                "Delete Take",
-                systemImage: "trash",
-                disabled: viewModel.isTakeActionInProgress,
-                role: .destructive
-            ) {
-                beginDeleteTake(id: take.id)
-            }
+    private func exportTakeToolbarButton(takeID: UUID, disabled: Bool) -> some View {
+        toolbarIconButton(
+            "Export .mid",
+            systemImage: "square.and.arrow.up",
+            disabled: disabled,
+            foregroundStyle: disabled ? Color.secondary : nil,
+            opacity: disabled ? 0.35 : 1
+        ) {
+            exportTake(id: takeID)
+        }
+    }
+
+    private func deleteTakeToolbarButton(takeID: UUID, disabled: Bool) -> some View {
+        toolbarIconButton(
+            "Delete Take",
+            systemImage: "trash",
+            disabled: disabled,
+            role: .destructive,
+            foregroundStyle: disabled ? Color.secondary : nil,
+            opacity: disabled ? 0.35 : 1
+        ) {
+            beginDeleteTake(id: takeID)
         }
     }
 
@@ -281,6 +309,18 @@ extension ContentView {
         }
         #endif
         return viewModel.recentTake(id: takeID)?.displayTitle ?? "Take"
+    }
+
+    private func completedTakeRenderTaskID(for takeID: UUID) -> String {
+        "\(takeID.uuidString)-\(completedTakeRenderDelayRequestID)"
+    }
+
+    private func waitForCompletedTakeDetailTransition() async {
+        #if os(iOS)
+        if UIDevice.current.userInterfaceIdiom == .phone {
+            try? await Task.sleep(for: .milliseconds(450))
+        }
+        #endif
     }
 
     private var completedTakeZoomSliderOverlayOffset: CGSize {

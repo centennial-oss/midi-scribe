@@ -344,3 +344,11 @@ actor TakePersistenceService {
         }.value
     }
 }
+
+extension TakePersistenceService {
+    func recordedTake(id takeID: UUID) async throws -> RecordedTake? {
+        try await runReturning { context in
+            try Self.fetchTake(id: takeID, in: context)?.recordedTake
+        }
+    }
+}

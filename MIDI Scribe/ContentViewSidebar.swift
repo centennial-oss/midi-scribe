@@ -124,6 +124,7 @@ extension ContentView {
 #else
         Button {
             let isReselectingSameRow = (viewModel.selectedSidebarItem == item)
+            prepareCompletedTakeDetailForSelection(item)
             sidebarSelectionBinding.wrappedValue = item
 #if os(iOS)
             // Re-selecting the active row does not change `onChange` / split state; `preferredCompactColumn`
@@ -154,6 +155,12 @@ extension ContentView {
                 : Color.clear
         )
 #endif
+    }
+
+    private func prepareCompletedTakeDetailForSelection(_ item: SidebarItem) {
+        guard takeID(fromAny: item) != nil else { return }
+        completedTakeReadyToRenderID = nil
+        completedTakeRenderDelayRequestID += 1
     }
 
     @ViewBuilder

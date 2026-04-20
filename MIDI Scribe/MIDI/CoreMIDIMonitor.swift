@@ -49,6 +49,8 @@ final class CoreMIDIMonitor: MIDIListening {
     var isStarted = false
     private let settings: AppSettings
     private var settingsCancellable: AnyCancellable?
+    private var lastPublishedActiveNotes: [MIDINote] = []
+    private var lastPublishedActiveChannels: [UInt8] = []
 
     init(settings: AppSettings) {
         self.settings = settings
@@ -303,6 +305,9 @@ extension CoreMIDIMonitor {
             return $0.noteNumber < $1.noteNumber
         }
         let channels = Array(Set(notes.map(\.channel))).sorted()
+        guard notes != lastPublishedActiveNotes || channels != lastPublishedActiveChannels else { return }
+        lastPublishedActiveNotes = notes
+        lastPublishedActiveChannels = channels
 
         Task { @MainActor [onActiveNotesChanged, onActiveChannelsChanged] in
             onActiveNotesChanged?(notes)

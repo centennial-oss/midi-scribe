@@ -111,6 +111,9 @@ struct PianoRollView: View {
                     ScrollViewReader { proxy in
                         ZStack(alignment: .topLeading) {
                             rollBackground
+                            Color.clear
+                                .frame(width: 1, height: viewHeight)
+                                .id("playheadStart")
 
                             // Render all notes + CCs in a single Canvas to
                             // avoid SwiftUI diffing thousands of Rectangle
@@ -200,7 +203,7 @@ struct PianoRollView: View {
                         }
                         .onChange(of: scrollToStartRequestID) { _, _ in
                             guard !isLive else { return }
-                            proxy.scrollTo("playhead", anchor: .leading)
+                            proxy.scrollTo("playheadStart", anchor: .leading)
                         }
                         .gesture(
                             MagnificationGesture()

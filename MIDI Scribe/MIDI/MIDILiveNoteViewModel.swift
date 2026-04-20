@@ -35,7 +35,7 @@ final class MIDILiveNoteViewModel: ObservableObject {
     @Published var lastCompletedTake: RecordedTakeListItem?
     /// Lazy cache of fully-materialized takes (with events). Only populated
     /// when a take is actually played or inspected in detail.
-    var materializedTakes: [UUID: RecordedTake] = [:]
+    @Published var materializedTakes: [UUID: RecordedTake] = [:]
     var resolveFullTake: (@Sendable (UUID) -> RecordedTake?)?
     @Published var errorText: String?
     @Published var selectedPlaybackTarget: PlaybackOutputTarget = .osSpeakers
@@ -67,6 +67,7 @@ final class MIDILiveNoteViewModel: ObservableObject {
     var monitorRetryTask: Task<Void, Never>?
     var completedTakeSelectionMode: CompletedTakeSelectionMode = .showCompleted
     var hasStartedRecordableTake = false
+    var materializingTakeIDs: Set<UUID> = []
 
     /// Most recent bulk-operation result. UI consumes this to decide which
     /// sidebar item to select after exiting Edit mode.

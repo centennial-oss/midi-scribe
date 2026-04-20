@@ -24,8 +24,14 @@ extension ContentView {
 
     func beginRename(_ take: RecordedTakeListItem) {
         viewModel.playbackEngine.pause()
-        renamingTakeID = take.id
-        renameDraft = take.userTitle ?? take.baseTitle
+        let takeID = take.id
+        let initialDraft = take.userTitle ?? take.baseTitle
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150))
+            guard viewModel.recentTake(id: takeID) != nil else { return }
+            renameDraft = initialDraft
+            renamingTakeID = takeID
+        }
     }
 
     func commitRename() {
@@ -43,10 +49,21 @@ extension ContentView {
 
     func persistLastCompletedTakeIfNeeded() {
         guard let listItem = viewModel.lastCompletedTake else { return }
-        guard let take = viewModel.fullTake(id: listItem.id) else { return }
+        let cachedTake = viewModel.materializedTake(id: listItem.id)
+        let service = viewModel.persistenceService
 
         let container = modelContext.container
         Task.detached(priority: .userInitiated) {
+            let take: RecordedTake?
+            if let cachedTake {
+                take = cachedTake
+            } else if let service {
+                take = try? await service.recordedTake(id: listItem.id)
+            } else {
+                take = nil
+            }
+            guard let take else { return }
+
             let context = ModelContext(container)
             let takeID = take.id.uuidString
             let descriptor = FetchDescriptor<StoredTake>(
@@ -66,7 +83,7 @@ extension ContentView {
         viewModel.playbackEngine.pause()
         exportErrorMessage = nil
 
-        if let cached = viewModel.fullTake(id: id) {
+        if let cached = viewModel.materializedTake(id: id) {
             presentExporter(for: cached)
             return
         }
@@ -255,20 +272,20 @@ extension ContentView {
 
     func updateTakeCommandState() {
         if viewModel.isTakeInProgress {
-            appState.takeCommandState = TakeCommandState(
+            updateTakeCommandStateIfChanged(TakeCommandState(
                 isCurrentTakeInProgress: true,
                 isActionInProgress: viewModel.isTakeActionInProgress
-            )
+            ))
             return
         }
 
         guard let takeID = selectedSavedTakeID,
               let take = viewModel.recentTake(id: takeID) else {
-            appState.takeCommandState = TakeCommandState()
+            updateTakeCommandStateIfChanged(TakeCommandState())
             return
         }
 
-        appState.takeCommandState = TakeCommandState(
+        updateTakeCommandStateIfChanged(TakeCommandState(
             takeID: takeID,
             isSavedTake: true,
             isPlaying: viewModel.isPlaying(takeID: takeID),
@@ -276,7 +293,12 @@ extension ContentView {
             canSplit: viewModel.canSplit(takeID: takeID),
             canZoom: take.summary.duration >= 5.0,
             isActionInProgress: viewModel.isTakeActionInProgress
-        )
+        ))
+    }
+
+    func updateTakeCommandStateIfChanged(_ state: TakeCommandState) {
+        guard appState.takeCommandState != state else { return }
+        appState.takeCommandState = state
     }
 
     var selectedSavedTakeID: UUID? {

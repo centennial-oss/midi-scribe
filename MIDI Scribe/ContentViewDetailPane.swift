@@ -344,7 +344,8 @@ extension ContentView {
 extension ContentView {
     @ToolbarContentBuilder
     func iPhoneSidebarToggleToolbar() -> some ToolbarContent {
-        if UIDevice.current.userInterfaceIdiom == .phone {
+        if UIDevice.current.userInterfaceIdiom == .phone,
+           horizontalSizeClass == .compact {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
                     preferredCompactColumn = .sidebar

@@ -93,7 +93,7 @@ struct SettingsView: View {
                         .disabled(appState.isLoadingSampleTakes)
                     }
                     Text("Adds several public-domain classical songs to your Recent Takes list.")
-                        .font(.footnote)
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
 
@@ -237,6 +237,9 @@ struct SettingsView: View {
         let totalSeconds = Int(seconds)
         let minutes = totalSeconds / 60
         let remainingSeconds = totalSeconds % 60
+        if minutes == 0 {
+            return "\(remainingSeconds)s"
+        }
         return "\(minutes)m \(remainingSeconds)s"
     }
 

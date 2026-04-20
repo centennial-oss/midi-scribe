@@ -6,6 +6,34 @@
 import Foundation
 
 extension MIDILiveNoteViewModel {
+    func materializedTake(id: UUID) -> RecordedTake? {
+        materializedTakes[id]
+    }
+
+    func materializeTakeForDisplay(id takeID: UUID) {
+        guard materializedTakes[takeID] == nil else { return }
+        guard !materializingTakeIDs.contains(takeID) else { return }
+        materializingTakeIDs.insert(takeID)
+
+        let service = persistenceService
+        let resolver = resolveFullTake
+        Task { [weak self] in
+            let take: RecordedTake?
+            if let service {
+                take = try? await service.recordedTake(id: takeID)
+            } else {
+                take = await Task.detached(priority: .userInitiated) { [resolver] in
+                    resolver?(takeID)
+                }.value
+            }
+
+            guard let self else { return }
+            self.materializingTakeIDs.remove(takeID)
+            guard let take else { return }
+            self.materializedTakes[takeID] = take
+        }
+    }
+
     func togglePlayback(for takeID: UUID) {
         if isPlaying(takeID: takeID) {
             playbackEngine.pause()

@@ -26,6 +26,9 @@ enum SidebarItem: Hashable {
 struct ContentView: View {
     @Environment(\.modelContext) var modelContext
     @EnvironmentObject var appState: AppState
+#if os(iOS)
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+#endif
     @Query(sort: \StoredTake.startedAt, order: .reverse) var storedRecentTakes: [StoredTake]
     @ObservedObject var settings: AppSettings
     @StateObject var viewModel: MIDILiveNoteViewModel
@@ -47,6 +50,8 @@ struct ContentView: View {
     @State var isPresentingBulkDeleteConfirm = false
     @State var pianoRollZoomLevel: CGFloat = 0.0
     @State var pianoRollScrollToStartRequestID = 0
+    @State var completedTakeRenderDelayRequestID = 0
+    @State var completedTakeReadyToRenderID: UUID?
 #if os(iOS)
     /// When the split collapses to one column (typical iPhone landscape), this controls whether the
     /// sidebar or detail is on top. `.detail` matches standard push behavior after choosing a row.
@@ -63,7 +68,7 @@ struct ContentView: View {
     }
 
     private var configuredContent: some View {
-        alertContent(exportContent(deleteDialogContent(observerContent(setupContent(baseContent)))))
+        idleTimerContent(alertContent(exportContent(deleteDialogContent(observerContent(setupContent(baseContent))))))
     }
 
     private var baseContent: some View {
@@ -106,6 +111,23 @@ struct ContentView: View {
 
     private func lifecycleContent(_ content: some View) -> some View {
         observerContent(setupContent(content))
+    }
+
+    private func idleTimerContent(_ content: some View) -> some View {
+#if os(iOS)
+        content
+            .onAppear {
+                UIApplication.shared.isIdleTimerDisabled = viewModel.isTakeInProgress
+            }
+            .onChange(of: viewModel.isTakeInProgress) { _, isTakeInProgress in
+                UIApplication.shared.isIdleTimerDisabled = isTakeInProgress
+            }
+            .onDisappear {
+                UIApplication.shared.isIdleTimerDisabled = false
+            }
+#else
+        content
+#endif
     }
 
     private func setupContent(_ content: some View) -> some View {
