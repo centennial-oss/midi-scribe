@@ -348,6 +348,7 @@ extension ContentView {
            horizontalSizeClass == .compact {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
+                    phoneNavigationSplitColumnVisibility = .doubleColumn
                     preferredCompactColumn = .sidebar
                 } label: {
                     Image(systemName: "sidebar.left")

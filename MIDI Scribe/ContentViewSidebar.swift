@@ -130,14 +130,17 @@ extension ContentView {
             // Re-selecting the active row does not change `onChange` / split state; `preferredCompactColumn`
             // may already be `.detail` while the sidebar is still visible. Bounce through `.sidebar` so
             // the split view always applies a transition back to the detail column.
-            if !isEditingList {
+            if UIDevice.current.userInterfaceIdiom == .phone, !isEditingList {
                 if isReselectingSameRow {
                     preferredCompactColumn = .sidebar
+                    phoneNavigationSplitColumnVisibility = .doubleColumn
                     DispatchQueue.main.async {
                         preferredCompactColumn = .detail
+                        phoneNavigationSplitColumnVisibility = .detailOnly
                     }
                 } else {
                     preferredCompactColumn = .detail
+                    phoneNavigationSplitColumnVisibility = .detailOnly
                 }
             }
 #endif

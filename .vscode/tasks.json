@@ -1,0 +1,65 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "make run-sim-ipad-pro",
+      "type": "shell",
+      "command": "make",
+      "args": ["run-sim-ipad-pro"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "showReuseMessage": false
+      }
+    },
+    {
+      "label": "make run-sim-iphone-pro",
+      "type": "shell",
+      "command": "make",
+      "args": ["run-sim-iphone-pro"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "showReuseMessage": false
+      }
+    },
+    {
+      "label": "make run-sim-iphone-max",
+      "type": "shell",
+      "command": "make",
+      "args": ["run-sim-iphone-max"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "showReuseMessage": false
+      }
+    },
+    {
+      "label": "make sim-run-my-mac",
+      "type": "shell",
+      "command": "make",
+      "args": ["sim-run-my-mac"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "showReuseMessage": false
+      }
+    }
+  ]
+}

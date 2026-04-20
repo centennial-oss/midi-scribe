@@ -209,7 +209,9 @@ extension PianoRollView {
         into context: GraphicsContext,
         keyHeight: CGFloat,
         pixelsPerSecond: CGFloat,
-        playOffset: TimeInterval
+        playOffset: TimeInterval,
+        idleNoteColor: Color,
+        playingNoteColor: Color
     ) {
         let drawContext = PianoRollDrawContext(
             keyHeight: keyHeight,
@@ -218,8 +220,8 @@ extension PianoRollView {
             pixelsPerSecond: pixelsPerSecond,
             timelineLeadingInset: Self.timelineLeadingInset,
             playOffset: playOffset,
-            idleNoteColor: Color(red: 0.6, green: 1.0, blue: 0.2),
-            playingNoteColor: Color(red: 1.0, green: 0.2, blue: 0.8)
+            idleNoteColor: idleNoteColor,
+            playingNoteColor: playingNoteColor
         )
         let tail = take.duration
 

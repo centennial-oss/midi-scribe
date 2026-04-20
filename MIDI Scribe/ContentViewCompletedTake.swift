@@ -21,6 +21,9 @@ extension ContentView {
 
                 completedTakeMetadata(for: take)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    #if os(iOS)
+                    .padding(completedTakePhonePianoRollHorizontalBleedInsets)
+                    #endif
 
                 if completedTakeReadyToRenderID == take.id,
                    let fullTake = viewModel.materializedTake(id: take.id) {
@@ -35,12 +38,15 @@ extension ContentView {
                         .overlay(alignment: .bottomTrailing) {
                             if take.summary.duration >= 5.0 {
                                 completedTakeZoomSliderRow()
-                                    .padding(.trailing, 12)
-                                    .padding(.bottom, 12)
+                                    .padding(.trailing, 14)
+                                    .padding(.bottom, 0)
                                     .offset(completedTakeZoomSliderOverlayOffset)
                             }
                         }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    #if os(iOS)
+                    .padding(completedTakePhonePianoRollHorizontalBleedInsets)
+                    #endif
                 } else {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -57,7 +63,7 @@ extension ContentView {
             }
         }
         .padding(.horizontal, 24)
-        .padding(.top, 6)
+        .padding(.top, 0)
         .padding(.bottom, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .toolbar {
@@ -74,11 +80,16 @@ extension ContentView {
         iPhoneSidebarToggleToolbar()
         #endif
         completedTakePlaybackToolbar(for: take)
-        ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
-        completedTakeActionsToolbar(for: take)
         #if os(iOS)
+        if !shouldHideCompletedTakeActionsToolbarOnPhone {
+            ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
+            completedTakeActionsToolbar(for: take)
+        }
         ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
         iOSAppActionsToolbar()
+        #else
+        ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
+        completedTakeActionsToolbar(for: take)
         #endif
     }
 
@@ -238,10 +249,21 @@ extension ContentView {
             if UIDevice.current.userInterfaceIdiom == .phone {
                 Text(take.displayTitle)
                     .font(.headline)
-                Text("/")
-                    .foregroundStyle(.secondary)
+                if !shouldHideCompletedTakeActionsToolbarOnPhone {
+                    Text("/")
+                        .foregroundStyle(.secondary)
+                }
             }
-            #endif
+            if UIDevice.current.userInterfaceIdiom != .phone || !shouldHideCompletedTakeActionsToolbarOnPhone {
+                HStack(spacing: 6) {
+                    Text(viewModel.completedTakeDurationText(take))
+                        .font(.body.monospaced())
+                        .foregroundStyle(.secondary)
+                }
+                inlineLabeledValue("Notes", "\(max(take.summary.noteOnCount, take.summary.noteOffCount))")
+                inlineLabeledValue("Range", viewModel.completedTakeRangeText(take))
+            }
+            #else
             HStack(spacing: 6) {
                 Text(viewModel.completedTakeDurationText(take))
                     .font(.body.monospaced())
@@ -249,6 +271,7 @@ extension ContentView {
             }
             inlineLabeledValue("Notes", "\(max(take.summary.noteOnCount, take.summary.noteOffCount))")
             inlineLabeledValue("Range", viewModel.completedTakeRangeText(take))
+            #endif
         }
     }
 
@@ -330,4 +353,19 @@ extension ContentView {
         .zero
         #endif
     }
+
+    #if os(iOS)
+    /// Bleed the completed-take metadata row and piano roll past `completedTakeDetail`’s horizontal padding on iPhone
+    /// so they align with each other and sit closer to the leading edge and the Dynamic Island / notch on the trailing side.
+    private var completedTakePhonePianoRollHorizontalBleedInsets: EdgeInsets {
+        UIDevice.current.userInterfaceIdiom == .phone
+            ? EdgeInsets(
+                top: 0,
+                leading: shouldHideCompletedTakeActionsToolbarOnPhone ? -10 : -30,
+                bottom: 0,
+                trailing: -20
+            )
+            : EdgeInsets()
+    }
+    #endif
 }

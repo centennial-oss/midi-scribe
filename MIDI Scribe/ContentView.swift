@@ -56,6 +56,9 @@ struct ContentView: View {
     /// When the split collapses to one column (typical iPhone landscape), this controls whether the
     /// sidebar or detail is on top. `.detail` matches standard push behavior after choosing a row.
     @State var preferredCompactColumn: NavigationSplitViewColumn = .detail
+    /// Large iPhones in landscape use a double-column `NavigationSplitView` where `preferredCompactColumn`
+    /// alone does not hide the floating sidebar. Phone selection handlers set `.detailOnly` so the piano roll is full width.
+    @State var phoneNavigationSplitColumnVisibility: NavigationSplitViewVisibility = .automatic
 #endif
 
     init(settings: AppSettings) {
@@ -73,7 +76,10 @@ struct ContentView: View {
 
     private var baseContent: some View {
 #if os(iOS)
-        NavigationSplitView(preferredCompactColumn: $preferredCompactColumn) {
+        NavigationSplitView(
+            columnVisibility: $phoneNavigationSplitColumnVisibility,
+            preferredCompactColumn: $preferredCompactColumn
+        ) {
             sidebar
         } detail: {
             detailContent
@@ -106,6 +112,22 @@ struct ContentView: View {
     private func phoneFocusDetailColumnAfterSidebarSelection() {
         guard UIDevice.current.userInterfaceIdiom == .phone else { return }
         preferredCompactColumn = .detail
+        phoneNavigationSplitColumnVisibility = .detailOnly
+    }
+
+    /// When the sidebar column is visible beside detail (typical wide iPhone landscape), the top bar is too narrow for every trailing icon group.
+    /// Hide the rename/split/star/export/delete cluster so the bar does not fall back to the overflow (`…`) control.
+    var shouldHideCompletedTakeActionsToolbarOnPhone: Bool {
+        guard UIDevice.current.userInterfaceIdiom == .phone else { return false }
+        if phoneNavigationSplitColumnVisibility == .doubleColumn
+            || phoneNavigationSplitColumnVisibility == .all {
+            return true
+        }
+        if phoneNavigationSplitColumnVisibility == .automatic,
+           preferredCompactColumn == .sidebar {
+            return true
+        }
+        return false
     }
 #endif
 

@@ -16,19 +16,27 @@ struct PianoRollView: View {
 
     /// Dark charcoal in light mode so lime note bars pop; solid black in dark mode.
     private var rollBackground: Color {
-        switch colorScheme {
-        case .light:
-            return Color(red: 0.14, green: 0.14, blue: 0.15)
-        case .dark:
-            return .black
-        @unknown default:
-            return Color(red: 0.14, green: 0.14, blue: 0.15)
-        }
+        colorScheme == .dark ? Color.black : Color(white: 0.975)
     }
 
     /// Playhead line + scrub handle: light on dark roll in both modes.
     private var playheadChrome: Color {
-        colorScheme == .dark ? Color.white : Color(white: 0.92)
+        colorScheme == .dark ? Color.white : Color(white: 0.3)
+    }
+
+    /// Lime note bars on the roll when not under the playhead.
+    private var noteBarIdleColor: Color {
+        colorScheme == .dark ? Color(red: 0.6, green: 1.0, blue: 0.2) : Color(red: 0.1, green: 0.5, blue: 0.05)
+    }
+
+    /// Pink / fuchsia note bars while the playhead is over the note.
+    private var noteBarPlayingColor: Color {
+        colorScheme == .dark ? Color(red: 1.0, green: 0.2, blue: 0.8) : Color(red: 0.9, green: 0.1, blue: 0.7)
+    }
+
+    /// Stroke around the clipped roll (`rollCornerRadius`).
+    private var rollBorderColor: Color {
+        colorScheme == .dark ? Color.black : Color(red: 0.3, green: 0.3, blue: 0.3)
     }
 
     let take: RecordedTake
@@ -124,7 +132,9 @@ struct PianoRollView: View {
                                     into: context,
                                     keyHeight: keyHeight,
                                     pixelsPerSecond: pixelsPerSecond,
-                                    playOffset: playOffset
+                                    playOffset: playOffset,
+                                    idleNoteColor: noteBarIdleColor,
+                                    playingNoteColor: noteBarPlayingColor
                                 )
                             }
                             .frame(width: rollWidth, height: viewHeight)
@@ -242,6 +252,10 @@ struct PianoRollView: View {
                 .id(layoutPrimeID)
                 .frame(height: viewHeight)
                 .clipShape(RoundedRectangle(cornerRadius: Self.rollCornerRadius, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Self.rollCornerRadius, style: .continuous)
+                        .stroke(rollBorderColor, lineWidth: 1)
+                }
                 .overlay(alignment: .topLeading) {
                     if !ignoredMalformedEventIDs.isEmpty {
                         Text("Ignored malformed MIDI events: \(ignoredMalformedEventIDs.count)")

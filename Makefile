@@ -1,4 +1,5 @@
-.PHONY: build build-release-unsigned generate-appicons add-midi-assets add-soundbank-assets test clean generate-build-info lint lint-fix-safe
+.PHONY: build build-release-unsigned generate-appicons add-midi-assets add-soundbank-assets test clean generate-build-info lint lint-fix-safe \
+	run-sim-ipad-pro run-sim-iphone-pro run-sim-iphone-max sim-run-my-mac
 
 SWIFTLINT ?= $(shell command -v swiftlint 2>/dev/null)
 
@@ -135,3 +136,16 @@ generate-appicons:
 	@cp /tmp/app-icon-transparent-128.png "$(APPICON_TRANSPARENT_IMAGESET)"
 	@rm -f /tmp/app-icon-transparent-128.png
 	@echo "Done writing AppIcons and transparent 128x128"
+
+# Simulator / run helpers (placeholders — wire up xcodebuild/xcrun simctl as needed).
+run-sim-ipad-pro:
+	@echo "TODO: run-sim-ipad-pro (iPad Pro simulator)"
+
+run-sim-iphone-pro:
+	@echo "TODO: run-sim-iphone-pro (iPhone Pro simulator)"
+
+run-sim-iphone-max:
+	@echo "TODO: run-sim-iphone-max (iPhone Pro Max simulator)"
+
+sim-run-my-mac:
+	@echo "TODO: sim-run-my-mac (run on My Mac / designed for iPad on Mac)"
