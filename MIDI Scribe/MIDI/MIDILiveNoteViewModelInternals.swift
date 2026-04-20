@@ -18,11 +18,26 @@ extension MIDILiveNoteViewModel {
 
     func handleRecordedEvent(_ event: RecordedMIDIEvent) {
         guard settings.isScribingEnabled else { return }
+        guard !event.isPresetSelectionEvent else { return }
         let isTakeInProgress = currentTakeSnapshot.isInProgress || hasStartedRecordableTake
-        guard isTakeInProgress || settings.shouldStartTake(event) else { return }
+        let shouldStartTake = settings.shouldStartTake(event)
+        let isTakeStartControlChange = event.kind == .controlChange
+            && settings.takeStartControlChanges.contains(event.data1)
+        guard isTakeInProgress || shouldStartTake else { return }
 
         hasStartedRecordableTake = true
         selectedSidebarItem = .currentTake
+
+        if isTakeStartControlChange {
+            Task {
+                await takeLifecycle.ingestInput(at: event.receivedAt, timeout: settings.newTakePauseSeconds)
+                if isTakeInProgress, settings.shouldEndTake(event) {
+                    await takeLifecycle.endCurrentTake()
+                }
+            }
+            return
+        }
+
         // Play first, synchronously, so speaker echo isn't delayed by
         // subsequent SwiftData/UI work on this tick.
         playbackEngine.playLiveEventToSpeakers(event)

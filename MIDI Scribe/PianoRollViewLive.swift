@@ -12,6 +12,10 @@ import Foundation
 import SwiftUI
 
 extension PianoRollView {
+    private var hiddenPianoRollControlChanges: Set<UInt8> {
+        [19, 88]
+    }
+
     /// MIDI channel-voice data bytes are 7-bit (0...127). We defensively
     /// skip malformed legacy/corrupt events when building the piano roll.
     private func isRenderableMIDIEvent(_ event: RecordedMIDIEvent) -> Bool {
@@ -85,6 +89,7 @@ extension PianoRollView {
 
     private func ingestLiveCCEvent(_ event: RecordedMIDIEvent) {
         let ccNumber = event.data1
+        guard !hiddenPianoRollControlChanges.contains(ccNumber) else { return }
         let isOn = (event.data2 ?? 0) >= 64
         if isOn {
             if liveActiveCCs[ccNumber] == nil {
@@ -156,6 +161,7 @@ extension PianoRollView {
         for event in sortedEvents where event.kind == .controlChange {
             guard isRenderableMIDIEvent(event) else { continue }
             let ccNumber = event.data1
+            guard !hiddenPianoRollControlChanges.contains(ccNumber) else { continue }
             let isOn = (event.data2 ?? 0) >= 64
 
             if isOn {

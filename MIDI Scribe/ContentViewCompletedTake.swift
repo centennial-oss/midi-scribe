@@ -72,14 +72,6 @@ extension ContentView {
         )
         .id(listItem.id)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .overlay(alignment: .bottomTrailing) {
-            if listItem.summary.duration >= 5.0 {
-                completedTakeZoomSliderRow()
-                    .padding(.trailing, 16)
-                    .padding(.bottom, 0)
-                    .offset(completedTakeZoomSliderOverlayOffset)
-            }
-        }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         #if os(iOS)
         .padding(completedTakePhoneBleedInsets)
@@ -91,6 +83,10 @@ extension ContentView {
         #if os(iOS)
         iPhoneSidebarToggleToolbar()
         #endif
+        if shouldShowCompletedTakeZoomToolbar(for: take) {
+            completedTakeZoomToolbar()
+            ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
+        }
         completedTakePlaybackToolbar(for: take)
         #if os(iOS)
         if !hideTakeActionsToolbarOnPhone {
@@ -103,6 +99,13 @@ extension ContentView {
         ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
         completedTakeActionsToolbar(for: take)
         #endif
+    }
+
+    @ToolbarContentBuilder
+    private func completedTakeZoomToolbar() -> some ToolbarContent {
+        ToolbarItemGroup(placement: completedTakeToolbarPlacement) {
+            completedTakeZoomSliderRow()
+        }
     }
 
     @ToolbarContentBuilder
@@ -133,11 +136,9 @@ extension ContentView {
 
     @ToolbarContentBuilder
     private func completedTakeActionsToolbar(for take: RecordedTakeListItem) -> some ToolbarContent {
-        let splitLabel = splitTakeLabel(for: take)
         let isPlaybackInProgress = viewModel.isPlaying(takeID: take.id)
         let actionDisabled = viewModel.isTakeActionInProgress
         let isRenameDisabled = isPlaybackInProgress || actionDisabled
-        let isSplitDisabled = !viewModel.canSplit(takeID: take.id) || actionDisabled
         let isExportDisabled = isPlaybackInProgress || actionDisabled
         let isDeleteDisabled = isPlaybackInProgress || actionDisabled
         let starLabel = take.isStarred ? "Unstar" : "Star"
@@ -152,16 +153,6 @@ extension ContentView {
                 opacity: isRenameDisabled ? 0.35 : 1
             ) {
                 beginRename(take)
-            }
-
-            toolbarIconButton(
-                splitLabel,
-                systemImage: "square.split.2x1",
-                disabled: isSplitDisabled,
-                foregroundStyle: isSplitDisabled ? Color.secondary : nil,
-                opacity: isSplitDisabled ? 0.35 : 1
-            ) {
-                viewModel.splitCurrentPausedTake()
             }
 
             toolbarIconButton(
@@ -287,19 +278,29 @@ extension ContentView {
         }
     }
 
-    /// Zoom controls sit over the piano roll, bottom-right aligned.
+    private func shouldShowCompletedTakeZoomToolbar(for take: RecordedTakeListItem) -> Bool {
+        guard take.summary.duration >= 5.0 else { return false }
+        #if os(iOS)
+        return !hideTakeActionsToolbarOnPhone
+        #else
+        return true
+        #endif
+    }
+
     private func completedTakeZoomSliderRow() -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 2) {
             Image(systemName: "minus.magnifyingglass")
 
             Slider(value: $pianoRollZoomLevel, in: 0...1)
-                .frame(width: 150)
+                #if os(macOS)
+                .frame(minWidth: 150, maxWidth: 200)
+                #else
+                .frame(minWidth: 100, maxWidth: 200)
+                #endif
 
             Image(systemName: "plus.magnifyingglass")
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(.ultraThinMaterial, in: Capsule())
+        .padding(.horizontal, 6)
     }
 
     private func inlineLabeledValue(_ label: String, _ value: String) -> some View {
@@ -355,14 +356,6 @@ extension ContentView {
         if UIDevice.current.userInterfaceIdiom == .phone {
             try? await Task.sleep(for: .milliseconds(450))
         }
-        #endif
-    }
-
-    private var completedTakeZoomSliderOverlayOffset: CGSize {
-        #if os(iOS)
-        CGSize(width: 14, height: 14)
-        #else
-        .zero
         #endif
     }
 

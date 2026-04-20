@@ -207,6 +207,9 @@ extension ContentView {
 
     func performCurrentTakeCommand(_ request: TakeCommandRequest) -> Bool {
         switch request {
+        case .startCurrentTake:
+            viewModel.startTake()
+            return true
         case .endCurrentTake:
             viewModel.endTake()
             return true
@@ -224,7 +227,8 @@ extension ContentView {
         }
 
         switch request {
-        case .endCurrentTake,
+        case .startCurrentTake,
+             .endCurrentTake,
              .cancelCurrentTake,
              .togglePlayback,
              .rewindPlayback,
@@ -271,8 +275,18 @@ extension ContentView {
     }
 
     func updateTakeCommandState() {
+        if viewModel.selectedSidebarItem == .currentTake {
+            updateTakeCommandStateIfChanged(TakeCommandState(
+                isCurrentTakeSelected: true,
+                isCurrentTakeInProgress: viewModel.isTakeInProgress,
+                isActionInProgress: viewModel.isTakeActionInProgress
+            ))
+            return
+        }
+
         if viewModel.isTakeInProgress {
             updateTakeCommandStateIfChanged(TakeCommandState(
+                isCurrentTakeSelected: false,
                 isCurrentTakeInProgress: true,
                 isActionInProgress: viewModel.isTakeActionInProgress
             ))
@@ -315,6 +329,6 @@ extension ContentView {
     }
 
     func canPerformCurrentTakeCommand() -> Bool {
-        viewModel.isTakeInProgress && !viewModel.isTakeActionInProgress
+        viewModel.selectedSidebarItem == .currentTake && !viewModel.isTakeActionInProgress
     }
 }

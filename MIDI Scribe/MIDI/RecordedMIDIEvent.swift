@@ -65,6 +65,10 @@ struct RecordedMIDIEvent: Identifiable, Sendable, Equatable {
         }
     }
 
+    nonisolated var isPresetSelectionEvent: Bool {
+        kind == .programChange || (kind == .controlChange && (data1 == 0 || data1 == 32))
+    }
+
     nonisolated var midiData: [UInt8] {
         if let data2 {
             return [status, data1, data2]

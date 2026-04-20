@@ -241,12 +241,29 @@ extension CoreMIDIMonitor {
         case 0xA0:
             publishThreeByteKind(message, kind: .polyphonicKeyPressure)
         case 0xB0:
+            logControlChange(message)
             publishThreeByteKind(message, kind: .controlChange)
         case 0xE0:
             publishThreeByteKind(message, kind: .pitchBend)
         default:
             break
         }
+    }
+
+    private func logControlChange(_ message: ThreeByteChannelMessage) {
+        #if DEBUG
+        let state = message.data2 == 0 ? "off" : "on"
+        NSLog(
+            "MIDI Scribe CC: " +
+                "channel=\(message.channel) " +
+                "controller=\(message.data1) " +
+                "value=\(message.data2) " +
+                "velocity=\(message.data2) " +
+                "state=\(state) " +
+                "status=0x\(String(format: "%02X", message.status)) " +
+                "receivedAt=\(message.receivedAt)"
+        )
+        #endif
     }
 
     private func publishThreeByteKind(_ message: ThreeByteChannelMessage, kind: MIDIChannelEventKind) {

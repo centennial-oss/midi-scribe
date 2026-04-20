@@ -9,6 +9,8 @@ import SwiftUI
 import SwiftData
 #if os(macOS)
 import AppKit
+#elseif os(iOS)
+import UIKit
 #endif
 
 struct SettingsView: View {
@@ -44,7 +46,7 @@ struct SettingsView: View {
                         }
                     }
                     HStack {
-                        Text("End Take when Idle For")
+                        Text("End Take when idle for")
                         Spacer()
     #if os(macOS)
                         DiscreteSettingsSlider(
@@ -198,7 +200,7 @@ struct SettingsView: View {
                 }
             }
         }
-        .frame(minWidth: 460, minHeight: 280)
+        .frame(minWidth: 460)
     }
 
     private func eraseAllData() {

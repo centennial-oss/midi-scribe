@@ -4,6 +4,8 @@ import Combine
 import CoreAudio
 import CoreMIDI
 import Foundation
+
+// swiftlint:disable file_length
 enum PlaybackOutputTarget: Hashable {
     case osSpeakers
     case midiChannel(Int)
@@ -40,12 +42,21 @@ final class MIDIPlaybackEngine: ObservableObject {
     init(settings: AppSettings) {
         self.settings = settings
         self.speakerProgram = settings.speakerOutputProgram
+        #if DEBUG
+        NSLog(
+            "MIDI Scribe speaker program debug: playback engine init " +
+                "settingsProgram=\(settings.speakerOutputProgram) cachedProgram=\(speakerProgram)"
+        )
+        #endif
         configureAudio()
         configureMIDIOutput()
 
         settingsCancellable = settings.$speakerOutputProgram
             .removeDuplicates()
             .sink { [weak self] program in
+                #if DEBUG
+                NSLog("MIDI Scribe speaker program debug: settings publisher program=\(program)")
+                #endif
                 self?.speakerProgram = program
                 self?.reloadInstrument()
             }
@@ -131,7 +142,9 @@ extension MIDIPlaybackEngine {
             lastSpeakerOutputDeviceID = currentDefaultOutputDeviceID()
             #endif
         } catch {
-            print("MIDI Scribe playback audio setup failed: \(error)")
+            #if DEBUG
+            NSLog("MIDI Scribe playback audio setup failed: \(error)")
+            #endif
         }
     }
     private func reloadInstrument() {
@@ -145,7 +158,9 @@ extension MIDIPlaybackEngine {
                 try audioEngine.start()
             }
         } catch {
-            print("MIDI Scribe playback instrument reload failed: \(error)")
+            #if DEBUG
+            NSLog("MIDI Scribe playback instrument reload failed: \(error)")
+            #endif
         }
     }
 
@@ -162,7 +177,9 @@ extension MIDIPlaybackEngine {
             try rebuildSampler()
             try audioEngine.start()
         } catch {
-            print("MIDI Scribe playback output route refresh failed: \(error)")
+            #if DEBUG
+            NSLog("MIDI Scribe playback output route refresh failed: \(error)")
+            #endif
         }
         #elseif os(iOS)
         return
@@ -199,7 +216,7 @@ extension MIDIPlaybackEngine {
         }
     }
     private func playThroughSpeakers(_ event: RecordedMIDIEvent) {
-        guard event.kind != .programChange else { return }
+        guard !event.isPresetSelectionEvent else { return }
         guard ensureSpeakerAudioReady() else { return }
         guard let status = statusByte(for: event.kind, channel: Int(event.channel)) else { return }
         let data1 = event.data1 & 0x7F
@@ -321,11 +338,20 @@ extension MIDIPlaybackEngine {
         let newInstrument = AVAudioUnitSampler()
         audioEngine.attach(newInstrument)
         audioEngine.connect(newInstrument, to: audioEngine.mainMixerNode, format: nil)
+        let program = UInt8(clamping: speakerProgram)
+        let bankMSB = UInt8(kAUSampler_DefaultMelodicBankMSB)
+        let bankLSB = UInt8(kAUSampler_DefaultBankLSB)
+        #if DEBUG
+        NSLog(
+            "MIDI Scribe speaker program debug: loadSoundBankInstrument " +
+                "program=\(program) bankMSB=\(bankMSB) bankLSB=\(bankLSB) url=\(soundBankURL.lastPathComponent)"
+        )
+        #endif
         try newInstrument.loadSoundBankInstrument(
             at: soundBankURL,
-            program: UInt8(clamping: speakerProgram),
-            bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB),
-            bankLSB: UInt8(kAUSampler_DefaultBankLSB)
+            program: program,
+            bankMSB: bankMSB,
+            bankLSB: bankLSB
         )
         speakerInstrument = newInstrument
     }
@@ -381,7 +407,9 @@ extension MIDIPlaybackEngine {
             do {
                 try rebuildSampler()
             } catch {
-                print("MIDI Scribe playback sampler rebuild failed: \(error)")
+                #if DEBUG
+                NSLog("MIDI Scribe playback sampler rebuild failed: \(error)")
+                #endif
                 return false
             }
         }
@@ -389,7 +417,9 @@ extension MIDIPlaybackEngine {
             do {
                 try audioEngine.start()
             } catch {
-                print("MIDI Scribe playback audio start failed: \(error)")
+                #if DEBUG
+                NSLog("MIDI Scribe playback audio start failed: \(error)")
+                #endif
                 return false
             }
         }

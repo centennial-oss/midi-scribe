@@ -21,7 +21,7 @@ struct PianoRollView: View {
 
     /// Playhead line + scrub handle: light on dark roll in both modes.
     private var playheadChrome: Color {
-        colorScheme == .dark ? Color.white : Color(white: 0.3)
+        Color.orange
     }
 
     /// Lime note bars on the roll when not under the playhead.

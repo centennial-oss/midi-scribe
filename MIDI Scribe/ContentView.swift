@@ -52,6 +52,7 @@ struct ContentView: View {
     @State var pianoRollScrollToStartRequestID = 0
     @State var completedTakeRenderDelayRequestID = 0
     @State var completedTakeReadyToRenderID: UUID?
+    @State var swipeRevealedTakeID: UUID?
 #if os(iOS)
     /// When the split collapses to one column (typical iPhone landscape), this controls whether the
     /// sidebar or detail is on top. `.detail` matches standard push behavior after choosing a row.

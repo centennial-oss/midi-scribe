@@ -55,15 +55,15 @@ struct MIDIScribeApp: App {
                 let state = appState.takeCommandState
                 let takeID = state.takeID
 
-                Button(state.isCurrentTakeInProgress ? "End Take" : (state.isPlaying ? "Pause" : "Play")) {
-                    if state.canPerformCurrentTakeAction {
-                        appState.requestTakeCommand(.endCurrentTake)
+                Button(currentTakeSpaceCommandTitle(for: state)) {
+                    if state.isCurrentTakeSelected {
+                        appState.requestTakeCommand(state.isCurrentTakeInProgress ? .endCurrentTake : .startCurrentTake)
                     } else if let takeID {
                         appState.requestTakeCommand(.togglePlayback(takeID))
                     }
                 }
                 .keyboardShortcut(" ", modifiers: [])
-                .disabled(!state.canPerformCurrentTakeAction && !state.canPerformTakeAction)
+                .disabled(!state.canPerformCurrentTakeShortcut && !state.canPerformTakeAction)
 
                 Button("Cancel Take", role: .destructive) {
                     appState.requestTakeCommand(.cancelCurrentTake)
@@ -170,6 +170,13 @@ struct MIDIScribeApp: App {
 #endif
         }
     }
+}
+
+private func currentTakeSpaceCommandTitle(for state: TakeCommandState) -> String {
+    if state.isCurrentTakeSelected {
+        return state.isCurrentTakeInProgress ? "End Take" : "Start Take"
+    }
+    return state.isPlaying ? "Pause" : "Play"
 }
 
 #if os(macOS)

@@ -94,9 +94,16 @@ final class AppSettings: ObservableObject {
         newTakePauseSeconds = userDefaults.object(forKey: Self.newTakePauseSecondsKey) as? Double ?? 30.0
         recentTakesShownInMenus =
             userDefaults.object(forKey: Self.recentTakesShownInMenusKey) as? Int ?? 25
-        speakerOutputProgram = Self.validSpeakerOutputProgram(
-            userDefaults.object(forKey: Self.speakerOutputProgramKey) as? Int
+        let rawSpeakerOutputProgram = userDefaults.object(forKey: Self.speakerOutputProgramKey) as? Int
+        let resolvedSpeakerOutputProgram = Self.validSpeakerOutputProgram(rawSpeakerOutputProgram)
+        speakerOutputProgram = resolvedSpeakerOutputProgram
+        #if DEBUG
+        NSLog(
+            "MIDI Scribe speaker program debug: settings init " +
+                "rawUserDefault=\(rawSpeakerOutputProgram.map(String.init) ?? "nil") " +
+                "resolved=\(resolvedSpeakerOutputProgram) default=\(Self.defaultSpeakerOutputProgram)"
         )
+        #endif
         echoScribedToSpeakers =
             userDefaults.object(forKey: Self.echoScribedToSpeakersKey) as? Bool ?? true
         startTakeWithNoteEvents =
@@ -187,9 +194,24 @@ final class AppSettings: ObservableObject {
             recentTakesShownInMenus = updatedRecentTakesShownInMenus
         }
 
+        let rawSpeakerOutputProgram = userDefaults.object(forKey: Self.speakerOutputProgramKey) as? Int
         if speakerOutputProgram != updatedSpeakerOutputProgram {
+            #if DEBUG
+            NSLog(
+                "MIDI Scribe speaker program debug: settings reload changed " +
+                    "old=\(speakerOutputProgram) new=\(updatedSpeakerOutputProgram) " +
+                    "rawUserDefault=\(rawSpeakerOutputProgram.map(String.init) ?? "nil")"
+            )
+            #endif
             speakerOutputProgram = updatedSpeakerOutputProgram
-        } else if userDefaults.object(forKey: Self.speakerOutputProgramKey) as? Int != updatedSpeakerOutputProgram {
+        } else if rawSpeakerOutputProgram != updatedSpeakerOutputProgram {
+            #if DEBUG
+            NSLog(
+                "MIDI Scribe speaker program debug: settings reload normalizing " +
+                    "rawUserDefault=\(rawSpeakerOutputProgram.map(String.init) ?? "nil") " +
+                    "resolved=\(updatedSpeakerOutputProgram)"
+            )
+            #endif
             userDefaults.set(updatedSpeakerOutputProgram, forKey: Self.speakerOutputProgramKey)
         }
 

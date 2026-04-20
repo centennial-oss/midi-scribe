@@ -12,6 +12,7 @@ import AppKit
 #endif
 
 enum TakeCommandRequest: Equatable {
+    case startCurrentTake
     case endCurrentTake
     case cancelCurrentTake
     case togglePlayback(UUID)
@@ -26,7 +27,8 @@ enum TakeCommandRequest: Equatable {
 
     var takeID: UUID? {
         switch self {
-        case .endCurrentTake,
+        case .startCurrentTake,
+             .endCurrentTake,
              .cancelCurrentTake:
             return nil
         case .togglePlayback(let takeID),
@@ -45,6 +47,7 @@ enum TakeCommandRequest: Equatable {
 
 struct TakeCommandState: Equatable {
     var takeID: UUID?
+    var isCurrentTakeSelected = false
     var isCurrentTakeInProgress = false
     var isSavedTake = false
     var isPlaying = false
@@ -59,6 +62,10 @@ struct TakeCommandState: Equatable {
 
     var canPerformCurrentTakeAction: Bool {
         isCurrentTakeInProgress && !isActionInProgress
+    }
+
+    var canPerformCurrentTakeShortcut: Bool {
+        isCurrentTakeSelected && !isActionInProgress
     }
 }
 
@@ -184,10 +191,10 @@ final class AppState: ObservableObject {
 
     private func handleCurrentTakeShortcut(_ event: NSEvent) -> Bool {
         guard event.modifierFlags.isDisjoint(with: .deviceIndependentFlagsMask),
-              takeCommandState.canPerformCurrentTakeAction else { return false }
+              takeCommandState.canPerformCurrentTakeShortcut else { return false }
 
         if event.charactersIgnoringModifiers == " " {
-            requestTakeCommand(.endCurrentTake)
+            requestTakeCommand(takeCommandState.isCurrentTakeInProgress ? .endCurrentTake : .startCurrentTake)
             return true
         }
 

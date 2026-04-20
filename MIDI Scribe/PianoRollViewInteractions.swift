@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 struct ScrubDragAutoScrollContext {
@@ -249,12 +250,14 @@ extension PianoRollView {
     private func beginScrubAuditionDiagnostics(at offset: TimeInterval) {
         resetScrubAuditionDiagnostics()
         scrubAuditionDiagnostics.startedUptime = ProcessInfo.processInfo.systemUptime
-        print(
+        #if DEBUG
+        NSLog(
             "MIDI Scribe scrub audition started: " +
                 "take=\(take.id) offset=\(String(format: "%.3f", offset)) " +
                 "duration=\(String(format: "%.3f", take.duration)) notes=\(notes.count) " +
                 "target=\(viewModel.selectedPlaybackTarget)"
         )
+        #endif
     }
 
     private func logScrubAuditionSummary() {
@@ -262,7 +265,8 @@ extension PianoRollView {
             max(ProcessInfo.processInfo.systemUptime - $0, 0)
         } ?? 0
         guard scrubAuditionDiagnostics.batches > 0 || scrubAuditionDiagnostics.suppressedFrames > 0 else { return }
-        print(
+        #if DEBUG
+        NSLog(
             "MIDI Scribe scrub audition ended: " +
                 "take=\(take.id) elapsed=\(String(format: "%.3f", elapsed))s " +
                 "batches=\(scrubAuditionDiagnostics.batches) noteOns=\(scrubAuditionDiagnostics.noteOnCount) " +
@@ -271,6 +275,7 @@ extension PianoRollView {
                 "maxIntersected=\(scrubAuditionDiagnostics.maxIntersectedNotes) finalOffset=" +
                 "\(String(format: "%.3f", currentPlaybackOffset))"
         )
+        #endif
     }
 
     private func resetScrubAuditionDiagnostics() {
@@ -289,12 +294,14 @@ extension PianoRollView {
         let raw = rawEventModelSnapshot(at: offset)
         guard rendered.signature != raw.signature else { return }
 
-        print(
+        #if DEBUG
+        NSLog(
             "MIDI Scribe piano roll model mismatch: " +
                 "take=\(take.id) offset=\(String(format: "%.3f", offset)) " +
                 "renderedCount=\(rendered.count) rendered=\(rendered.signature) " +
                 "rawCount=\(raw.count) raw=\(raw.signature) events=\(take.events.count) notes=\(notes.count)"
         )
+        #endif
     }
 
     private func renderedModelSnapshot(at offset: TimeInterval) -> PianoRollModelSnapshot {

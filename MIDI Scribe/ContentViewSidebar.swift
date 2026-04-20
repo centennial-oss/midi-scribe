@@ -64,7 +64,7 @@ extension ContentView {
         Section {
             sidebarSelectableRow(item: .currentTake) {
                 HStack(spacing: 8) {
-                    Text("Current Take")
+                    Text("Record New Take")
                     Spacer(minLength: 8)
                     if viewModel.isTakeInProgress {
                         Image(systemName: "circle.fill")
@@ -123,6 +123,7 @@ extension ContentView {
             .tag(item)
 #else
         Button {
+            swipeRevealedTakeID = nil
             let isReselectingSameRow = (viewModel.selectedSidebarItem == item)
             prepareCompletedTakeDetailForSelection(item)
             sidebarSelectionBinding.wrappedValue = item
@@ -202,26 +203,74 @@ extension ContentView {
                     .font(.caption)
             }
             Spacer(minLength: 8)
-            Text(viewModel.completedTakeDurationText(take))
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
+            if swipeRevealedTakeID != take.id {
+                Text(viewModel.completedTakeDurationText(take))
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
         }
-        .contextMenu {
-            Button(take.isStarred ? "Unstar" : "Star") {
-                viewModel.toggleStar(takeID: take.id)
-            }
-            .disabled(viewModel.isTakeActionInProgress)
-            Button("Rename…") {
-                beginRename(take)
-            }
-            .disabled(viewModel.isTakeActionInProgress)
-            Divider()
-            Button("Delete", role: .destructive) {
-                beginDeleteTake(id: take.id)
-            }
-            .disabled(viewModel.isTakeActionInProgress)
-        }
+        .contextMenu { sidebarRowContextMenu(for: take) }
+#if os(iOS)
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) { sidebarRowSwipeActions(for: take) }
+#endif
     }
+
+    @ViewBuilder
+    private func sidebarRowContextMenu(for take: RecordedTakeListItem) -> some View {
+        Button(take.isStarred ? "Unstar" : "Star") {
+            viewModel.toggleStar(takeID: take.id)
+        }
+        .disabled(viewModel.isTakeActionInProgress)
+        Button("Rename…") {
+            beginRename(take)
+        }
+        .disabled(viewModel.isTakeActionInProgress)
+        Divider()
+        Button("Delete", role: .destructive) {
+            beginDeleteTake(id: take.id)
+        }
+        .disabled(viewModel.isTakeActionInProgress)
+    }
+
+#if os(iOS)
+    @ViewBuilder
+    private func sidebarRowSwipeActions(for take: RecordedTakeListItem) -> some View {
+        let actionsDisabled = viewModel.isTakeActionInProgress || isEditingList
+
+        Button {
+            swipeRevealedTakeID = nil
+            beginDeleteTake(id: take.id)
+        } label: {
+            Image(systemName: "trash")
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(.red)
+        }
+        .disabled(actionsDisabled)
+        .tint(.clear)
+
+        Button {
+            swipeRevealedTakeID = nil
+            beginRename(take)
+        } label: {
+            Image(systemName: "pencil")
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(.blue)
+        }
+        .disabled(actionsDisabled)
+        .tint(.clear)
+
+        Button {
+            swipeRevealedTakeID = nil
+            viewModel.toggleStar(takeID: take.id)
+        } label: {
+            Image(systemName: "star")
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(take.isStarred ? .yellow : Color(UIColor.systemBackground))
+        }
+        .disabled(actionsDisabled)
+        .tint(.clear)
+    }
+#endif
 
     @ViewBuilder
     func sectionHeader(title: String, showsEditButton: Bool = false) -> some View {

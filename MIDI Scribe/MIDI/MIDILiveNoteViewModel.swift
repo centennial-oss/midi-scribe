@@ -97,6 +97,15 @@ final class MIDILiveNoteViewModel: ObservableObject {
         monitor.stop()
     }
 
+    func startTake() {
+        guard settings.isScribingEnabled else { return }
+        completedTakeSelectionMode = .stayOnCurrent
+        selectedSidebarItem = .currentTake
+        Task {
+            await takeLifecycle.ingestInput(at: Date(), timeout: settings.newTakePauseSeconds)
+        }
+    }
+
     func appWillTerminate() {
         stop()
     }
