@@ -18,7 +18,7 @@ Coming soon
 
 ## Privacy
 
-MIDI Scribe does not collect, send, or share your data. Digital instrument captures stay local and never leave your device. The app is open source, contains no trackers or analytics, and makes no network calls. Nothing leaves your device, ever.
+MIDI Scribe does not collect, send, or share usage data. Digital instrument captures stay local and never leave your device. The app is open source, contains no ads, trackers or analytics, and makes no network calls.
 
 ## Supported MIDI Devices
 
