@@ -73,7 +73,7 @@ extension ContentView {
     private var currentTakeStartMethods: [String] {
         var methods: [String] = []
         #if os(macOS)
-        methods.append("Space Bar")
+        methods.append("Press the Space Bar")
         #endif
         methods.append(contentsOf: viewModel.currentTakeStartMethods)
         return methods

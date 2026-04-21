@@ -117,10 +117,7 @@ extension MIDILiveNoteViewModel {
     }
 
     func formatDuration(_ duration: TimeInterval) -> String {
-        let elapsedSeconds = max(0, Int(duration))
-        let minutes = elapsedSeconds / 60
-        let seconds = elapsedSeconds % 60
-        return "\(minutes)m \(seconds)s"
+        DurationFormatting.compactWholeSeconds(duration)
     }
 
     func formatNoteRange(lowest: UInt8?, highest: UInt8?) -> String {

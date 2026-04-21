@@ -275,9 +275,6 @@ extension ContentView {
             }
 
             if viewModel.shouldShowIdleTimeoutText {
-                Text("/")
-                    .font(.takeMetadataValue)
-                    .foregroundStyle(.secondary)
                 Text(viewModel.idleTimeoutText)
                     .font(.takeMetadataValue)
                     .foregroundStyle(.secondary)

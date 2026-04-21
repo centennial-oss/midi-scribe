@@ -56,7 +56,7 @@ struct SettingsView: View {
                         Slider(value: newTakeDelaySliderValue, in: 0...Double(allowedDelayValues.count - 1), step: 1)
                             .frame(maxWidth: 175)
     #endif
-                        Text(formattedDelay(settings.newTakePauseSeconds))
+                        Text(DurationFormatting.compactWholeSeconds(settings.newTakePauseSeconds))
                             .foregroundStyle(.secondary)
                             .frame(width: 58, alignment: .trailing)
                     }
@@ -234,16 +234,6 @@ struct SettingsView: View {
                 alertState = .eraseAllFailed(message: "Failed to erase: \(error.localizedDescription)")
             }
         }
-    }
-
-    private func formattedDelay(_ seconds: Double) -> String {
-        let totalSeconds = Int(seconds)
-        let minutes = totalSeconds / 60
-        let remainingSeconds = totalSeconds % 60
-        if minutes == 0 {
-            return "\(remainingSeconds)s"
-        }
-        return "\(minutes)m \(remainingSeconds)s"
     }
 
     private var newTakeDelaySliderValue: Binding<Double> {
