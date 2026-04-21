@@ -149,11 +149,14 @@ final class AppSettings: ObservableObject {
     }
 
     var hasWelcomeSheetShownValue: Bool {
-        userDefaults.object(forKey: Self.welcomeSheetShownKey) != nil
+        userDefaults.object(forKey: Self.welcomeSheetShownKey) as? Bool == true
     }
 
     func markWelcomeSheetShown() {
         userDefaults.set(true, forKey: Self.welcomeSheetShownKey)
+        #if DEBUG
+        NSLog("MIDI Scribe welcome debug: marked welcome sheet shown")
+        #endif
     }
 
     func shouldStartTake(_ event: RecordedMIDIEvent) -> Bool {
@@ -182,9 +185,6 @@ final class AppSettings: ObservableObject {
     }
 
     func resetAllPreferences() {
-        if let bundleID = Bundle.main.bundleIdentifier {
-            userDefaults.removePersistentDomain(forName: bundleID)
-        }
         appSettingsPreferenceKeys.forEach { key in
             userDefaults.removeObject(forKey: key)
         }

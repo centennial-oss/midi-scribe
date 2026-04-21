@@ -150,3 +150,9 @@ run-sim-iphone-max:
 
 sim-run-my-mac:
 	@echo "TODO: sim-run-my-mac (run on My Mac / designed for iPad on Mac)"
+
+reset-defaults:
+	@defaults delete $(BUNDLE_ID) 2>/dev/null || true
+	@rm -f "$(HOME)/Library/Preferences/$(BUNDLE_ID).plist"
+	@rm -f "$(HOME)/Library/Containers/$(BUNDLE_ID)/Data/Library/Preferences/$(BUNDLE_ID).plist"
+	@echo "Reset UserDefaults for $(BUNDLE_ID) (including sandbox container prefs)"

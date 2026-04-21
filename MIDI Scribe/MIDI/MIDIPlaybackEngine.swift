@@ -541,7 +541,9 @@ extension MIDIPlaybackEngine {
                 self.audioEngine.disconnectNodeOutput(newInstrument)
                 self.audioEngine.detach(newInstrument)
             }
+            #if DEBUG
             NSLog("MIDI Scribe playback: loadSoundBankInstrument failed program=\(program) error=\(error)")
+            #endif
             throw error
         }
         // Belt-and-suspenders: explicitly pin the current program on the new sampler.

@@ -27,6 +27,9 @@ extension ContentView {
 
         guard !settings.hasWelcomeSheetShownValue else { return }
         if storedRecentTakes.isEmpty {
+            #if DEBUG
+            NSLog("MIDI Scribe welcome debug: welcome sheet needs to be shown")
+            #endif
             DispatchQueue.main.async {
                 guard !settings.hasWelcomeSheetShownValue,
                       storedRecentTakes.isEmpty else { return }
