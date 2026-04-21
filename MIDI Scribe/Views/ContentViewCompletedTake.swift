@@ -34,7 +34,6 @@ extension ContentView {
     private func completedTakeDetailBody(for takeID: UUID) -> some View {
         if let take = viewModel.recentTake(id: takeID) {
             completedTakeProgressAndErrors
-
             completedTakeMetadata(for: take)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 #if os(macOS)
@@ -43,7 +42,6 @@ extension ContentView {
                 #if os(iOS)
                 .padding(completedTakePhoneBleedInsets)
                 #endif
-
             if completedTakeReadyToRenderID == take.id,
                let fullTake = viewModel.materializedTake(id: take.id) {
                 completedTakePianoRoll(fullTake: fullTake, listItem: take)
@@ -126,11 +124,9 @@ extension ContentView {
             ) {
                 rewindPlaybackToBeginning(for: take.id)
             }
-
             toolbarIconButton(playLabel, systemImage: playIcon, disabled: viewModel.isTakeActionInProgress) {
                 viewModel.togglePlayback(for: take.id)
             }
-
             toolbarIconButton("Restart", systemImage: "gobackward", disabled: viewModel.isTakeActionInProgress) {
                 viewModel.restartPlayback(for: take.id)
             }
@@ -157,7 +153,6 @@ extension ContentView {
             ) {
                 beginRename(take)
             }
-
             toolbarIconButton(
                 starLabel,
                 systemImage: starIcon,
@@ -166,7 +161,6 @@ extension ContentView {
             ) {
                 viewModel.toggleStar(takeID: take.id)
             }
-
             exportTakeToolbarButton(takeID: take.id, disabled: isExportDisabled)
             deleteTakeToolbarButton(takeID: take.id, disabled: isDeleteDisabled)
         }
