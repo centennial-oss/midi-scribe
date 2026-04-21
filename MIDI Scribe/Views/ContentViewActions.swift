@@ -134,6 +134,11 @@ extension ContentView {
         appState.presentAbout()
     }
 
+    func beginHelpPresentation() {
+        viewModel.playbackEngine.pause()
+        appState.presentHelp()
+    }
+
     func handleModalPresentationRequest(_ request: AppModalPresentationRequest?) {
         guard let request else { return }
         defer { appState.modalPresentationRequest = nil }
@@ -142,6 +147,8 @@ extension ContentView {
             beginSettingsPresentation()
         case .about:
             beginAboutPresentation()
+        case .help:
+            beginHelpPresentation()
         }
     }
 

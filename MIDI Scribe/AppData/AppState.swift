@@ -83,12 +83,14 @@ enum SampleTakeLoadResult: Equatable {
 enum AppModalPresentationRequest: Equatable {
     case settings
     case about
+    case help
 }
 
 @MainActor
 final class AppState: ObservableObject {
     @Published var isShowingSettings = false
     @Published var isShowingAbout = false
+    @Published var isShowingHelp = false
     @Published var sampleTakeLoadRequestID = UUID()
     @Published var sampleTakeLoadResult: SampleTakeLoadResult?
     @Published var isLoadingSampleTakes = false
@@ -129,6 +131,10 @@ final class AppState: ObservableObject {
 
     func presentAbout() {
         isShowingAbout = true
+    }
+
+    func presentHelp() {
+        isShowingHelp = true
     }
 
     func requestModalPresentation(_ request: AppModalPresentationRequest) {

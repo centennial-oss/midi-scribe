@@ -92,13 +92,7 @@ struct AboutView: View {
 
                 Spacer()
 
-                Button("Close") {
-                    onClose()
-                }
-                .font(.system(size: 15))
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .keyboardShortcut(.defaultAction)
+                BasicButton(action: onClose, label: "Close", keyboardShortcut: .defaultAction)
             }
         }
         .padding(24)

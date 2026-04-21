@@ -1,11 +1,11 @@
 //
 //  HelpView.swift
-//  Consolation
+//  MIDI Scribe
 //
 
 import SwiftUI
 
-struct HelpConsolationView: View {
+struct HelpView: View {
     let onClose: () -> Void
 
     var body: some View {
@@ -16,7 +16,7 @@ struct HelpConsolationView: View {
             helpSection(
                 title: "Getting Started",
                 systemImage: "play.rectangle",
-                body: "Connect a USB capture device, select it from the list, and press the Play button."
+                body: "Connect a MIDI instrument, and start playing to begin a Take"
             )
 
             helpSection(
@@ -64,13 +64,7 @@ struct HelpConsolationView: View {
             HStack {
                 Spacer()
 
-                Button("Close") {
-                    onClose()
-                }
-                .font(.system(size: 15))
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .keyboardShortcut(.defaultAction)
+                BasicButton(action: onClose, label: "Close", keyboardShortcut: .defaultAction)
             }
         }
         .padding(24)
@@ -117,5 +111,5 @@ struct HelpConsolationView: View {
 }
 
 #Preview {
-    HelpConsolationView {}
+    HelpView {}
 }

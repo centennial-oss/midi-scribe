@@ -57,6 +57,14 @@ struct MIDIScribeApp: App {
                     .interactiveDismissDisabled()
                     #endif
                 }
+                .sheet(isPresented: $appState.isShowingHelp) {
+                    HelpView {
+                        appState.isShowingHelp = false
+                    }
+                    #if os(macOS)
+                    .interactiveDismissDisabled()
+                    #endif
+                }
         }
         .modelContainer(modelContainer)
         .commands {
@@ -164,6 +172,14 @@ struct MIDIScribeApp: App {
             }
 
 #if os(macOS)
+            CommandGroup(replacing: .help) {
+                Button {
+                    appState.requestModalPresentation(.help)
+                } label: {
+                    Label("MIDI Scribe Help", systemImage: "lightbulb")
+                }
+            }
+
             CommandGroup(replacing: .appSettings) {
                 Button {
                     appState.requestModalPresentation(.settings)

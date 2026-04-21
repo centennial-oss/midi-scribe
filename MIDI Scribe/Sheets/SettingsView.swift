@@ -131,7 +131,7 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Close", action: onClose)
+                    BasicButton(action: onClose, label: "Close")
                 }
             }
             .alert(item: $alertState) { state in

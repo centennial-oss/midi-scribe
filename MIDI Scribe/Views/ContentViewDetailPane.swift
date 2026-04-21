@@ -204,9 +204,7 @@ extension ContentView {
             #if os(iOS)
             iPhoneSidebarToggleToolbar()
             #endif
-            if viewModel.isTakeInProgress {
-                currentTakeActionsToolbar()
-            }
+            currentTakeActionsToolbar()
             #if os(iOS)
             if viewModel.isTakeInProgress {
                 ToolbarSpacer(.fixed, placement: .topBarTrailing)
@@ -219,23 +217,31 @@ extension ContentView {
     @ToolbarContentBuilder
     private func currentTakeActionsToolbar() -> some ToolbarContent {
         ToolbarItemGroup(placement: currentTakeToolbarPlacement) {
-            Button {
-                viewModel.endTake()
-            } label: {
-                Image(systemName: "stop.fill")
-            }
-            .disabled(!viewModel.isTakeInProgress)
-            .help("End Take")
-            .accessibilityLabel("End Take")
+            if viewModel.isTakeInProgress {
+                Button {
+                    viewModel.endTake()
+                } label: {
+                    Image(systemName: "stop.fill")
+                }
+                .help("End Take")
+                .accessibilityLabel("End Take")
 
-            Button(role: .destructive) {
-                viewModel.cancelTake()
-            } label: {
-                Image(systemName: "trash")
+                Button(role: .destructive) {
+                    viewModel.cancelTake()
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .help("Cancel Take")
+                .accessibilityLabel("Cancel Take")
             }
-            .disabled(!viewModel.isTakeInProgress)
-            .help("Cancel Take")
-            .accessibilityLabel("Cancel Take")
+
+            Button {
+                beginHelpPresentation()
+            } label: {
+                Image(systemName: "lightbulb")
+            }
+            .help("Help")
+            .accessibilityLabel("Help")
         }
     }
 
