@@ -27,7 +27,8 @@ struct AboutView: View {
                 .foregroundStyle(.secondary)
 
             Label(
-                "\(BuildInfo.appName) is a utiltiy for automatically capturing and organizing practice Takes with your MIDI-capable musical instrument.",
+                "\(BuildInfo.appName) is a utiltiy for automatically capturing and organizing practice " +
+                "Takes with your MIDI-capable musical instrument.",
                 systemImage: "music.note.tv"
             )
                 .font(.system(size: 14))
