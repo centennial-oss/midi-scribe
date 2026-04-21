@@ -27,6 +27,7 @@
 		D383E6C02F6F6353003C62A5 /* MIDI Scribe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "MIDI Scribe.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D383E6CF2F6F6354003C62A5 /* MIDI ScribeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "MIDI ScribeTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D383E6D92F6F6354003C62A5 /* MIDI ScribeUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "MIDI ScribeUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F2A9B3D2C7A14C5D8E1F9001 /* Version.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "MIDI Scribe/Version.xcconfig"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -391,11 +392,11 @@
 		};
 		D383E6E42F6F6354003C62A5 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F2A9B3D2C7A14C5D8E1F9001 /* Version.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 86G4NP75W9;
 				ENABLE_APP_SANDBOX = YES;
@@ -417,7 +418,6 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
-				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = org.centennialoss.midiscribe;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -437,11 +437,11 @@
 		};
 		D383E6E52F6F6354003C62A5 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F2A9B3D2C7A14C5D8E1F9001 /* Version.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 86G4NP75W9;
 				ENABLE_APP_SANDBOX = YES;
@@ -463,7 +463,6 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
-				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = org.centennialoss.midiscribe;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;

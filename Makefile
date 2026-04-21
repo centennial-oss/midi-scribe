@@ -1,4 +1,5 @@
-.PHONY: build build-release-unsigned generate-appicons add-midi-assets add-soundbank-assets test clean generate-build-info lint lint-fix-safe \
+.PHONY: build build-release-unsigned generate-appicons add-midi-assets \
+	add-soundbank-assets test clean generate-build-info lint lint-fix-safe \
 	run-sim-ipad-pro run-sim-iphone-pro run-sim-iphone-max sim-run-my-mac
 
 SWIFTLINT ?= $(shell command -v swiftlint 2>/dev/null)
@@ -8,7 +9,7 @@ PROJECT := MIDI Scribe.xcodeproj
 XCODE_SCHEME := MIDI Scribe
 APP_NAME := MIDI Scribe
 APP_DIR := MIDI Scribe
-BUNDLE_ID ?= org.centennialoss.consolation
+BUNDLE_ID ?= org.centennialoss.midiscribe
 DERIVED_DATA := build/DerivedData
 DIST_DERIVED_DATA := dist/DerivedData
 

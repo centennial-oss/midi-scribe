@@ -16,6 +16,10 @@ struct MIDIScribeApp: App {
     @StateObject private var appState = AppState()
     @StateObject private var settings = AppSettings()
 
+    init() {
+        AppIdentifier.logBundleIdentifier()
+    }
+
     /// The app's shared SwiftData container. Created up front so we can pass
     /// it into sheets (which don't always inherit `.modelContainer` via the
     /// environment).
@@ -46,7 +50,12 @@ struct MIDIScribeApp: App {
                     .modelContainer(modelContainer)
                 }
                 .sheet(isPresented: $appState.isShowingAbout) {
-                    AboutView()
+                    AboutView {
+                        appState.isShowingAbout = false
+                    }
+                    #if os(macOS)
+                    .interactiveDismissDisabled()
+                    #endif
                 }
         }
         .modelContainer(modelContainer)
