@@ -14,7 +14,7 @@ extension PianoRollView {
         PianoRollDrawContext(
             keyHeight: keyHeight,
             noteHeight: max(1, keyHeight - 1),
-            ccHeight: max(4, keyHeight),
+            ccLaneHeight: max(2, max(4, keyHeight) / 2),
             pixelsPerSecond: pixelsPerSecond,
             timelineLeadingInset: Self.timelineLeadingInset,
             playOffset: playOffset,

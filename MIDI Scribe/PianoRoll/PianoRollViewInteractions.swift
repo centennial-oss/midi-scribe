@@ -215,7 +215,7 @@ extension PianoRollView {
     ) -> Bool {
         guard !isTakePlaying else { return false }
         let playheadX = Self.timelineLeadingInset + (CGFloat(playOffset) * pixelsPerSecond)
-        let scrubHandleCenterY = 12 + Self.playheadKnobVerticalOffset
+        let scrubHandleCenterY = Self.contentTopInset + Self.playheadKnobVerticalOffset
         let scrubHandleCenter = CGPoint(x: playheadX, y: scrubHandleCenterY)
         let deltaX = location.x - scrubHandleCenter.x
         let deltaY = location.y - scrubHandleCenter.y

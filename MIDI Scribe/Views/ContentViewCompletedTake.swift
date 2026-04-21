@@ -294,7 +294,7 @@ extension ContentView {
         HStack(spacing: 2) {
             Image(systemName: "minus.magnifyingglass")
 
-            Slider(value: $pianoRollZoomLevel, in: 0...1)
+            Slider(value: completedTakeZoomSliderBinding, in: 0...1)
                 #if os(macOS)
                 .frame(minWidth: 150, maxWidth: 200)
                 #else
@@ -353,6 +353,33 @@ extension ContentView {
     private func completedTakeRenderTaskID(for takeID: UUID) -> String {
         "\(takeID.uuidString)-\(completedTakeRenderDelayRequestID)"
     }
+
+    /// Give the low-zoom end more physical slider travel so fit-to-width
+    /// no longer jumps immediately into a much tighter zoom.
+    private var completedTakeZoomSliderBinding: Binding<CGFloat> {
+        Binding(
+            get: {
+                sliderValue(for: pianoRollZoomLevel)
+            },
+            set: { sliderValue in
+                pianoRollZoomLevel = zoomLevel(for: sliderValue)
+            }
+        )
+    }
+
+    private func sliderValue(for zoomLevel: CGFloat) -> CGFloat {
+        let clampedZoom = max(0.0, min(1.0, zoomLevel))
+        let base = completedTakeZoomSliderCurveBase
+        return log(1.0 + (base - 1.0) * clampedZoom) / log(base)
+    }
+
+    private func zoomLevel(for sliderValue: CGFloat) -> CGFloat {
+        let clampedSliderValue = max(0.0, min(1.0, sliderValue))
+        let base = completedTakeZoomSliderCurveBase
+        return (pow(base, clampedSliderValue) - 1.0) / (base - 1.0)
+    }
+
+    private var completedTakeZoomSliderCurveBase: CGFloat { 9.0 }
 
     private func waitForCompletedTakeDetailTransition() async {
         #if os(iOS)

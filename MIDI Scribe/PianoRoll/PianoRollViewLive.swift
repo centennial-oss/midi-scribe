@@ -12,6 +12,11 @@ import Foundation
 import SwiftUI
 
 extension PianoRollView {
+    /// for dev purposes, set to true to show all CC lanes for color checks
+    private var shouldRenderDebugFullLengthCCLanes: Bool {
+        false
+    }
+
     private var hiddenPianoRollControlChanges: Set<UInt8> {
         [19, 88]
     }
@@ -154,6 +159,17 @@ extension PianoRollView {
     }
 
     func computeCCs() {
+        if shouldRenderDebugFullLengthCCLanes {
+            ccEvents = PianoRollCCKind.allCases.map { kind in
+                PianoRollCC(
+                    kind: kind,
+                    startOffset: 0,
+                    duration: max(0.01, take.duration)
+                )
+            }
+            return
+        }
+
         var activeCCs: [UInt8: PianoRollCC] = [:]
         var resultCCs: [PianoRollCC] = []
         let sortedEvents = take.events.sorted { $0.offsetFromTakeStart < $1.offsetFromTakeStart }
@@ -202,7 +218,7 @@ extension PianoRollView {
 struct PianoRollDrawContext {
     let keyHeight: CGFloat
     let noteHeight: CGFloat
-    let ccHeight: CGFloat
+    let ccLaneHeight: CGFloat
     let pixelsPerSecond: CGFloat
     let timelineLeadingInset: CGFloat
     let playOffset: TimeInterval
@@ -242,7 +258,7 @@ extension PianoRollView {
     ) {
         let startX = drawContext.timelineLeadingInset + (note.startOffset * drawContext.pixelsPerSecond)
         let width = max(2, note.duration * drawContext.pixelsPerSecond)
-        let topY = pitchToY(pitch: note.pitch, keyHeight: drawContext.keyHeight) + 12
+        let topY = pitchToY(pitch: note.pitch, keyHeight: drawContext.keyHeight) + PianoRollView.contentTopInset
         let rect = CGRect(x: startX, y: topY, width: width, height: drawContext.noteHeight)
         let path = Path(roundedRect: rect, cornerRadius: 1)
         let playing = isNotePlaying(note, currentOffset: drawContext.playOffset)
@@ -262,7 +278,8 @@ extension PianoRollView {
     ) {
         let startX = drawContext.timelineLeadingInset + (ccEvent.startOffset * drawContext.pixelsPerSecond)
         let width = max(2, ccEvent.duration * drawContext.pixelsPerSecond)
-        let rect = CGRect(x: startX, y: 12, width: width, height: drawContext.ccHeight)
+        let laneY = PianoRollView.contentTopInset + (CGFloat(ccEvent.kind.laneIndex) * drawContext.ccLaneHeight)
+        let rect = CGRect(x: startX, y: laneY, width: width, height: drawContext.ccLaneHeight)
         context.fill(Path(rect), with: .color(ccEvent.kind.color))
     }
 
