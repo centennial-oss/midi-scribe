@@ -27,7 +27,7 @@
 		D383E6C02F6F6353003C62A5 /* MIDI Scribe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "MIDI Scribe.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D383E6CF2F6F6354003C62A5 /* MIDI ScribeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "MIDI ScribeTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D383E6D92F6F6354003C62A5 /* MIDI ScribeUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "MIDI ScribeUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		F2A9B3D2C7A14C5D8E1F9001 /* Version.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "MIDI Scribe/Version.xcconfig"; sourceTree = SOURCE_ROOT; };
+		F2A9B3D2C7A14C5D8E1F9001 /* MIDI Scribe/Version.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "MIDI Scribe/Version.xcconfig"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -73,6 +73,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		D31A07622F971AAA00F4A31A /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				F2A9B3D2C7A14C5D8E1F9001 /* MIDI Scribe/Version.xcconfig */,
+			);
+			name = "Recovered References";
+			sourceTree = "<group>";
+		};
 		D383E6B72F6F6353003C62A5 = {
 			isa = PBXGroup;
 			children = (
@@ -80,6 +88,7 @@
 				D383E6D22F6F6354003C62A5 /* MIDI ScribeTests */,
 				D383E6DC2F6F6354003C62A5 /* MIDI ScribeUITests */,
 				D383E6C12F6F6353003C62A5 /* Products */,
+				D31A07622F971AAA00F4A31A /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
@@ -392,7 +401,7 @@
 		};
 		D383E6E42F6F6354003C62A5 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = F2A9B3D2C7A14C5D8E1F9001 /* Version.xcconfig */;
+			baseConfigurationReference = F2A9B3D2C7A14C5D8E1F9001 /* MIDI Scribe/Version.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -437,7 +446,7 @@
 		};
 		D383E6E52F6F6354003C62A5 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = F2A9B3D2C7A14C5D8E1F9001 /* Version.xcconfig */;
+			baseConfigurationReference = F2A9B3D2C7A14C5D8E1F9001 /* MIDI Scribe/Version.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
