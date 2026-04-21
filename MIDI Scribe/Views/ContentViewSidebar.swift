@@ -95,7 +95,7 @@ extension ContentView {
                 }
             }
         } header: {
-            sectionHeader(title: "Recent Takes", showsEditButton: true)
+            sectionHeader(title: "Recent Takes", showsEditButton: showsSidebarEditButton)
         }
 
         if let pendingTakeOperation = viewModel.pendingOperation {
@@ -296,6 +296,14 @@ extension ContentView {
                 .padding(.trailing, 14)
             }
         }
+    }
+
+    private var showsSidebarEditButton: Bool {
+#if os(iOS)
+        !(UIDevice.current.userInterfaceIdiom == .phone && horizontalSizeClass == .compact)
+#else
+        true
+#endif
     }
 
     func toggleMultiSelection(_ id: UUID) {
