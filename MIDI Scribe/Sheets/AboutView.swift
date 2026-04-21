@@ -29,7 +29,7 @@ struct AboutView: View {
                         .foregroundStyle(.secondary)
 
                     Label(
-                        "\(BuildInfo.appName) is a utiltiy for automatically capturing and organizing practice " +
+                        "\(BuildInfo.appName) is a utility for automatically capturing and organizing practice " +
                         "Takes with your MIDI-capable musical instrument.",
                         systemImage: "music.note.tv"
                     )
