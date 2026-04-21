@@ -74,7 +74,8 @@ struct PianoRollView: View {
     @State var localScrubOffset: TimeInterval?; @State var isScrubHandleHovered = false
 
     /// To smoothly zoom on iOS:
-    @State private var currentMagnification: CGFloat = 1.0; @State var isZoomCentering = false
+    @State var currentMagnification: CGFloat = 1.0; @State var pinchStartZoomLevel: CGFloat?
+    @State var isZoomCentering = false
     @State var isPinchZooming = false; @State var zoomCenteringTask: Task<Void, Never>?
     @State var playbackCenteringAnimationEndsAt: Date?; @State var didPrimeInitialLayout = false
     /// iOS can deliver an initial 0x0 layout pass for this view. Prime once
@@ -219,22 +220,8 @@ struct PianoRollView: View {
                         }
                         .gesture(
                             MagnificationGesture()
-                                .onChanged { value in
-                                    guard !isLive else { return }
-                                    if !isPinchZooming {
-                                        isPinchZooming = true
-                                        beginPausedZoomCentering(debounce: false)
-                                    }
-                                    currentMagnification = value
-                                }
-                                .onEnded { value in
-                                    guard !isLive else { return }
-                                    let delta = (value - 1.0) * 0.5
-                                    zoomLevel = max(0.0, min(1.0, zoomLevel + delta))
-                                    currentMagnification = 1.0
-                                    isPinchZooming = false
-                                    beginPausedZoomCentering(debounce: true)
-                                }
+                                .onChanged(handlePinchZoomChanged)
+                                .onEnded(handlePinchZoomEnded)
                         )
                         .simultaneousGesture(
                             SpatialTapGesture()

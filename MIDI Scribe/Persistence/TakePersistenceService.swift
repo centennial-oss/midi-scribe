@@ -124,8 +124,14 @@ actor TakePersistenceService {
             beforeEvents.sort { $0.offsetFromTakeStart < $1.offsetFromTakeStart }
             afterEvents.sort { $0.offsetFromTakeStart < $1.offsetFromTakeStart }
 
-            let baseTitle = original.title
-            let nextSuffixes = try Self.nextSplitSuffixes(baseTitle: baseTitle, count: 2, in: context)
+            let splitNaming = Self.splitNamingBase(for: original.displayTitle)
+            let baseTitle = splitNaming.baseTitle
+            let nextSuffixes = try Self.nextSplitSuffixes(
+                baseTitle: baseTitle,
+                startingAt: splitNaming.startingSuffix,
+                count: 2,
+                in: context
+            )
 
             // Cache the pre-mutation start date so we can compute absolute
             // start/end times for both halves in original-take coordinates.
@@ -139,6 +145,7 @@ actor TakePersistenceService {
                     event.offsetFromTakeStart -= beforeFirstOffset
                 }
             }
+            original.title = baseTitle
             original.startedAt = originalStartDate.addingTimeInterval(beforeFirstOffset)
             original.endedAt = originalStartDate.addingTimeInterval(beforeLastOffset)
             original.userTitle = "\(baseTitle) (\(nextSuffixes[0]))"
@@ -298,34 +305,6 @@ actor TakePersistenceService {
         return try context.fetch(descriptor).first
     }
 
-    /// Given a base title, return the next `count` unused `(N)` suffixes.
-    /// For example if the store already has "X (1)" and "X (2)", calling
-    /// with count=2 returns [3, 4].
-    private static func nextSplitSuffixes(baseTitle: String, count: Int, in context: ModelContext) throws -> [Int] {
-        let all = try context.fetch(FetchDescriptor<StoredTake>())
-        let pattern = #/^\Q\#(baseTitle)\E \((\d+)\)$/#
-        var usedSuffixes = Set<Int>()
-        for take in all {
-            let candidates = [take.title, take.userTitle ?? ""]
-            for candidate in candidates {
-                if let match = try? pattern.wholeMatch(in: candidate),
-                   let suffixNum = Int(match.output.1) {
-                    usedSuffixes.insert(suffixNum)
-                }
-            }
-        }
-        var result: [Int] = []
-        var candidateSuffix = 1
-        while result.count < count {
-            if !usedSuffixes.contains(candidateSuffix) {
-                result.append(candidateSuffix)
-                usedSuffixes.insert(candidateSuffix)
-            }
-            candidateSuffix += 1
-        }
-        return result
-    }
-
     // MARK: - Run helpers
 
     private func run(_ block: @Sendable @escaping (ModelContext) throws -> Void) async throws {
@@ -346,6 +325,49 @@ actor TakePersistenceService {
 }
 
 extension TakePersistenceService {
+    static func splitNamingBase(for displayTitle: String) -> (baseTitle: String, startingSuffix: Int) {
+        let trimmedTitle = displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let pattern = #/^(.*) \((\d+)\)$/#
+        if let match = try? pattern.wholeMatch(in: trimmedTitle),
+           let suffix = Int(match.output.2) {
+            let base = String(match.output.1).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !base.isEmpty {
+                return (base, suffix)
+            }
+        }
+        return (trimmedTitle, 1)
+    }
+
+    static func nextSplitSuffixes(
+        baseTitle: String,
+        startingAt startingSuffix: Int,
+        count: Int,
+        in context: ModelContext
+    ) throws -> [Int] {
+        let all = try context.fetch(FetchDescriptor<StoredTake>())
+        let pattern = #/^\Q\#(baseTitle)\E \((\d+)\)$/#
+        var usedSuffixes = Set<Int>()
+        for take in all {
+            let candidates = [take.title, take.userTitle ?? ""]
+            for candidate in candidates {
+                if let match = try? pattern.wholeMatch(in: candidate),
+                   let suffixNum = Int(match.output.1) {
+                    usedSuffixes.insert(suffixNum)
+                }
+            }
+        }
+        var result: [Int] = []
+        var candidateSuffix = max(1, startingSuffix)
+        while result.count < count {
+            if !usedSuffixes.contains(candidateSuffix) {
+                result.append(candidateSuffix)
+                usedSuffixes.insert(candidateSuffix)
+            }
+            candidateSuffix += 1
+        }
+        return result
+    }
+
     func recordedTake(id takeID: UUID) async throws -> RecordedTake? {
         try await runReturning { context in
             try Self.fetchTake(id: takeID, in: context)?.recordedTake

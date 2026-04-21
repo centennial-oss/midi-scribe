@@ -38,7 +38,12 @@ final class MIDILiveNoteViewModel: ObservableObject {
     @Published var materializedTakes: [UUID: RecordedTake] = [:]
     var resolveFullTake: (@Sendable (UUID) -> RecordedTake?)?
     @Published var errorText: String?
-    @Published var selectedPlaybackTarget: PlaybackOutputTarget = .osSpeakers
+    @Published var selectedPlaybackTarget: PlaybackOutputTarget {
+        didSet {
+            guard selectedPlaybackTarget != settings.selectedPlaybackTarget else { return }
+            settings.selectedPlaybackTarget = selectedPlaybackTarget
+        }
+    }
 
     let settings: AppSettings
     let emptyLiveValuePlaceholder = "—"
@@ -62,11 +67,12 @@ final class MIDILiveNoteViewModel: ObservableObject {
     let monitor: MIDIListening
     let takeLifecycle = TakeLifecycleController()
     var durationTicker: AnyCancellable?
-    private var settingsCancellable: AnyCancellable?
-    private var playbackEngineCancellable: AnyCancellable?
+    var settingsCancellables: Set<AnyCancellable> = []
+    var playbackEngineCancellable: AnyCancellable?
     var monitorRetryTask: Task<Void, Never>?
     var completedTakeSelectionMode: CompletedTakeSelectionMode = .showCompleted
     var hasStartedRecordableTake = false
+    var suppressedTakeStartControlChange: UInt8?
     var materializingTakeIDs: Set<UUID> = []
     var playbackRequestAfterCurrentTakeEnds: DeferredPlaybackRequest?
 
@@ -77,6 +83,7 @@ final class MIDILiveNoteViewModel: ObservableObject {
     init(settings: AppSettings, monitor: MIDIListening? = nil) {
         self.settings = settings
         self.playbackEngine = MIDIPlaybackEngine(settings: settings)
+        self.selectedPlaybackTarget = settings.selectedPlaybackTarget
 
         let resolvedMonitor = monitor ?? CoreMIDIMonitor(settings: settings)
         self.monitor = resolvedMonitor
@@ -303,18 +310,6 @@ final class MIDILiveNoteViewModel: ObservableObject {
         }
     }
 
-    private func wirePlaybackAndSettings() {
-        playbackEngineCancellable = playbackEngine.objectWillChange
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
-
-        settingsCancellable = settings.$disableScribing
-            .removeDuplicates()
-            .sink { [weak self] disableScribing in
-                self?.handleScribingEnabledChanged(isEnabled: !disableScribing)
-            }
-    }
 }
 
 enum CompletedTakeSelectionMode {

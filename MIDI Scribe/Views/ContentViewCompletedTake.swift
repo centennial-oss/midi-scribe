@@ -27,6 +27,7 @@ extension ContentView {
                 completedTakeToolbar(for: take)
             }
         }
+        .modifier(CompletedTakeSplitDialogModifier(parent: self))
         .navigationTitle(completedTakeNavigationTitle(for: takeID))
     }
 
@@ -138,6 +139,7 @@ extension ContentView {
         let isPlaybackInProgress = viewModel.isPlaying(takeID: take.id)
         let actionDisabled = viewModel.isTakeActionInProgress
         let isRenameDisabled = isPlaybackInProgress || actionDisabled
+        let isSplitDisabled = !viewModel.canSplit(takeID: take.id) || actionDisabled
         let isExportDisabled = isPlaybackInProgress || actionDisabled
         let isDeleteDisabled = isPlaybackInProgress || actionDisabled
         let starLabel = take.isStarred ? "Unstar" : "Star"
@@ -152,6 +154,16 @@ extension ContentView {
                 opacity: isRenameDisabled ? 0.35 : 1
             ) {
                 beginRename(take)
+            }
+            toolbarIconButton(
+                splitTakeLabel(for: take),
+                systemImage: "arrow.triangle.branch",
+                disabled: isSplitDisabled,
+                role: .destructive,
+                foregroundStyle: isSplitDisabled ? Color.secondary : nil,
+                opacity: isSplitDisabled ? 0.35 : 1
+            ) {
+                beginSplitTakeConfirmation(id: take.id)
             }
             toolbarIconButton(
                 starLabel,
@@ -208,14 +220,6 @@ extension ContentView {
         .disabled(disabled)
         .help(label)
         .accessibilityLabel(label)
-    }
-
-    private func splitTakeLabel(for take: RecordedTakeListItem) -> String {
-        let canSplit = viewModel.canSplit(takeID: take.id)
-        let offsetText = formatOffset(viewModel.pausedPlaybackOffset ?? 0)
-        return canSplit
-            ? "Split Take Here (\(offsetText))"
-            : "Split Take Here"
     }
 
     @ViewBuilder
@@ -383,18 +387,4 @@ extension ContentView {
         #endif
     }
 
-    #if os(iOS)
-    /// Bleed the completed-take metadata row and piano roll past
-    /// `completedTakeDetail`'s horizontal padding on iPhone so they align.
-    private var completedTakePhoneBleedInsets: EdgeInsets {
-        UIDevice.current.userInterfaceIdiom == .phone
-            ? EdgeInsets(
-                top: 0,
-                leading: hideTakeActionsToolbarOnPhone ? -10 : -30,
-                bottom: 0,
-                trailing: -20
-            )
-            : EdgeInsets()
-    }
-    #endif
 }

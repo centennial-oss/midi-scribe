@@ -19,10 +19,15 @@ extension MIDILiveNoteViewModel {
     func handleRecordedEvent(_ event: RecordedMIDIEvent) {
         guard settings.isScribingEnabled else { return }
         guard !event.isPresetSelectionEvent else { return }
+        let isSuppressedTakeStartControlChange = shouldSuppressTakeStartControlChange(for: event)
         let isTakeInProgress = currentTakeSnapshot.isInProgress || hasStartedRecordableTake
-        let shouldStartTake = settings.shouldStartTake(event)
+        let shouldStartTake = settings.shouldStartTake(event) && !isSuppressedTakeStartControlChange
         let isTakeStartControlChange = event.kind == .controlChange && shouldStartTake
         guard isTakeInProgress || shouldStartTake else { return }
+
+        if shouldStartTake && !isTakeInProgress {
+            playbackEngine.pause()
+        }
 
         hasStartedRecordableTake = true
         selectedSidebarItem = .currentTake
@@ -31,6 +36,7 @@ extension MIDILiveNoteViewModel {
             Task {
                 await takeLifecycle.ingestInput(at: event.receivedAt, timeout: settings.newTakePauseSeconds)
                 if isTakeInProgress, settings.shouldEndTake(event) {
+                    suppressComplementaryTakeStartControlChange(afterEndingWith: event)
                     await takeLifecycle.endCurrentTake()
                 }
             }
@@ -50,9 +56,29 @@ extension MIDILiveNoteViewModel {
         Task {
             await takeLifecycle.appendEvent(event, timeout: settings.newTakePauseSeconds)
             if isTakeInProgress, settings.shouldEndTake(event) {
+                suppressComplementaryTakeStartControlChange(afterEndingWith: event)
                 await takeLifecycle.endCurrentTake()
             }
         }
+    }
+
+    private func shouldSuppressTakeStartControlChange(for event: RecordedMIDIEvent) -> Bool {
+        guard event.kind == .controlChange,
+              settings.shouldStartTake(event),
+              suppressedTakeStartControlChange == event.data1 else {
+            return false
+        }
+        suppressedTakeStartControlChange = nil
+        return true
+    }
+
+    private func suppressComplementaryTakeStartControlChange(afterEndingWith event: RecordedMIDIEvent) {
+        guard event.kind == .controlChange,
+              settings.shouldEndTake(event),
+              settings.takeStartControlChanges.contains(event.data1) else {
+            return
+        }
+        suppressedTakeStartControlChange = event.data1
     }
 
     /// Mirror the lifecycle actor's event normalization on the main actor so

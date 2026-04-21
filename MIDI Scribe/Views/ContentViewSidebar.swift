@@ -109,6 +109,18 @@ extension ContentView {
                 }
             }
         }
+
+#if os(iOS)
+        if showsNarrowiPhoneBulkEditActionRow {
+            Section {
+                Color.clear
+                    .frame(height: 84)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .accessibilityHidden(true)
+            }
+        }
+#endif
     }
 
     /// `List(selection:content:)` exists on macOS; on iOS we drive the same `sidebarSelectionBinding`
@@ -153,6 +165,7 @@ extension ContentView {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(isEditingList && item == .currentTake)
         .listRowBackground(
             (!isEditingList && viewModel.selectedSidebarItem == item)
                 ? Color.accentColor.opacity(0.15)
@@ -299,11 +312,7 @@ extension ContentView {
     }
 
     private var showsSidebarEditButton: Bool {
-#if os(iOS)
-        !(UIDevice.current.userInterfaceIdiom == .phone && horizontalSizeClass == .compact)
-#else
         true
-#endif
     }
 
     func toggleMultiSelection(_ id: UUID) {

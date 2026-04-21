@@ -8,11 +8,12 @@
 import Combine
 import Foundation
 
-private let appSettingsPreferenceKeys = [
+let appSettingsPreferenceKeys = [
     "disableScribing",
     "monitoredMIDIChannel",
     "newTakePauseSeconds",
     "recentTakesShownInMenus",
+    "selectedPlaybackTarget",
     "speakerOutputProgram",
     "echoScribedToSpeakers",
     "startTakeWithNoteEvents",
@@ -28,6 +29,7 @@ final class AppSettings: ObservableObject {
     static let defaultStartTakeWithNoteEvents = true
     static let defaultTakeStartControlChanges: Set<UInt8> = []
     static let defaultTakeEndControlChanges: Set<UInt8> = []
+    static let defaultPlaybackOutputTarget: PlaybackOutputTarget = .osSpeakers
 
     @Published var disableScribing: Bool {
         didSet {
@@ -50,6 +52,15 @@ final class AppSettings: ObservableObject {
     @Published var recentTakesShownInMenus: Int {
         didSet {
             userDefaults.set(recentTakesShownInMenus, forKey: Self.recentTakesShownInMenusKey)
+        }
+    }
+
+    @Published var selectedPlaybackTarget: PlaybackOutputTarget {
+        didSet {
+            userDefaults.set(
+                Self.playbackOutputTargetPreferenceValue(for: selectedPlaybackTarget),
+                forKey: Self.selectedPlaybackTargetKey
+            )
         }
     }
 
@@ -86,19 +97,20 @@ final class AppSettings: ObservableObject {
         }
     }
 
-    private let userDefaults: UserDefaults
+    let userDefaults: UserDefaults
     private var userDefaultsObserver: AnyCancellable?
 
-    private static let disableScribingKey = "disableScribing"
-    private static let monitoredMIDIChannelKey = "monitoredMIDIChannel"
-    private static let newTakePauseSecondsKey = "newTakePauseSeconds"
-    private static let recentTakesShownInMenusKey = "recentTakesShownInMenus"
-    private static let speakerOutputProgramKey = "speakerOutputProgram"
-    private static let echoScribedToSpeakersKey = "echoScribedToSpeakers"
-    private static let startTakeWithNoteEventsKey = "startTakeWithNoteEvents"
-    private static let takeStartControlChangesKey = "takeStartControlChanges"
-    private static let takeEndControlChangesKey = "takeEndControlChanges"
-    private static let welcomeSheetShownKey = "welcomeSheetShown"
+    static let disableScribingKey = "disableScribing"
+    static let monitoredMIDIChannelKey = "monitoredMIDIChannel"
+    static let newTakePauseSecondsKey = "newTakePauseSeconds"
+    static let recentTakesShownInMenusKey = "recentTakesShownInMenus"
+    static let selectedPlaybackTargetKey = "selectedPlaybackTarget"
+    static let speakerOutputProgramKey = "speakerOutputProgram"
+    static let echoScribedToSpeakersKey = "echoScribedToSpeakers"
+    static let startTakeWithNoteEventsKey = "startTakeWithNoteEvents"
+    static let takeStartControlChangesKey = "takeStartControlChanges"
+    static let takeEndControlChangesKey = "takeEndControlChanges"
+    static let welcomeSheetShownKey = "welcomeSheetShown"
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
@@ -108,6 +120,9 @@ final class AppSettings: ObservableObject {
         newTakePauseSeconds = userDefaults.object(forKey: Self.newTakePauseSecondsKey) as? Double ?? 30.0
         recentTakesShownInMenus =
             userDefaults.object(forKey: Self.recentTakesShownInMenusKey) as? Int ?? 25
+        selectedPlaybackTarget = Self.playbackOutputTarget(
+            from: userDefaults.string(forKey: Self.selectedPlaybackTargetKey)
+        )
         let rawSpeakerOutputProgram = userDefaults.object(forKey: Self.speakerOutputProgramKey) as? Int
         let resolvedSpeakerOutputProgram = Self.validSpeakerOutputProgram(rawSpeakerOutputProgram)
         speakerOutputProgram = resolvedSpeakerOutputProgram
@@ -132,6 +147,10 @@ final class AppSettings: ObservableObject {
             forKey: Self.takeEndControlChangesKey,
             in: userDefaults,
             defaultValue: Self.defaultTakeEndControlChanges
+        )
+        userDefaults.set(
+            Self.playbackOutputTargetPreferenceValue(for: selectedPlaybackTarget),
+            forKey: Self.selectedPlaybackTargetKey
         )
         userDefaults.set(speakerOutputProgram, forKey: Self.speakerOutputProgramKey)
 
@@ -184,121 +203,6 @@ final class AppSettings: ObservableObject {
         return value < 10
     }
 
-    func resetAllPreferences() {
-        appSettingsPreferenceKeys.forEach { key in
-            userDefaults.removeObject(forKey: key)
-        }
-        reloadFromUserDefaults()
-    }
-
-    private func reloadFromUserDefaults() {
-        let updatedDisableScribing = userDefaults.object(forKey: Self.disableScribingKey) as? Bool ?? false
-        let updatedMonitoredMIDIChannel =
-            userDefaults.object(forKey: Self.monitoredMIDIChannelKey) as? Int ?? Self.midiChannelAllValue
-        let updatedNewTakePauseSeconds =
-            userDefaults.object(forKey: Self.newTakePauseSecondsKey) as? Double ?? 30.0
-        let updatedRecentTakesShownInMenus =
-            userDefaults.object(forKey: Self.recentTakesShownInMenusKey) as? Int ?? 25
-        let updatedSpeakerOutputProgram =
-            Self.validSpeakerOutputProgram(userDefaults.object(forKey: Self.speakerOutputProgramKey) as? Int)
-        let updatedEchoScribedToSpeakers =
-            userDefaults.object(forKey: Self.echoScribedToSpeakersKey) as? Bool ?? true
-
-        if disableScribing != updatedDisableScribing {
-            disableScribing = updatedDisableScribing
-        }
-
-        if monitoredMIDIChannel != updatedMonitoredMIDIChannel {
-            monitoredMIDIChannel = updatedMonitoredMIDIChannel
-        }
-
-        if newTakePauseSeconds != updatedNewTakePauseSeconds {
-            newTakePauseSeconds = updatedNewTakePauseSeconds
-        }
-
-        if recentTakesShownInMenus != updatedRecentTakesShownInMenus {
-            recentTakesShownInMenus = updatedRecentTakesShownInMenus
-        }
-
-        let rawSpeakerOutputProgram = userDefaults.object(forKey: Self.speakerOutputProgramKey) as? Int
-        if speakerOutputProgram != updatedSpeakerOutputProgram {
-            #if DEBUG
-            NSLog(
-                "MIDI Scribe speaker program debug: settings reload changed " +
-                    "old=\(speakerOutputProgram) new=\(updatedSpeakerOutputProgram) " +
-                    "rawUserDefault=\(rawSpeakerOutputProgram.map(String.init) ?? "nil")"
-            )
-            #endif
-            speakerOutputProgram = updatedSpeakerOutputProgram
-        } else if rawSpeakerOutputProgram != updatedSpeakerOutputProgram {
-            #if DEBUG
-            NSLog(
-                "MIDI Scribe speaker program debug: settings reload normalizing " +
-                    "rawUserDefault=\(rawSpeakerOutputProgram.map(String.init) ?? "nil") " +
-                    "resolved=\(updatedSpeakerOutputProgram)"
-            )
-            #endif
-            userDefaults.set(updatedSpeakerOutputProgram, forKey: Self.speakerOutputProgramKey)
-        }
-
-        if echoScribedToSpeakers != updatedEchoScribedToSpeakers {
-            echoScribedToSpeakers = updatedEchoScribedToSpeakers
-        }
-
-        reloadTakeControlSettings()
-    }
-
-    private func reloadTakeControlSettings() {
-        let updatedStartTakeWithNoteEvents =
-            userDefaults.object(forKey: Self.startTakeWithNoteEventsKey) as? Bool
-                ?? Self.defaultStartTakeWithNoteEvents
-        let updatedTakeStartControlChanges = Self.controlChangeSet(
-            forKey: Self.takeStartControlChangesKey,
-            in: userDefaults,
-            defaultValue: Self.defaultTakeStartControlChanges
-        )
-        let updatedTakeEndControlChanges = Self.controlChangeSet(
-            forKey: Self.takeEndControlChangesKey,
-            in: userDefaults,
-            defaultValue: Self.defaultTakeEndControlChanges
-        )
-
-        if startTakeWithNoteEvents != updatedStartTakeWithNoteEvents {
-            startTakeWithNoteEvents = updatedStartTakeWithNoteEvents
-        }
-
-        if takeStartControlChanges != updatedTakeStartControlChanges {
-            takeStartControlChanges = updatedTakeStartControlChanges
-        }
-
-        if takeEndControlChanges != updatedTakeEndControlChanges {
-            takeEndControlChanges = updatedTakeEndControlChanges
-        }
-    }
-
-    private static func validSpeakerOutputProgram(_ program: Int?) -> Int {
-        guard
-            let program,
-            GeneralMIDI.programs.contains(where: { $0.program == program })
-        else {
-            return defaultSpeakerOutputProgram
-        }
-        return program
-    }
-
-    private static func controlChangeSet(
-        forKey key: String,
-        in userDefaults: UserDefaults,
-        defaultValue: Set<UInt8>
-    ) -> Set<UInt8> {
-        guard let values = userDefaults.array(forKey: key) as? [Int] else {
-            return defaultValue
-        }
-        return Set(values.compactMap { value in
-            guard value >= 0, value <= 127 else { return nil }
-            return UInt8(value)
-        })
-    }
 }
 
 struct TakeControlSignal: Identifiable, Sendable, Equatable {

@@ -119,6 +119,30 @@ extension ContentView {
         pendingDeleteTakeID = id
     }
 
+    func beginLiveTakeDelete() {
+        guard viewModel.isTakeInProgress else {
+            viewModel.cancelTake()
+            return
+        }
+        if viewModel.currentTakeSnapshot.duration < 10.0 {
+            viewModel.cancelTake()
+            return
+        }
+        isPresentingLiveTakeDeleteConfirm = true
+    }
+
+    func confirmLiveTakeDelete() {
+        isPresentingLiveTakeDeleteConfirm = false
+        guard viewModel.isTakeInProgress else { return }
+        viewModel.cancelTake()
+    }
+
+    func beginSplitTakeConfirmation(id: UUID) {
+        viewModel.playbackEngine.pause()
+        guard viewModel.canSplit(takeID: id) else { return }
+        pendingSplitTakeID = id
+    }
+
     func beginBulkDeleteConfirmation() {
         viewModel.playbackEngine.pause()
         isPresentingBulkDeleteConfirm = true
@@ -164,6 +188,19 @@ extension ContentView {
         }
     }
 
+    func splitTake(id: UUID) {
+        pendingSplitTakeID = nil
+        viewModel.playbackEngine.pause()
+        guard viewModel.canSplit(takeID: id) else { return }
+        viewModel.splitCurrentPausedTake()
+    }
+
+    func splitConfirmationMessage(for takeID: UUID) -> String {
+        let takeTitle = viewModel.recentTake(id: takeID)?.displayTitle ?? "This take"
+        let offsetText = formatOffset(viewModel.pausedPlaybackOffset ?? 0)
+        return "\(takeTitle) will be split into two saved takes at \(offsetText). This cannot be undone."
+    }
+
     func loadSampleTakes() {
         let container = modelContext.container
         if viewModel.persistenceService == nil {
@@ -188,6 +225,8 @@ extension ContentView {
         viewModel.selectedSidebarItem = .currentTake
         viewModel.multiSelection = []
         pendingDeleteTakeID = nil
+        pendingSplitTakeID = nil
+        isPresentingLiveTakeDeleteConfirm = false
         appState.takeCommandRequest = nil
         appState.takeCommandState = TakeCommandState()
         hasEvaluatedWelcomeSheet = false
@@ -223,7 +262,7 @@ extension ContentView {
             viewModel.endTake()
             return true
         case .cancelCurrentTake:
-            viewModel.cancelTake()
+            beginLiveTakeDelete()
             return true
         default:
             return false
@@ -242,7 +281,7 @@ extension ContentView {
         switch request {
         case .split(let takeID):
             guard viewModel.canSplit(takeID: takeID) else { return }
-            viewModel.splitCurrentPausedTake()
+            beginSplitTakeConfirmation(id: takeID)
         case .toggleStar(let takeID):
             viewModel.toggleStar(takeID: takeID)
         case .rename(let takeID):

@@ -12,8 +12,28 @@ extension ContentView {
 #if os(iOS)
     func phoneFocusDetailColumnAfterSidebarSelection() {
         guard UIDevice.current.userInterfaceIdiom == .phone else { return }
+        if suppressNextPhoneDetailFocus {
+            suppressNextPhoneDetailFocus = false
+            preferredCompactColumn = .sidebar
+            phoneNavigationSplitColumnVisibility = .automatic
+            return
+        }
+        guard shouldShowPhoneDetail else {
+            preferredCompactColumn = .sidebar
+            phoneNavigationSplitColumnVisibility = .automatic
+            return
+        }
         preferredCompactColumn = .detail
         phoneNavigationSplitColumnVisibility = .detailOnly
+    }
+
+    var shouldShowPhoneDetail: Bool {
+        switch viewModel.selectedSidebarItem {
+        case .currentTake, .recentTake, .starredTake:
+            return true
+        case .organizing, .editingTakes:
+            return false
+        }
     }
 
     /// When the sidebar column is visible beside detail (typical wide iPhone landscape),

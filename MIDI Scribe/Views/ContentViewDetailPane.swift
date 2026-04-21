@@ -27,10 +27,8 @@ extension ContentView {
 
             if viewModel.multiSelection.isEmpty {
                 editingTakesEmptySelectionHint
-            } else if viewModel.multiSelection.count == 1 {
-                editingTakesSingleSelectionHint
             } else {
-                editingTakesMultiSelectionContent
+                editingTakesSelectionContent
             }
 
             if let pendingTakeOperation = viewModel.pendingOperation {
@@ -54,58 +52,18 @@ extension ContentView {
     private var editingTakesEmptySelectionHint: some View {
         Text(
             "Tap the circles next to Takes in the sidebar to select them. "
-                + "Once you've selected two or more, you can merge, star, or delete them in bulk."
+                + "Once you've selected a Take, you can star or delete it in bulk. "
+                + "Merge becomes available after selecting two or more."
         )
         .foregroundStyle(.secondary)
     }
 
-    private var editingTakesSingleSelectionHint: some View {
-        Group {
-            Text("Select at least one more Take to enable bulk actions.")
-                .foregroundStyle(.secondary)
-            Text("Currently selected: 1 Take")
-                .font(.body.monospaced())
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private var editingTakesMultiSelectionContent: some View {
+    private var editingTakesSelectionContent: some View {
         Group {
             Text("\(viewModel.multiSelection.count) Takes selected.")
                 .font(.body.monospaced())
                 .foregroundStyle(.secondary)
-            HStack(spacing: 16) {
-                BasicButton(
-                    context: BasicButtonContext(
-                        action: {
-                            mergeSilenceMsText = "0"
-                            isPresentingMergeDialog = true
-                        },
-                        label: "Merge",
-                        systemImage: "arrow.triangle.merge"
-                    )
-                )
-                .disabled(viewModel.isTakeActionInProgress)
-                BasicButton(
-                    context: BasicButtonContext(
-                        action: { viewModel.toggleStarForSelectedTakes() },
-                        label: viewModel.allSelectedAreStarred ? "Unstar" : "Star",
-                        systemImage: viewModel.allSelectedAreStarred ? "star.slash" : "star",
-                        backgroundColor: .yellow,
-                        foregroundColor: .black
-                    )
-                )
-                .disabled(viewModel.isTakeActionInProgress)
-                BasicButton(
-                    context: BasicButtonContext(
-                        action: { beginBulkDeleteConfirmation() },
-                        label: "Delete",
-                        systemImage: "trash",
-                        role: .destructive
-                    )
-                )
-                .disabled(viewModel.isTakeActionInProgress)
-            }
+            bulkEditActionButtons
         }
     }
 
@@ -149,18 +107,40 @@ extension ContentView {
             // Exiting edit mode. Decide where to return focus based on what
             // just happened (if anything).
             let restore = resolvedSelectionAfterEdit()
+#if os(iOS)
+            if UIDevice.current.userInterfaceIdiom == .phone {
+                suppressNextPhoneDetailFocus = true
+            }
+#endif
             isEditingList = false
             viewModel.multiSelection.removeAll()
             selectionAnchorID = nil
             viewModel.clearLastBulkResult()
             viewModel.selectedSidebarItem = restore
             preEditSelection = nil
+#if os(iOS)
+            if UIDevice.current.userInterfaceIdiom == .phone {
+                preferredCompactColumn = .sidebar
+                phoneNavigationSplitColumnVisibility = .automatic
+            }
+#endif
         } else {
             preEditSelection = viewModel.selectedSidebarItem
             viewModel.multiSelection.removeAll()
             viewModel.clearLastBulkResult()
+#if os(iOS)
+            if UIDevice.current.userInterfaceIdiom == .phone {
+                suppressNextPhoneDetailFocus = true
+            }
+#endif
             isEditingList = true
             viewModel.selectedSidebarItem = .editingTakes
+#if os(iOS)
+            if UIDevice.current.userInterfaceIdiom == .phone {
+                preferredCompactColumn = .sidebar
+                phoneNavigationSplitColumnVisibility = .automatic
+            }
+#endif
         }
     }
 
@@ -227,7 +207,7 @@ extension ContentView {
                 .accessibilityLabel("End Take")
 
                 Button(role: .destructive) {
-                    viewModel.cancelTake()
+                    beginLiveTakeDelete()
                 } label: {
                     Image(systemName: "trash")
                 }
@@ -235,6 +215,22 @@ extension ContentView {
                 .accessibilityLabel("Cancel Take")
             }
             #if os(macOS)
+            Button {
+                beginSettingsPresentation()
+            } label: {
+                Image(systemName: "gearshape")
+            }
+            .help("Preferences")
+            .accessibilityLabel("Preferences")
+
+            Button {
+                beginAboutPresentation()
+            } label: {
+                Image(systemName: "info.circle")
+            }
+            .help("About")
+            .accessibilityLabel("About")
+
             Button {
                 beginHelpPresentation()
             } label: {
@@ -348,50 +344,3 @@ extension ContentView {
     }
 
 }
-
-#if os(iOS)
-extension ContentView {
-    @ToolbarContentBuilder
-    func iPhoneSidebarToggleToolbar() -> some ToolbarContent {
-        if UIDevice.current.userInterfaceIdiom == .phone,
-           horizontalSizeClass == .compact {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    phoneNavigationSplitColumnVisibility = .doubleColumn
-                    preferredCompactColumn = .sidebar
-                } label: {
-                    Image(systemName: "sidebar.left")
-                }
-                .accessibilityLabel("Show Takes Sidebar")
-                .help("Show Takes Sidebar")
-            }
-        }
-    }
-
-    @ToolbarContentBuilder
-    func iOSAppActionsToolbar() -> some ToolbarContent {
-        ToolbarItemGroup(placement: .topBarTrailing) {
-            Button {
-                beginSettingsPresentation()
-            } label: {
-                Image(systemName: "gearshape")
-            }
-            .accessibilityLabel("Preferences")
-
-            Button {
-                beginAboutPresentation()
-            } label: {
-                Image(systemName: "info.circle")
-            }
-            .accessibilityLabel("About")
-            Button {
-                beginHelpPresentation()
-            } label: {
-                Image(systemName: "lightbulb")
-            }
-            .help("Help")
-            .accessibilityLabel("Help")
-        }
-    }
-}
-#endif

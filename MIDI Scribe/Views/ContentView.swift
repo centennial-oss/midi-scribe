@@ -33,6 +33,8 @@ struct ContentView: View {
     @ObservedObject var settings: AppSettings
     @StateObject var viewModel: MIDILiveNoteViewModel
     @State var pendingDeleteTakeID: UUID?
+    @State var pendingSplitTakeID: UUID?
+    @State var isPresentingLiveTakeDeleteConfirm = false
     @State var exportDocument: MIDIFileDocument?
     @State var exportSuggestedName: String = "take"
     @State var isPresentingExporter = false
@@ -63,6 +65,7 @@ struct ContentView: View {
     /// alone does not hide the floating sidebar.
     /// Phone selection handlers set `.detailOnly` so the piano roll is full width.
     @State var phoneNavigationSplitColumnVisibility: NavigationSplitViewVisibility = .automatic
+    @State var suppressNextPhoneDetailFocus = false
 #endif
 
     init(settings: AppSettings) {
@@ -75,9 +78,11 @@ struct ContentView: View {
     }
 
     private var configuredContent: some View {
-        idleTimerContent(
+        bottomBulkEditActionRowContent(
+            idleTimerContent(
             welcomeSheetContent(
-                alertContent(exportContent(deleteDialogContent(observerContent(setupContent(baseContent)))))
+                dialogContent(observerContent(setupContent(baseContent)))
+            )
             )
         )
     }
@@ -222,87 +227,6 @@ struct ContentView: View {
         }
     }
 
-    private func dialogContent(_ content: some View) -> some View {
-        alertContent(exportContent(deleteDialogContent(content)))
-    }
-
-    private func deleteDialogContent(_ content: some View) -> some View {
-        content
-        .confirmationDialog(
-            "Delete Take?",
-            isPresented: Binding(
-                get: { pendingDeleteTakeID != nil },
-                set: { isPresented in
-                    if !isPresented {
-                        pendingDeleteTakeID = nil
-                    }
-                }
-            ),
-            presenting: pendingDeleteTakeID
-        ) { takeID in
-            Button("Delete Take", role: .destructive) {
-                deleteTake(id: takeID)
-            }
-            Button("Cancel", role: .cancel) {
-                pendingDeleteTakeID = nil
-            }
-        } message: { takeID in
-            Text(viewModel.recentTake(id: takeID)?.displayTitle ?? "This take")
-        }
-    }
-
-    private func exportContent(_ content: some View) -> some View {
-        content
-        .fileExporter(
-            isPresented: $isPresentingExporter,
-            document: exportDocument,
-            contentType: .midi,
-            defaultFilename: exportSuggestedName
-        ) { result in
-            switch result {
-            case .success:
-                exportErrorMessage = nil
-            case .failure(let error):
-                exportErrorMessage = "Export failed: \(error.localizedDescription)"
-            }
-            exportDocument = nil
-        }
-    }
-
-    private func alertContent(_ content: some View) -> some View {
-        content
-        .alert("Merge \(viewModel.multiSelection.count) Takes", isPresented: $isPresentingMergeDialog) {
-            TextField("Silence between takes (ms)", text: $mergeSilenceMsText)
-#if os(iOS)
-                .keyboardType(.numberPad)
-#endif
-            Button("Merge") {
-                let silenceMillis = Int(mergeSilenceMsText) ?? 0
-                viewModel.mergeSelectedTakes(silenceBetweenMs: silenceMillis)
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Enter the number of milliseconds of silence to insert between consecutive takes (default 0).")
-        }
-        .alert("Rename Take", isPresented: Binding(
-            get: { renamingTakeID != nil },
-            set: { if !$0 { cancelRename() } }
-        )) {
-            TextField("Name", text: $renameDraft)
-            Button("Save") { commitRename() }
-            Button("Cancel", role: .cancel) { cancelRename() }
-        } message: {
-            Text("Enter a new name for this take.")
-        }
-        .alert("Delete \(viewModel.multiSelection.count) Takes?", isPresented: $isPresentingBulkDeleteConfirm) {
-            Button("Delete", role: .destructive) {
-                viewModel.deleteSelectedTakes()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will permanently delete the selected takes. This action cannot be undone.")
-        }
-    }
 }
 
 #if os(macOS)
