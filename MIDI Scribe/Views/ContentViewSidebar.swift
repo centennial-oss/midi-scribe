@@ -64,7 +64,7 @@ extension ContentView {
         Section {
             sidebarSelectableRow(item: .currentTake) {
                 HStack(spacing: 8) {
-                    Text("Start a New Take")
+                    Text(viewModel.isTakeInProgress ? "Recording Take…" : "Start a New Take")
                     Spacer(minLength: 8)
                     if viewModel.isTakeInProgress {
                         Image(systemName: "circle.fill")
