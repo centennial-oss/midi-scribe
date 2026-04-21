@@ -10,9 +10,15 @@ import SwiftUI
 extension ContentView {
     func welcomeSheetContent(_ content: some View) -> some View {
         content
-            .sheet(isPresented: $isPresentingWelcomeSheet) {
-                WelcomeSheetView()
-            }
+            .sheet(
+                isPresented: $isPresentingWelcomeSheet,
+                onDismiss: {
+                    settings.markWelcomeSheetShown()
+                },
+                content: {
+                    WelcomeSheetView()
+                }
+            )
     }
 
     func evaluateWelcomeSheetPresentationIfNeeded() {
@@ -20,10 +26,14 @@ extension ContentView {
         hasEvaluatedWelcomeSheet = true
 
         guard !settings.hasWelcomeSheetShownValue else { return }
-
-        settings.markWelcomeSheetShown()
         if storedRecentTakes.isEmpty {
-            isPresentingWelcomeSheet = true
+            DispatchQueue.main.async {
+                guard !settings.hasWelcomeSheetShownValue,
+                      storedRecentTakes.isEmpty else { return }
+                isPresentingWelcomeSheet = true
+            }
+        } else {
+            settings.markWelcomeSheetShown()
         }
     }
 }
@@ -45,10 +55,9 @@ private struct WelcomeSheetView: View {
 
             HStack {
                 Spacer()
-                Button("Get Started") {
-                    dismiss()
-                }
-                .buttonStyle(.borderedProminent)
+                BasicButton(
+                    context: BasicButtonContext(action: { dismiss() }, label: "Get Started")
+                )
             }
         }
         .padding(24)

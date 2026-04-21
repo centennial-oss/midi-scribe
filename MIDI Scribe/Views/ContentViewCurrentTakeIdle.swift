@@ -16,18 +16,13 @@ extension ContentView {
             }
 
             if viewModel.settings.isScribingEnabled {
-                Button {
-                    viewModel.startTake()
-                } label: {
-                    Text("Start a New Take")
-                        .foregroundStyle(.white)
-                }
-                .buttonStyle(.glassProminent)
-                #if os(iOS)
-                .buttonBorderShape(.roundedRectangle(radius: 30))
-                #endif
-                .controlSize(.extraLarge)
-
+                BasicButton(
+                    context: BasicButtonContext(
+                        action: viewModel.startTake,
+                        label: "Start a New Take",
+                        size: .extraLarge
+                    )
+                )
                 if !currentTakeStartMethods.isEmpty {
                     currentTakeStartMethodList
                 }

@@ -19,83 +19,93 @@ struct AboutView: View {
     @State private var didCopyBuildInfo = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            header
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    header
 
-            Text(BuildInfo.copyright)
-                .font(.system(size: 14))
-                .foregroundStyle(.secondary)
+                    Text(BuildInfo.copyright)
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
 
-            Label(
-                "\(BuildInfo.appName) is a utiltiy for automatically capturing and organizing practice " +
-                "Takes with your MIDI-capable musical instrument.",
-                systemImage: "music.note.tv"
-            )
-                .font(.system(size: 14))
-                .foregroundStyle(.secondary)
-                .lineSpacing(4)
-                .fixedSize(horizontal: false, vertical: true)
+                    Label(
+                        "\(BuildInfo.appName) is a utiltiy for automatically capturing and organizing practice " +
+                        "Takes with your MIDI-capable musical instrument.",
+                        systemImage: "music.note.tv"
+                    )
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(4)
+                        .fixedSize(horizontal: false, vertical: true)
 
-            Label(
-                "External MIDI-capable musical instrument is required.",
-                systemImage: "exclamationmark.triangle"
-            )
-                .font(.system(size: 14))
-                .foregroundStyle(.secondary)
-                .lineSpacing(4)
-                .fixedSize(horizontal: false, vertical: true)
+                    Label(
+                        "External MIDI-capable musical instrument is required.",
+                        systemImage: "exclamationmark.triangle"
+                    )
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(4)
+                        .fixedSize(horizontal: false, vertical: true)
 
-            Label(
-                "\(BuildInfo.appName) is 100% private. It does not collect analytics or snoop on your usage. " +
-                    "Nothing ever leaves your device. Period.",
-                systemImage: "shield"
-            )
-                .font(.system(size: 14))
-                .foregroundStyle(.secondary)
-                .lineSpacing(4)
-                .fixedSize(horizontal: false, vertical: true)
+                    Label(
+                        "\(BuildInfo.appName) is 100% private. It does not collect analytics or snoop on your usage. " +
+                            "Nothing ever leaves your device. Period.",
+                        systemImage: "shield"
+                    )
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(4)
+                        .fixedSize(horizontal: false, vertical: true)
 
-            Label("This software is completely free and open source for you to enjoy.",
-                systemImage: "heart"
-            )
-                .font(.system(size: 14))
-                .foregroundStyle(.secondary)
-                .lineSpacing(4)
-                .fixedSize(horizontal: false, vertical: true)
+                    Label("This software is completely free and open source for you to enjoy.",
+                        systemImage: "heart"
+                    )
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(4)
+                        .fixedSize(horizontal: false, vertical: true)
 
-            Link(destination: githubURL) {
-                Label("GitHub: centennial-oss/midi-scribe",
-                systemImage: "arrow.up.right.square"
-            )
-                    .foregroundStyle(linkColor)
-                    .underline(isGitHubLinkHovered, color: linkColor.opacity(0.8))
-            }
-            .font(.system(size: 15))
-            #if os(macOS)
-            .onHover { isGitHubLinkHovered = $0 }
-            #endif
+                    Link(destination: githubURL) {
+                        Label("GitHub: centennial-oss/midi-scribe",
+                        systemImage: "arrow.up.right.square"
+                    )
+                            .foregroundStyle(linkColor)
+                            .underline(isGitHubLinkHovered, color: linkColor.opacity(0.8))
+                    }
+                    .font(.system(size: 15))
+                    #if os(macOS)
+                    .onHover { isGitHubLinkHovered = $0 }
+                    #endif
 
-            buildInfoSection
+                    buildInfoSection
 
-            HStack(spacing: 12) {
-                Link(destination: appStoreReviewURL) {
-                    Label("Rate \(BuildInfo.appName) on the App Store",
-                    systemImage: "star.leadinghalf.filled"
-                )
-                        .foregroundStyle(linkColor)
-                        .underline(isAppStoreLinkHovered, color: linkColor.opacity(0.8))
+                    Link(destination: appStoreReviewURL) {
+                        Label("Rate \(BuildInfo.appName) on the App Store",
+                        systemImage: "star.leadinghalf.filled"
+                    )
+                            .foregroundStyle(linkColor)
+                            .underline(isAppStoreLinkHovered, color: linkColor.opacity(0.8))
+                    }
+                    .font(.system(size: 14))
+                    #if os(macOS)
+                    .onHover { isAppStoreLinkHovered = $0 }
+                    #endif
                 }
-                .font(.system(size: 14))
-                #if os(macOS)
-                .onHover { isAppStoreLinkHovered = $0 }
-                #endif
-
-                Spacer()
-
-                BasicButton(action: onClose, label: "Close", keyboardShortcut: .defaultAction)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(24)
+            }
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    BasicButton(
+                        context: BasicButtonContext(
+                            action: onClose,
+                            label: "Close",
+                            keyboardShortcut: .defaultAction
+                        )
+                    )
+                }
             }
         }
-        .padding(24)
         .frame(width: 540)
         #if os(macOS)
         .onKeyPress(.escape) {
@@ -136,12 +146,12 @@ struct AboutView: View {
                 .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
                 .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
-            Button(didCopyBuildInfo ? "✓ Copied" : "Copy to Clipboard") {
-                copyBuildInfo()
-            }
-            .font(.system(size: 15))
-            .buttonStyle(.bordered)
-            .controlSize(.large)
+            BasicButton(
+                context: BasicButtonContext(
+                    action: copyBuildInfo,
+                    label: didCopyBuildInfo ? "✓ Copied" : "Copy to Clipboard"
+                )
+            )
         }
     }
 

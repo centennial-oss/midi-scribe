@@ -8,6 +8,19 @@
 import Combine
 import Foundation
 
+private let appSettingsPreferenceKeys = [
+    "disableScribing",
+    "monitoredMIDIChannel",
+    "newTakePauseSeconds",
+    "recentTakesShownInMenus",
+    "speakerOutputProgram",
+    "echoScribedToSpeakers",
+    "startTakeWithNoteEvents",
+    "takeStartControlChanges",
+    "takeEndControlChanges",
+    "welcomeSheetShown"
+]
+
 @MainActor
 final class AppSettings: ObservableObject {
     static let midiChannelAllValue = 0
@@ -171,10 +184,9 @@ final class AppSettings: ObservableObject {
     func resetAllPreferences() {
         if let bundleID = Bundle.main.bundleIdentifier {
             userDefaults.removePersistentDomain(forName: bundleID)
-        } else {
-            userDefaults.dictionaryRepresentation().keys.forEach { key in
-                userDefaults.removeObject(forKey: key)
-            }
+        }
+        appSettingsPreferenceKeys.forEach { key in
+            userDefaults.removeObject(forKey: key)
         }
         reloadFromUserDefaults()
     }

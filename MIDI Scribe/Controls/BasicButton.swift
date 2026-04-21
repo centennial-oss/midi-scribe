@@ -5,34 +5,107 @@
 
 import SwiftUI
 
-struct BasicButton: View {
+struct BasicButtonContext {
     let action: () -> Void
     let label: String
-    let keyboardShortcut: KeyboardShortcut?
+    var systemImage: String?
+    var role: ButtonRole?
+    var keyboardShortcut: KeyboardShortcut?
+    var size: ControlSize
+    var backgroundColor: Color?
+    var foregroundColor: Color?
 
     init(
         action: @escaping () -> Void,
         label: String,
-        keyboardShortcut: KeyboardShortcut? = nil
+        systemImage: String? = nil,
+        role: ButtonRole? = nil,
+        keyboardShortcut: KeyboardShortcut? = nil,
+        size: ControlSize = .large,
+        backgroundColor: Color? = nil,
+        foregroundColor: Color? = nil
     ) {
         self.action = action
         self.label = label
+        self.systemImage = systemImage
+        self.role = role
         self.keyboardShortcut = keyboardShortcut
+        self.size = size
+        self.backgroundColor = backgroundColor
+        self.foregroundColor = foregroundColor
+    }
+}
+
+struct BasicButton: View {
+    let context: BasicButtonContext
+
+    private var isDestructive: Bool {
+        context.role == .destructive
+    }
+
+    private var labelColor: Color {
+        if let foregroundColor = context.foregroundColor {
+            return foregroundColor
+        }
+        if context.backgroundColor != nil {
+            return .primary
+        }
+        return .white
+    }
+
+    @ViewBuilder
+    private var labelContent: some View {
+        Group {
+            if let systemImage = context.systemImage {
+                Label(context.label, systemImage: systemImage)
+            } else {
+                Text(context.label)
+            }
+        }
+        .foregroundStyle(labelColor)
+    }
+
+    @ViewBuilder
+    private func chrome<Content: View>(_ button: Content) -> some View {
+        if let backgroundColor = context.backgroundColor {
+            button
+                .font(.system(size: 15))
+                .buttonStyle(.borderedProminent)
+                .tint(backgroundColor)
+                .controlSize(context.size)
+        } else if isDestructive {
+            button
+                .font(.system(size: 15))
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+                .controlSize(context.size)
+        } else {
+            button
+                .font(.system(size: 15))
+                .buttonStyle(.glassProminent)
+                .controlSize(context.size)
+        }
     }
 
     @ViewBuilder
     var body: some View {
-        if let keyboardShortcut {
-            Button(label, action: action)
-                .font(.system(size: 15))
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .keyboardShortcut(keyboardShortcut)
+        let action = context.action
+        if let keyboardShortcut = context.keyboardShortcut {
+            if let role = context.role {
+                chrome(Button(role: role, action: action) { labelContent })
+                    .accessibilityLabel(context.label)
+                    .keyboardShortcut(keyboardShortcut)
+            } else {
+                chrome(Button(action: action) { labelContent })
+                    .accessibilityLabel(context.label)
+                    .keyboardShortcut(keyboardShortcut)
+            }
+        } else if let role = context.role {
+            chrome(Button(role: role, action: action) { labelContent })
+                .accessibilityLabel(context.label)
         } else {
-            Button(label, action: action)
-                .font(.system(size: 15))
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+            chrome(Button(action: action) { labelContent })
+                .accessibilityLabel(context.label)
         }
     }
 }

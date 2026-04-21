@@ -18,7 +18,7 @@ extension MIDILiveNoteViewModel {
 
         var methods: [String] = []
         if settings.startTakeWithNoteEvents {
-            methods.append("Start playing your instrument\(monitoredChannelSuffix)")
+            methods.append("Start playing your MIDI instrument\(monitoredChannelSuffix)")
         }
         if settings.takeStartControlChanges.contains(64) {
             methods.append("Press and release the Sustain Pedal")

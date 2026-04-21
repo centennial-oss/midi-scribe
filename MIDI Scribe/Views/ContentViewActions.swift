@@ -100,7 +100,7 @@ extension ContentView {
             }.value
 
             guard let take else {
-                exportErrorMessage = "Unable to load take for export."
+                exportErrorMessage = "Unable to load Take for export."
                 return
             }
             presentExporter(for: take)
@@ -190,6 +190,8 @@ extension ContentView {
         pendingDeleteTakeID = nil
         appState.takeCommandRequest = nil
         appState.takeCommandState = TakeCommandState()
+        hasEvaluatedWelcomeSheet = false
+        isPresentingWelcomeSheet = false
     }
 
     func handleTakeCommandRequest(_ request: TakeCommandRequest?) {

@@ -209,14 +209,14 @@ struct ContentView: View {
                 updateTakeCommandState()
             }
         }
-        // When a bulk merge or delete completes, exit Edit mode automatically
+        // When a bulk merge, star, or delete completes, exit Edit mode automatically
         // and restore/update the selected sidebar item appropriately.
         .onChange(of: viewModel.lastBulkResult) { _, newValue in
             guard isEditingList, newValue != nil else { return }
             switch newValue {
-            case .merged, .deleted:
+            case .merged, .deleted, .starred:
                 DispatchQueue.main.async { toggleEditMode() }
-            case .starred, .none:
+            case .none:
                 break
             }
         }

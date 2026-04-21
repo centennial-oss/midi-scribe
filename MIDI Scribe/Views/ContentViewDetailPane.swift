@@ -41,17 +41,10 @@ extension ContentView {
                         .foregroundStyle(.secondary)
                 }
             }
-
             if let actionErrorText = viewModel.actionErrorText {
                 Text(actionErrorText)
                     .font(.footnote)
                     .foregroundStyle(.red)
-            }
-
-            Spacer()
-
-            Button("Done") {
-                toggleEditMode()
             }
         }
         .padding(32)
@@ -60,7 +53,7 @@ extension ContentView {
 
     private var editingTakesEmptySelectionHint: some View {
         Text(
-            "Tap the circles next to takes in the sidebar to select them. "
+            "Tap the circles next to Takes in the sidebar to select them. "
                 + "Once you've selected two or more, you can merge, star, or delete them in bulk."
         )
         .foregroundStyle(.secondary)
@@ -68,9 +61,9 @@ extension ContentView {
 
     private var editingTakesSingleSelectionHint: some View {
         Group {
-            Text("Select at least one more take to enable bulk actions.")
+            Text("Select at least one more Take to enable bulk actions.")
                 .foregroundStyle(.secondary)
-            Text("Currently selected: 1 take")
+            Text("Currently selected: 1 Take")
                 .font(.body.monospaced())
                 .foregroundStyle(.secondary)
         }
@@ -78,32 +71,39 @@ extension ContentView {
 
     private var editingTakesMultiSelectionContent: some View {
         Group {
-            Text("\(viewModel.multiSelection.count) takes selected.")
+            Text("\(viewModel.multiSelection.count) Takes selected.")
                 .font(.body.monospaced())
                 .foregroundStyle(.secondary)
-
             HStack(spacing: 16) {
-                Button {
-                    mergeSilenceMsText = "0"
-                    isPresentingMergeDialog = true
-                } label: {
-                    Label("Merge", systemImage: "arrow.triangle.merge")
-                }
+                BasicButton(
+                    context: BasicButtonContext(
+                        action: {
+                            mergeSilenceMsText = "0"
+                            isPresentingMergeDialog = true
+                        },
+                        label: "Merge",
+                        systemImage: "arrow.triangle.merge"
+                    )
+                )
                 .disabled(viewModel.isTakeActionInProgress)
-
-                Button {
-                    viewModel.toggleStarForSelectedTakes()
-                } label: {
-                    Label(viewModel.allSelectedAreStarred ? "Unstar" : "Star",
-                          systemImage: viewModel.allSelectedAreStarred ? "star.slash" : "star")
-                }
+                BasicButton(
+                    context: BasicButtonContext(
+                        action: { viewModel.toggleStarForSelectedTakes() },
+                        label: viewModel.allSelectedAreStarred ? "Unstar" : "Star",
+                        systemImage: viewModel.allSelectedAreStarred ? "star.slash" : "star",
+                        backgroundColor: .yellow,
+                        foregroundColor: .black
+                    )
+                )
                 .disabled(viewModel.isTakeActionInProgress)
-
-                Button(role: .destructive) {
-                    beginBulkDeleteConfirmation()
-                } label: {
-                    Label("Delete", systemImage: "trash")
-                }
+                BasicButton(
+                    context: BasicButtonContext(
+                        action: { beginBulkDeleteConfirmation() },
+                        label: "Delete",
+                        systemImage: "trash",
+                        role: .destructive
+                    )
+                )
                 .disabled(viewModel.isTakeActionInProgress)
             }
         }
@@ -112,7 +112,7 @@ extension ContentView {
     /// While Edit mode is active, lock the sidebar selection to
     /// `.editingTakes` so an accidental click on a take row doesn't navigate
     /// away from the bulk-actions detail pane. The user can still interact
-    /// with the per-row checkboxes and the Done / pencil button to exit.
+    /// with the per-row checkboxes and the pencil button to exit without running a bulk action.
     var sidebarSelectionBinding: Binding<SidebarItem> {
         Binding(
             get: { viewModel.selectedSidebarItem },
@@ -234,7 +234,7 @@ extension ContentView {
                 .help("Cancel Take")
                 .accessibilityLabel("Cancel Take")
             }
-
+            #if os(macOS)
             Button {
                 beginHelpPresentation()
             } label: {
@@ -242,6 +242,7 @@ extension ContentView {
             }
             .help("Help")
             .accessibilityLabel("Help")
+            #endif
         }
     }
 
@@ -273,19 +274,15 @@ extension ContentView {
             currentTakeInlineLabeledValue("Notes", currentTakeNotesCountText)
             currentTakeInlineLabeledValue("Range", currentTakeRangeText)
             currentTakeInlineLabeledValue("Channels", currentTakeChannelsText)
-
             Spacer(minLength: 24)
-
             if viewModel.shouldShowCurrentNoteText {
                 currentTakeInlineLabeledValue("Now", viewModel.currentNoteText)
             }
-
             if viewModel.shouldShowIdleTimeoutText {
                 Text(viewModel.idleTimeoutText)
                     .font(.takeMetadataValue)
                     .foregroundStyle(.secondary)
             }
-
             if let errorText = viewModel.errorText {
                 Text("/")
                     .font(.takeMetadataValue)
@@ -387,6 +384,13 @@ extension ContentView {
                 Image(systemName: "info.circle")
             }
             .accessibilityLabel("About")
+            Button {
+                beginHelpPresentation()
+            } label: {
+                Image(systemName: "lightbulb")
+            }
+            .help("Help")
+            .accessibilityLabel("Help")
         }
     }
 }

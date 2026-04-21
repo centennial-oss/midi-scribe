@@ -128,10 +128,9 @@ struct SettingsView: View {
                 }
             }
             .formStyle(.grouped)
-            .navigationTitle("Settings")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    BasicButton(action: onClose, label: "Close")
+                    BasicButton(context: BasicButtonContext(action: onClose, label: "Close"))
                 }
             }
             .alert(item: $alertState) { state in
@@ -140,7 +139,7 @@ struct SettingsView: View {
                     return Alert(
                         title: Text("Erase All Data?"),
                         message: Text(
-                            "This will permanently delete every recorded take and all MIDI events, "
+                            "This will permanently delete every recorded Take and all MIDI events, "
                                 + "then clear all saved preferences and restore defaults. "
                                 + "This action cannot be undone."
                         ),

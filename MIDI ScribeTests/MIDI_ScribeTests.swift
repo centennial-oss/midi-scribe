@@ -85,6 +85,49 @@ struct MIDIScribeTests {
         #expect(take.events.map(\.data1) == [60])
     }
 
+    @MainActor
+    @Test func welcomeSheetShownFlagStartsUnsetAndPersistsWhenMarked() async throws {
+        let suiteName = "MIDIScribeTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let settings = AppSettings(userDefaults: defaults)
+        #expect(!settings.hasWelcomeSheetShownValue)
+
+        settings.markWelcomeSheetShown()
+
+        #expect(settings.hasWelcomeSheetShownValue)
+    }
+
+    @MainActor
+    @Test func resetAllPreferencesClearsWelcomeSheetShownFlag() async throws {
+        let suiteName = "MIDIScribeTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let settings = AppSettings(userDefaults: defaults)
+        settings.markWelcomeSheetShown()
+        #expect(settings.hasWelcomeSheetShownValue)
+
+        settings.resetAllPreferences()
+
+        #expect(!settings.hasWelcomeSheetShownValue)
+    }
+
+    @MainActor
+    @Test func welcomeSheetFlagCanBeMarkedSeenWithoutPresentingSheet() async throws {
+        let suiteName = "MIDIScribeTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let settings = AppSettings(userDefaults: defaults)
+        #expect(!settings.hasWelcomeSheetShownValue)
+
+        settings.markWelcomeSheetShown()
+
+        #expect(settings.hasWelcomeSheetShownValue)
+    }
+
     private func controlChange(controller: UInt8, value: UInt8) -> RecordedMIDIEvent {
         RecordedMIDIEvent(
             receivedAt: Date(),

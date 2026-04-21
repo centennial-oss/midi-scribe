@@ -9,65 +9,74 @@ struct HelpView: View {
     let onClose: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            header
-            Divider()
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    header
+                    Divider()
 
-            helpSection(
-                title: "Getting Started",
-                systemImage: "play.rectangle",
-                body: "Connect a MIDI instrument, and start playing to begin a Take"
-            )
+                    helpSection(
+                        title: "Getting Started",
+                        systemImage: "play.rectangle",
+                        body: "Connect a MIDI instrument, and start playing to begin a Take"
+                    )
 
-            helpSection(
-                title: "Frame Rate",
-                systemImage: "lightbulb",
-                body: "For best results, select a frame rate that is equal to or higher than the frame rate " +
-                    "of the source input. If playback frame rate is lower than expected, avoid USB hubs and " +
-                    "replace low-quality cables."
-            )
+                    helpSection(
+                        title: "Frame Rate",
+                        systemImage: "lightbulb",
+                        body: "For best results, select a frame rate that is equal to or higher than the frame rate " +
+                            "of the source input. If playback frame rate is lower than expected, avoid USB hubs and " +
+                            "replace low-quality cables."
+                    )
 
-            #if os(macOS)
-            helpSection(
-                title: "Video Controls",
-                systemImage: "rectangle.and.arrow.up.right.and.arrow.down.left",
-                body: "Use the View menu to resize the playback window, rotate the picture, mirror the image, " +
-                    "and show frame rate stats."
-            )
-            #else
-            helpSection(
-                title: "Video Controls",
-                systemImage: "rectangle.and.arrow.up.right.and.arrow.down.left",
-                body: "Use the View menu to rotate the picture, mirror the image, " +
-                    "and show frame rate stats."
-            )
-            #endif
+                    #if os(macOS)
+                    helpSection(
+                        title: "Video Controls",
+                        systemImage: "rectangle.and.arrow.up.right.and.arrow.down.left",
+                        body: "Use the View menu to resize the playback window, rotate the picture, " +
+                            "mirror the image, " +
+                            "and show frame rate stats."
+                    )
+                    #else
+                    helpSection(
+                        title: "Video Controls",
+                        systemImage: "rectangle.and.arrow.up.right.and.arrow.down.left",
+                        body: "Use the View menu to rotate the picture, mirror the image, " +
+                            "and show frame rate stats."
+                    )
+                    #endif
 
-            helpSection(
-                title: "Audio Controls",
-                systemImage: "speaker.wave.2",
-                body: "Use the Audio menu to mute playback, set the volume, or adjust the audio buffer " +
-                    "if you hear dropouts or stuttering. A larger buffer may improve audio performance " +
-                    "while causing audio to lag further behind the video."
-            )
+                    helpSection(
+                        title: "Audio Controls",
+                        systemImage: "speaker.wave.2",
+                        body: "Use the Audio menu to mute playback, set the volume, or adjust the audio buffer " +
+                            "if you hear dropouts or stuttering. A larger buffer may improve audio performance " +
+                            "while causing audio to lag further behind the video."
+                    )
 
-            helpSection(
-                title: "Device Support",
-                systemImage: "externaldrive.connected.to.line.below",
-                body: "While any USB Video Class (UVC) device should work with \(BuildInfo.appName), video " +
-                    "quality ultimately depends on the capture device hardware. Some devices " +
-                    " may advertise resolutions and frame rates beyond their actual capabilties."
-            )
-
-            Divider()
-
-            HStack {
-                Spacer()
-
-                BasicButton(action: onClose, label: "Close", keyboardShortcut: .defaultAction)
+                    helpSection(
+                        title: "Device Support",
+                        systemImage: "externaldrive.connected.to.line.below",
+                        body: "While any USB Video Class (UVC) device should work with \(BuildInfo.appName), video " +
+                            "quality ultimately depends on the capture device hardware. Some devices " +
+                            " may advertise resolutions and frame rates beyond their actual capabilties."
+                    )
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(24)
+            }
+                .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    BasicButton(
+                        context: BasicButtonContext(
+                            action: onClose,
+                            label: "Close",
+                            keyboardShortcut: .defaultAction
+                        )
+                    )
+                }
             }
         }
-        .padding(24)
         .frame(width: 640)
         #if os(macOS)
         .onKeyPress(.escape) {
