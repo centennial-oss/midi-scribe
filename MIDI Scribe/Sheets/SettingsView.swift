@@ -44,7 +44,7 @@ struct SettingsView: View {
                         }
                     }
                     HStack {
-                        Text("End Take when idle for")
+                        Text("End Take When Idle for")
                         Spacer()
     #if os(macOS)
                         DiscreteSettingsSlider(

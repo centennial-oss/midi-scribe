@@ -315,7 +315,7 @@ struct TakeControlSignal: Identifiable, Sendable, Equatable {
     )
     static let sustain = TakeControlSignal(
         id: "sustain",
-        name: "Sustain / Left",
+        name: "Sustain / Right",
         detail: "",
         controlChangeNumbers: [64]
     )
@@ -327,7 +327,7 @@ struct TakeControlSignal: Identifiable, Sendable, Equatable {
     )
     static let soft = TakeControlSignal(
         id: "soft",
-        name: "Soft / Right",
+        name: "Soft / Left",
         detail: "",
         controlChangeNumbers: [67]
     )
@@ -340,9 +340,9 @@ struct TakeControlSignal: Identifiable, Sendable, Equatable {
 
     static let takeStartOptions: [TakeControlSignal] = [
         .notes,
-        .sustain,
         .sostenuto,
         .soft,
+        .sustain,
         .otherControlChanges
     ]
 
