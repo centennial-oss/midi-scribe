@@ -112,13 +112,15 @@ private let onboardingPanes: [OnboardingPane] = [
         title: "Review and navigate a saved Take",
         body: """
             Select a saved Take from the sidebar to open playback mode. Use rewind, play or pause, restart,
-            and the piano roll to inspect the performance before making changes.
+            and the piano roll to inspect the performance before making changes. You can also drag across
+            the piano roll to zoom into a selected region.
             """,
         bullets: [
             "Show the saved Take playback toolbar controls: rewind, play or pause, and restart.",
             "Clicking or tapping in the piano roll moves the playhead to that location.",
             "If playback is paused, dragging the Handle at the top of the playhead scrubs across the roll.",
-            "Call out zoom here, since zooming is part of reviewing and navigating the Take."
+            "Call out the new click or tap-drag zoom gesture: drag a rectangle across the piano roll to " +
+                "zoom into that selected area."
         ],
         screenshotSlot: .playback
     ),
