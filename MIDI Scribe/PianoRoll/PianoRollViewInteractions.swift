@@ -70,7 +70,6 @@ extension PianoRollView {
         at location: CGPoint,
         rollWidth: CGFloat,
         pixelsPerSecond: CGFloat,
-        viewHeight _: CGFloat,
         playOffset: TimeInterval
     ) {
         guard !isLive, pixelsPerSecond > 0, rollWidth > 0 else { return }
@@ -85,9 +84,7 @@ extension PianoRollView {
 
     private func syncScrubOffset(to offset: TimeInterval) {
         viewModel.playbackEngine.updatePausedOffset(to: offset, takeID: take.id)
-        if viewModel.playbackEngine.currentTakeID != take.id {
-            localScrubOffset = offset
-        }
+        localScrubOffset = offset
     }
 
     private func snapPausedPlaybackToIntersectedNoteStart() {
@@ -208,7 +205,7 @@ extension PianoRollView {
         viewModel.playbackEngine.playScrubEvent(event, target: viewModel.selectedPlaybackTarget)
     }
 
-    private func isTapOnScrubHandle(
+    func isTapOnScrubHandle(
         _ location: CGPoint,
         pixelsPerSecond: CGFloat,
         playOffset: TimeInterval
@@ -223,7 +220,7 @@ extension PianoRollView {
         return distance <= 18
     }
 
-    private func seekPlayback(to offset: TimeInterval) {
+    func seekPlayback(to offset: TimeInterval) {
         let wasPlaying = isTakePlaying
         if wasPlaying {
             viewModel.playbackEngine.pause()
@@ -235,7 +232,7 @@ extension PianoRollView {
         }
     }
 
-    private func snappedSeekOffset(forTappedOffset tappedOffset: TimeInterval) -> TimeInterval {
+    func snappedSeekOffset(forTappedOffset tappedOffset: TimeInterval) -> TimeInterval {
         let intersectedNotes = notes.filter { note in
             tappedOffset >= note.startOffset && tappedOffset <= (note.startOffset + note.duration)
         }

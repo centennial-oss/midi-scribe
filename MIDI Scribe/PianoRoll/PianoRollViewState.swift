@@ -6,6 +6,10 @@
 import SwiftUI
 
 extension PianoRollView {
+    func bottomScrollbarInset(for _: CGFloat) -> CGFloat {
+        0
+    }
+
     func makeDrawContext(
         keyHeight: CGFloat,
         pixelsPerSecond: CGFloat,
@@ -57,6 +61,10 @@ extension PianoRollView {
         scrubAuditionDiagnostics = ScrubAuditionDiagnostics()
         lastPlaybackModelDiagnosticUptime = nil
         localScrubOffset = nil
+        dragZoomStartLocation = nil
+        dragZoomCurrentLocation = nil
+        shouldCenterPlayheadAfterDragZoom = false
+        shouldAnchorPlayheadLeadingAfterDragZoom = false
         viewModel.playbackEngine.stopScrubbingNotes()
         scrubEdgeAutoScrollDirection = 0
         scrubLastDragTranslationWidth = nil

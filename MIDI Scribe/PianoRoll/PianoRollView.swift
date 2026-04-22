@@ -14,15 +14,6 @@ struct PianoRollView: View {
     static let playheadKnobVerticalOffset: CGFloat = 2
     @Environment(\.colorScheme) private var colorScheme
 
-    private var rollBackground: Color {
-        colorScheme == .dark ? Color.black : Color(white: 0.975)
-    }
-
-    /// Playhead line + scrub handle: orange in both modes.
-    private var playheadChrome: Color {
-        Color.orange
-    }
-
     /// Lime note bars on the roll when not under the playhead.
     var noteBarIdleColor: Color {
         colorScheme == .dark ? Color(red: 0.6, green: 1.0, blue: 0.2) : Color(red: 0.1, green: 0.5, blue: 0.05)
@@ -31,11 +22,6 @@ struct PianoRollView: View {
     /// Pink / fuchsia note bars while the playhead is over the note.
     var noteBarPlayingColor: Color {
         colorScheme == .dark ? Color(red: 1.0, green: 0.2, blue: 0.8) : Color(red: 0.9, green: 0.1, blue: 0.7)
-    }
-
-    /// Stroke around the clipped roll (`rollCornerRadius`).
-    private var rollBorderColor: Color {
-        colorScheme == .dark ? Color.black : Color(red: 0.6, green: 0.6, blue: 0.6)
     }
 
     let take: RecordedTake
@@ -67,6 +53,9 @@ struct PianoRollView: View {
     @State var lastScrubAuditionUptime: TimeInterval?; @State var scrubAuditionDiagnostics = ScrubAuditionDiagnostics()
     @State var lastPlaybackModelDiagnosticUptime: TimeInterval?; @State var scrubEdgeAutoScrollDirection: CGFloat = 0
     @State var scrubLastDragTranslationWidth: CGFloat?
+    @State var dragZoomStartLocation: CGPoint?; @State var dragZoomCurrentLocation: CGPoint?
+    @State var shouldCenterPlayheadAfterDragZoom = false
+    @State var shouldAnchorPlayheadLeadingAfterDragZoom = false
     /// Local scrub offset used when the playback engine has no active take
     /// for this piano roll (e.g. before the user has ever pressed Play).
     /// Without this, the engine's `currentPlaybackTime` would stay at 0
@@ -74,13 +63,13 @@ struct PianoRollView: View {
     @State var localScrubOffset: TimeInterval?; @State var isScrubHandleHovered = false
 
     /// To smoothly zoom on iOS:
-    @State var currentMagnification: CGFloat = 1.0; @State var pinchStartZoomLevel: CGFloat?
-    @State var isZoomCentering = false
+    @State var currentMagnification: CGFloat = 1.0
+    @State var pinchStartZoomLevel: CGFloat?; @State var isZoomCentering = false
     @State var isPinchZooming = false; @State var zoomCenteringTask: Task<Void, Never>?
-    @State var playbackCenteringAnimationEndsAt: Date?; @State var didPrimeInitialLayout = false
+    @State var playbackCenteringAnimationEndsAt: Date?
+    @State var didPrimeInitialLayout = false; @State var layoutPrimeID = 0
     /// iOS can deliver an initial 0x0 layout pass for this view. Prime once
     /// when we observe a usable size to force a deterministic first render.
-    @State var layoutPrimeID = 0
 
     var body: some View {
         TimelineView(.animation(paused: !shouldAnimatePianoRoll)) { context in
@@ -89,11 +78,6 @@ struct PianoRollView: View {
                 // content so the Canvas stays blank until something (e.g. zoom) forces a relayout.
                 let layoutWidth = max(geo.size.width, 1)
                 let layoutHeight = max(geo.size.height, 1)
-                let availableHeight = layoutHeight - Self.contentTopInset
-                let keyHeight = max(3.15, availableHeight / 88.0)
-                let rollHeight = keyHeight * 88.0
-                let viewHeight = rollHeight + Self.contentTopInset
-
                 let secondsLength = max(0.01, take.duration)
                 let zoomInterpolation = max(0, min(1, zoomLevel + (currentMagnification - 1.0) * 0.5))
                 let timelineLayoutWidth = max(layoutWidth - Self.timelineLeadingInset, 1)
@@ -104,6 +88,11 @@ struct PianoRollView: View {
                 let pixelsPerSecond = secondsLength < 5.0 ? minPxPerSec : max(minPxPerSec, calculatedPxPerSec)
 
                 let rollWidth = max(layoutWidth, Self.timelineLeadingInset + (secondsLength * pixelsPerSecond))
+                let bottomInset = bottomScrollbarInset(for: zoomLevel)
+                let availableHeight = max(1, layoutHeight - Self.contentTopInset - bottomInset)
+                let keyHeight = max(3.15, availableHeight / 88.0)
+                let rollHeight = keyHeight * 88.0
+                let viewHeight = layoutHeight
 
                 let playOffset = currentPlaybackOffset
                 let playheadColor = (dragStartOffset != nil || isScrubHandleHovered)
@@ -181,6 +170,8 @@ struct PianoRollView: View {
                                             }
                                     )
                             }
+
+                            dragZoomSelectionOverlay(viewHeight: viewHeight)
                         }
                         .frame(width: rollWidth, height: viewHeight, alignment: .topLeading)
                         .contentShape(Rectangle())
@@ -205,7 +196,20 @@ struct PianoRollView: View {
                             logPlaybackModelDiagnosticsIfNeeded(at: playOffset)
                         }
                         .onChange(of: zoomLevel) { _, _ in
-                            beginPausedZoomCentering(debounce: true)
+                            if shouldAnchorPlayheadLeadingAfterDragZoom {
+                                proxy.scrollTo("playhead", anchor: .leading)
+                                Task { @MainActor in
+                                    shouldAnchorPlayheadLeadingAfterDragZoom = false
+                                    shouldCenterPlayheadAfterDragZoom = false
+                                }
+                            } else if shouldCenterPlayheadAfterDragZoom {
+                                proxy.scrollTo("playhead", anchor: .center)
+                                Task { @MainActor in
+                                    shouldCenterPlayheadAfterDragZoom = false
+                                }
+                            } else {
+                                beginPausedZoomCentering(debounce: true)
+                            }
                         }
                         .onChange(of: isTakePlaying) { _, isPlaying in
                             if isPlaying {
@@ -219,22 +223,20 @@ struct PianoRollView: View {
                             proxy.scrollTo("playheadStart", anchor: .leading)
                         }
                         .gesture(
-                            MagnificationGesture()
-                                .onChanged(handlePinchZoomChanged)
-                                .onEnded(handlePinchZoomEnded)
+                            dragZoomGesture(
+                                rollWidth: rollWidth,
+                                layoutWidth: layoutWidth,
+                                timelineLayoutWidth: timelineLayoutWidth,
+                                pixelsPerSecond: pixelsPerSecond,
+                                playOffset: playOffset
+                            ),
+                            including: isLive ? .subviews : .all
                         )
                         .simultaneousGesture(
-                            SpatialTapGesture()
-                                .onEnded { value in
-                                    handleRollTap(
-                                        at: value.location,
-                                        rollWidth: rollWidth,
-                                        pixelsPerSecond: pixelsPerSecond,
-                                        viewHeight: viewHeight,
-                                        playOffset: playOffset
-                                    )
-                                },
-                            including: isLive ? .subviews : .all
+                            MagnificationGesture()
+                                .onChanged(handlePinchZoomChanged)
+                                .onEnded(handlePinchZoomEnded),
+                            including: .all
                         )
                     }
                 }
@@ -302,4 +304,20 @@ struct PianoRollView: View {
         }
     }
 
+}
+
+extension PianoRollView {
+    var rollBackground: Color {
+        colorScheme == .dark ? Color.black : Color(white: 0.975)
+    }
+
+    /// Playhead line + scrub handle: orange in both modes.
+    var playheadChrome: Color {
+        Color.orange
+    }
+
+    /// Stroke around the clipped roll (`rollCornerRadius`).
+    var rollBorderColor: Color {
+        colorScheme == .dark ? Color.black : Color(red: 0.6, green: 0.6, blue: 0.6)
+    }
 }
