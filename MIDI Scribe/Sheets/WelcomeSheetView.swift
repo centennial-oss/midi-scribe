@@ -223,6 +223,7 @@ struct WelcomeSheetView: View {
         WelcomeSheetFlow(kind: .welcome) {
             dismiss()
         }
+        .interactiveDismissDisabled()
     }
 }
 

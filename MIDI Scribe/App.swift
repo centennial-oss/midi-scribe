@@ -61,9 +61,6 @@ struct MIDIScribeApp: App {
                     HelpView {
                         appState.isShowingHelp = false
                     }
-                    #if os(macOS)
-                    .interactiveDismissDisabled()
-                    #endif
                 }
         }
         .modelContainer(modelContainer)

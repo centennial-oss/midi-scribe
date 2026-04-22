@@ -11,6 +11,8 @@ struct IPadMacWelcomeSheet: View {
     @Binding var selection: Int
     let onClose: () -> Void
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
@@ -21,14 +23,17 @@ struct IPadMacWelcomeSheet: View {
                 onboardingFooter
             }
             .padding(24)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
+            .overlay(alignment: .topTrailing) {
+                if kind == .help {
                     BasicButton(
                         context: BasicButtonContext(
                             action: onClose,
-                            label: selection == panes.count - 1 ? kind.primaryButtonTitle : "Close"
+                            label: "Close",
+                            systemImage: "xmark",
+                            size: .regular
                         )
                     )
+                    .padding(24)
                 }
             }
         }
@@ -49,14 +54,12 @@ struct IPadMacWelcomeSheet: View {
         .indexViewStyle(.page(backgroundDisplayMode: .interactive))
         #else
         VStack(spacing: 14) {
-            TabView(selection: $selection) {
-                ForEach(Array(panes.enumerated()), id: \.element.id) { index, pane in
-                    IPadMacWelcomePaneCard(pane: pane)
-                        .padding(.horizontal, 2)
-                        .tag(index)
-                }
+            if panes.indices.contains(selection) {
+                IPadMacWelcomePaneCard(pane: panes[selection])
+                    .padding(.horizontal, 2)
+                    .id(selection)
+                    .transition(.opacity)
             }
-            .tabViewStyle(.automatic)
 
             HStack(spacing: 8) {
                 ForEach(Array(panes.enumerated()), id: \.element.id) { index, _ in
@@ -70,7 +73,11 @@ struct IPadMacWelcomeSheet: View {
     }
 
     private func dotColor(for index: Int) -> Color {
-        index == selection ? Color.accentColor : Color.secondary.opacity(0.3)
+        if index == selection {
+            return Color.accentColor
+        } else {
+            return Color.primary.opacity(0.2)
+        }
     }
 
     private var onboardingHeader: some View {
