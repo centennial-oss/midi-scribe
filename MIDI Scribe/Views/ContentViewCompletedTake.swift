@@ -224,7 +224,8 @@ extension ContentView {
 
     @ViewBuilder
     private var completedTakeProgressAndErrors: some View {
-        if let pendingTakeOperation = viewModel.pendingOperation {
+        if let pendingTakeOperation = viewModel.pendingOperation,
+           pendingTakeOperation.shouldDisplayProgressNotice {
             HStack(spacing: 8) {
                 ProgressView()
                     .controlSize(.small)

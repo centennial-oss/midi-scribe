@@ -23,6 +23,15 @@ enum TakeListPendingOperation: Equatable {
         case .loadingSamples: return "Loading sample takes…"
         }
     }
+
+    var shouldDisplayProgressNotice: Bool {
+        switch self {
+        case .starring:
+            false
+        case .splitting, .merging, .renaming, .deleting, .loadingSamples:
+            true
+        }
+    }
 }
 
 enum TakeListBulkResult: Equatable {

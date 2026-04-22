@@ -98,7 +98,8 @@ extension ContentView {
             sectionHeader(title: "Recent Takes", showsEditButton: showsSidebarEditButton)
         }
 
-        if let pendingTakeOperation = viewModel.pendingOperation {
+        if let pendingTakeOperation = viewModel.pendingOperation,
+           pendingTakeOperation.shouldDisplayProgressNotice {
             Section {
                 HStack(spacing: 8) {
                     ProgressView()

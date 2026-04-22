@@ -31,7 +31,8 @@ extension ContentView {
                 editingTakesSelectionContent
             }
 
-            if let pendingTakeOperation = viewModel.pendingOperation {
+            if let pendingTakeOperation = viewModel.pendingOperation,
+               pendingTakeOperation.shouldDisplayProgressNotice {
                 HStack(spacing: 8) {
                     ProgressView()
                         .controlSize(.small)
