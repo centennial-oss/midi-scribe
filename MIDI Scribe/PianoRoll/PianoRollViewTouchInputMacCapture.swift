@@ -176,7 +176,7 @@ struct PianoRollMacThreeFingerSwipeCaptureView: NSViewRepresentable {
                 event.type == .rightMouseDown || event.type == .rightMouseUp ||
                 event.type == .otherMouseDown || event.type == .otherMouseUp ||
                 event.type == .leftMouseDragged || event.type == .rightMouseDragged ||
-                event.type == .otherMouseDragged {
+                event.type == .otherMouseDragged || event.type == .mouseMoved {
                 return nil
             }
             return super.hitTest(point)

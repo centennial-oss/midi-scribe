@@ -212,12 +212,16 @@ extension PianoRollView {
     ) -> Bool {
         guard !isTakePlaying else { return false }
         let playheadX = Self.timelineLeadingInset + (CGFloat(playOffset) * pixelsPerSecond)
-        let scrubHandleCenterY = Self.contentTopInset + Self.playheadKnobVerticalOffset
-        let scrubHandleCenter = CGPoint(x: playheadX, y: scrubHandleCenterY)
+        let scrubHandleDiameter: CGFloat = 24
+        let scrubHandleHitRadius = (scrubHandleDiameter / 2) + 28
+        let scrubHandleCenter = CGPoint(
+            x: playheadX + 1,
+            y: Self.playheadKnobVerticalOffset + (scrubHandleDiameter / 2)
+        )
         let deltaX = location.x - scrubHandleCenter.x
         let deltaY = location.y - scrubHandleCenter.y
         let distance = (deltaX * deltaX + deltaY * deltaY).squareRoot()
-        return distance <= 18
+        return distance <= scrubHandleHitRadius
     }
 
     func seekPlayback(to offset: TimeInterval) {

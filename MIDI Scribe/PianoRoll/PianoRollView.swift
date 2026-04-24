@@ -30,7 +30,7 @@ struct PianoRollView: View {
     @State var lastScrubAuditionUptime: TimeInterval?; @State var scrubAuditionDiagnostics = ScrubAuditionDiagnostics()
     @State var lastPlaybackModelDiagnosticUptime: TimeInterval?; @State var scrubEdgeAutoScrollDirection: CGFloat = 0
     @State var scrubLastDragTranslationWidth: CGFloat?; @State var dragZoomStartLocation: CGPoint?
-    @State var dragZoomCurrentLocation: CGPoint?; @State var hasPointerHover = false
+    @State var dragZoomCurrentLocation: CGPoint?
     @State var shouldCenterPlayheadAfterDragZoom = false
     /// Local scrub offset used when the playback engine has no active take
     /// for this piano roll (e.g. before the user has ever pressed Play).
@@ -41,7 +41,8 @@ struct PianoRollView: View {
     @State var isZoomCentering = false; @State var zoomCenteringTask: Task<Void, Never>?
     @State var playbackCenteringAnimationEndsAt: Date?; @State var didPrimeInitialLayout = false
     @State var layoutPrimeID = 0; @State var playheadGlobalX: CGFloat?
-    @State var isTwoFingerZoomDragActive = false; @State var isThreeFingerZoomSwipeActive = false
+    @State var isTwoFingerZoomDragActive = false; @State var isIndirectPointerDragActive = false
+    @State var isThreeFingerZoomSwipeActive = false
     @State var pausedZoomPlayheadAnchorX: CGFloat?; @State var delayPlaybackCenteringUntilCenter = false
     @State var skipNextPausedZoomCentering = false; @State var shouldAnchorDragZoomSelectionStart = false
     @State var dragZoomSelectionStartOffset: TimeInterval?; @State var measuredBottomScrollbarInset: CGFloat = 0
@@ -233,17 +234,23 @@ extension PianoRollView {
                             )
                         )
                         .modifier(touchInputModifier)
-                        .onHover { if $0 { hasPointerHover = true } }
                     }
                     .onPreferenceChange(PlayheadGlobalXPreferenceKey.self) { playheadGlobalX = $0 }
                 }
-                .scrollDisabled(!canScrollHorizontally || isTwoFingerZoomDragActive || isThreeFingerZoomSwipeActive)
+                .scrollDisabled(
+                    !canScrollHorizontally ||
+                    isTwoFingerZoomDragActive ||
+                    isIndirectPointerDragActive ||
+                    isThreeFingerZoomSwipeActive
+                )
                 .id(layoutPrimeID)
                 .frame(height: viewHeight)
 #if os(macOS)
                 .background(
                     PianoRollOverlayScrollerConfigurator(zoomLevel: zoomLevel) { measuredBottomScrollbarInset = $0 }
                 )
+#elseif os(iOS)
+                .background(PianoRollOverlayScrollerConfigurator())
 #endif
                 .clipShape(RoundedRectangle(cornerRadius: Self.rollCornerRadius, style: .continuous))
                 .overlay {
@@ -325,6 +332,7 @@ extension PianoRollView {
                 playOffset: playOffset
             ),
             isTwoFingerZoomDragActive: $isTwoFingerZoomDragActive,
+            isIndirectPointerDragActive: $isIndirectPointerDragActive,
             isThreeFingerZoomSwipeActive: $isThreeFingerZoomSwipeActive
         )
     }
@@ -365,8 +373,6 @@ extension PianoRollView {
     var dragZoomShouldHandleInput: Bool {
         #if os(macOS)
         true
-        #elseif os(iOS)
-        UIDevice.current.userInterfaceIdiom == .pad && hasPointerHover
         #else
         false
         #endif

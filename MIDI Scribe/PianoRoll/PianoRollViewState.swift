@@ -201,6 +201,7 @@ extension PianoRollView {
         localScrubOffset = nil
         dragZoomStartLocation = nil
         dragZoomCurrentLocation = nil
+        isIndirectPointerDragActive = false
         isThreeFingerZoomSwipeActive = false
         pausedZoomPlayheadAnchorX = nil
         shouldCenterPlayheadAfterDragZoom = false

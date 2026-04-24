@@ -174,3 +174,49 @@ private extension NSView {
     }
 }
 #endif
+
+#if os(iOS)
+import UIKit
+
+struct PianoRollOverlayScrollerConfigurator: UIViewRepresentable {
+    func makeUIView(context: Context) -> ConfiguratorView {
+        ConfiguratorView()
+    }
+
+    func updateUIView(_ uiView: ConfiguratorView, context: Context) {
+        uiView.applyScrollConfigurationIfNeeded()
+    }
+
+    final class ConfiguratorView: UIView {
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            applyScrollConfigurationIfNeeded()
+        }
+
+        override func didMoveToSuperview() {
+            super.didMoveToSuperview()
+            applyScrollConfigurationIfNeeded()
+        }
+
+        func applyScrollConfigurationIfNeeded() {
+            DispatchQueue.main.async { [weak self] in
+                guard let self, let scrollView = self.locateOwningScrollView() else { return }
+                scrollView.alwaysBounceVertical = false
+                scrollView.showsVerticalScrollIndicator = false
+                scrollView.isDirectionalLockEnabled = true
+            }
+        }
+
+        private func locateOwningScrollView() -> UIScrollView? {
+            var ancestor: UIView? = superview
+            while let current = ancestor {
+                if let scrollView = current as? UIScrollView {
+                    return scrollView
+                }
+                ancestor = current.superview
+            }
+            return nil
+        }
+    }
+}
+#endif

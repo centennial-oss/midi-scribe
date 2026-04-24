@@ -105,8 +105,27 @@ extension ContentView {
 
     @ToolbarContentBuilder
     private func completedTakeZoomToolbar() -> some ToolbarContent {
-        ToolbarItemGroup(placement: completedTakeToolbarPlacement) {
+        ToolbarItem(placement: completedTakeToolbarPlacement) {
+            #if os(iOS)
+            if UIDevice.current.userInterfaceIdiom == .pad {
+                Button {
+                    isPresentingZoomPopover.toggle()
+                } label: {
+                    Image(systemName: "plus.magnifyingglass")
+                }
+                .popover(isPresented: $isPresentingZoomPopover) {
+                    completedTakeZoomSliderRow()
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 16)
+                        .frame(minWidth: 250)
+                        .presentationCompactAdaptation(.popover)
+                }
+            } else {
+                completedTakeZoomSliderRow()
+            }
+            #else
             completedTakeZoomSliderRow()
+            #endif
         }
     }
 
@@ -297,7 +316,7 @@ extension ContentView {
                 #if os(macOS)
                 .frame(minWidth: 150, maxWidth: 200)
                 #else
-                .frame(minWidth: 100, maxWidth: 200)
+                .frame(minWidth: 100, maxWidth: 220)
                 #endif
 
             Image(systemName: "plus.magnifyingglass")

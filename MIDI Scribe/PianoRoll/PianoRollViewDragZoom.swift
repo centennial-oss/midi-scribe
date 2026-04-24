@@ -69,12 +69,13 @@ extension PianoRollView {
         }
     }
 
+    @discardableResult
     func handleRollPressChanged(
         value: DragGesture.Value,
         rollWidth: CGFloat,
         pixelsPerSecond: CGFloat,
         playOffset: TimeInterval
-    ) {
+    ) -> Bool {
         handleRollPressChanged(
             start: value.startLocation,
             location: value.location,
@@ -84,31 +85,33 @@ extension PianoRollView {
         )
     }
 
+    @discardableResult
     func handleRollPressChanged(
         start: CGPoint,
         location: CGPoint,
         rollWidth: CGFloat,
         pixelsPerSecond: CGFloat,
         playOffset: TimeInterval
-    ) {
-        guard !isLive, pixelsPerSecond > 0, rollWidth > 0 else { return }
-        guard !isTakePlaying else { return }
-        guard start.x.isFinite, start.y.isFinite else { return }
+    ) -> Bool {
+        guard !isLive, pixelsPerSecond > 0, rollWidth > 0 else { return false }
+        guard !isTakePlaying else { return false }
+        guard start.x.isFinite, start.y.isFinite else { return false }
 
         if dragZoomStartLocation == nil {
             guard !isTapOnScrubHandle(
                 start,
                 pixelsPerSecond: pixelsPerSecond,
                 playOffset: playOffset
-            ) else { return }
+            ) else { return false }
             dragZoomStartLocation = start
             dragZoomCurrentLocation = start
             shouldCenterPlayheadAfterDragZoom = false
         }
 
-        guard dragZoomStartLocation != nil else { return }
-        guard location.x.isFinite, location.y.isFinite else { return }
+        guard dragZoomStartLocation != nil else { return false }
+        guard location.x.isFinite, location.y.isFinite else { return false }
         dragZoomCurrentLocation = location
+        return true
     }
 
     func handleRollPressEnded(

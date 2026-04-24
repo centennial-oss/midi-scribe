@@ -61,6 +61,7 @@ struct ContentView: View {
     @State var completedTakeRenderDelayRequestID = 0
     @State var completedTakeReadyToRenderID: UUID?
     @State var swipeRevealedTakeID: UUID?
+    @State var isPresentingZoomPopover = false
     @State var hasEvaluatedWelcomeSheet = false
     @State var isPresentingWelcomeSheet = false
     init(settings: AppSettings) {
