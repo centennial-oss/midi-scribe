@@ -38,7 +38,10 @@ struct ContentView: View {
     @State var exportDocument: MIDIFileDocument?
     @State var exportSuggestedName: String = "take"
     @State var isPresentingExporter = false
+    @State var isPresentingImporter = false
     @State var exportErrorMessage: String?
+    @State var importAlert: MIDIImportAlert?
+    @State var pendingSharedImport: PendingSharedImport?
     @State var isPresentingMergeDialog = false
     @State var mergeSilenceMsText: String = "0"
     @State var renamingTakeID: UUID?
@@ -169,51 +172,67 @@ struct ContentView: View {
     }
 
     private func observerContent(_ content: some View) -> some View {
-        content
-        // Rebuild our lightweight list whenever rows are added/removed/reordered.
-        // We key on takeIDs only (O(n) string compare) instead of faulting
-        // extra @Attribute properties on every body pass, which was causing
-        // main-thread hangs on sidebar selection.
-        .onChange(of: storedRecentTakes.map(\.takeID)) { _, _ in
-            let items = storedRecentTakes.map(\.listItem)
-            DispatchQueue.main.async {
-                viewModel.setRecentTakes(items)
+        let observedContent = content
+            // Rebuild our lightweight list whenever rows are added/removed/reordered.
+            // We key on takeIDs only (O(n) string compare) instead of faulting
+            // extra @Attribute properties on every body pass, which was causing
+            // main-thread hangs on sidebar selection.
+            .onChange(of: storedRecentTakes.map(\.takeID)) { _, _ in
+                let items = storedRecentTakes.map(\.listItem)
+                DispatchQueue.main.async {
+                    viewModel.setRecentTakes(items)
+                }
             }
-        }
 #if os(macOS)
-        .onChange(of: viewModel.selectedSidebarItem) { oldValue, newValue in
-            // Defer so we don't mutate @Published state (multiSelection) from
-            // within a view update triggered by the selection change itself.
-            DispatchQueue.main.async {
-                handleSelectionChangeForModifiers(old: oldValue, new: newValue)
+            .onChange(of: viewModel.selectedSidebarItem) { oldValue, newValue in
+                // Defer so we don't mutate @Published state (multiSelection) from
+                // within a view update triggered by the selection change itself.
+                DispatchQueue.main.async {
+                    handleSelectionChangeForModifiers(old: oldValue, new: newValue)
+                }
             }
-        }
 #endif
-        .onChange(of: viewModel.lastCompletedTake?.id) { _, _ in
-            persistLastCompletedTakeIfNeeded()
-        }
-        .onChange(of: appState.sampleTakeLoadRequestID) { _, _ in
-            loadSampleTakes()
-        }
-        .onChange(of: appState.dataResetRequestID) { _, _ in
-            resetAfterDataErase()
-        }
-        .onChange(of: appState.takeCommandRequest) { _, request in
-            handleTakeCommandRequest(request)
-        }
-        .onChange(of: appState.modalPresentationRequest) { _, request in
-            handleModalPresentationRequest(request)
-        }
-        .onReceive(viewModel.objectWillChange) { _ in
-            DispatchQueue.main.async {
-                updateTakeCommandState()
+            .onChange(of: viewModel.lastCompletedTake?.id) { _, _ in
+                persistLastCompletedTakeIfNeeded()
             }
-        }
-        .onReceive(viewModel.playbackEngine.objectWillChange) { _ in
-            DispatchQueue.main.async {
-                updateTakeCommandState()
+            .onChange(of: appState.sampleTakeLoadRequestID) { _, _ in
+                loadSampleTakes()
             }
-        }
+            .onReceive(viewModel.objectWillChange) { _ in
+                DispatchQueue.main.async {
+                    updateTakeCommandState()
+                }
+            }
+            .onReceive(viewModel.playbackEngine.objectWillChange) { _ in
+                DispatchQueue.main.async {
+                    updateTakeCommandState()
+                }
+            }
+
+        return bulkResultObservationContent(commandObservationContent(observedContent))
+    }
+
+    private func commandObservationContent(_ content: some View) -> some View {
+        content
+            .onChange(of: appState.dataResetRequestID) { _, _ in
+                resetAfterDataErase()
+            }
+            .onChange(of: appState.midiImportRequestID) { _, _ in
+                beginMIDIImportPresentation()
+            }
+            .onChange(of: appState.takeCommandRequest) { _, request in
+                handleTakeCommandRequest(request)
+            }
+            .onChange(of: appState.modalPresentationRequest) { _, request in
+                handleModalPresentationRequest(request)
+            }
+            .onOpenURL { url in
+                handleIncomingMIDIURL(url)
+            }
+    }
+
+    private func bulkResultObservationContent(_ content: some View) -> some View {
+        content
         // When a bulk merge, star, or delete completes, exit Edit mode automatically
         // and restore/update the selected sidebar item appropriately.
         .onChange(of: viewModel.lastBulkResult) { _, newValue in
@@ -227,6 +246,20 @@ struct ContentView: View {
         }
     }
 
+}
+
+struct PendingSharedImport: Identifiable, Equatable {
+    let url: URL
+    let fileName: String
+
+    var id: String { url.absoluteString }
+}
+
+struct MIDIImportAlert: Identifiable, Equatable {
+    let title: String
+    let message: String
+
+    var id: String { "\(title)\n\(message)" }
 }
 
 #if os(macOS)

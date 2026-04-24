@@ -307,7 +307,7 @@ actor TakePersistenceService {
 
     // MARK: - Run helpers
 
-    private func run(_ block: @Sendable @escaping (ModelContext) throws -> Void) async throws {
+    func run(_ block: @Sendable @escaping (ModelContext) throws -> Void) async throws {
         let container = self.container
         try await Task.detached(priority: .userInitiated) {
             let context = ModelContext(container)
@@ -315,7 +315,9 @@ actor TakePersistenceService {
         }.value
     }
 
-    private func runReturning<T: Sendable>(_ block: @Sendable @escaping (ModelContext) throws -> T) async throws -> T {
+    func runReturning<T: Sendable>(
+        _ block: @Sendable @escaping (ModelContext) throws -> T
+    ) async throws -> T {
         let container = self.container
         return try await Task.detached(priority: .userInitiated) {
             let context = ModelContext(container)

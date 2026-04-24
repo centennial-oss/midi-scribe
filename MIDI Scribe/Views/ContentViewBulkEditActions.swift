@@ -20,40 +20,53 @@ extension ContentView {
     @ViewBuilder
     var bulkEditActionButtons: some View {
         HStack(spacing: 16) {
-            if canMergeSelectedTakes {
+            if !hasBulkEditSelection {
                 BasicButton(
                     context: BasicButtonContext(
-                        action: {
-                            mergeSilenceMsText = "0"
-                            isPresentingMergeDialog = true
-                        },
-                        label: "Merge",
-                        systemImage: "arrow.triangle.merge"
+                        action: { beginMIDIImportPresentation() },
+                        label: compactBulkEditImportLabel,
+                        systemImage: "square.and.arrow.down"
                     )
                 )
                 .disabled(viewModel.isTakeActionInProgress)
             }
 
-            BasicButton(
-                context: BasicButtonContext(
-                    action: { viewModel.toggleStarForSelectedTakes() },
-                    label: viewModel.allSelectedAreStarred ? "Unstar" : "Star",
-                    systemImage: viewModel.allSelectedAreStarred ? "star.slash" : "star",
-                    backgroundColor: .yellow,
-                    foregroundColor: .black
-                )
-            )
-            .disabled(viewModel.isTakeActionInProgress)
+            if hasBulkEditSelection {
+                if canMergeSelectedTakes {
+                    BasicButton(
+                        context: BasicButtonContext(
+                            action: {
+                                mergeSilenceMsText = "0"
+                                isPresentingMergeDialog = true
+                            },
+                            label: "Merge",
+                            systemImage: "arrow.triangle.merge"
+                        )
+                    )
+                    .disabled(viewModel.isTakeActionInProgress)
+                }
 
-            BasicButton(
-                context: BasicButtonContext(
-                    action: { beginBulkDeleteConfirmation() },
-                    label: "Delete",
-                    systemImage: "trash",
-                    role: .destructive
+                BasicButton(
+                    context: BasicButtonContext(
+                        action: { viewModel.toggleStarForSelectedTakes() },
+                        label: viewModel.allSelectedAreStarred ? "Unstar" : "Star",
+                        systemImage: viewModel.allSelectedAreStarred ? "star.slash" : "star",
+                        backgroundColor: .yellow,
+                        foregroundColor: .black
+                    )
                 )
-            )
-            .disabled(viewModel.isTakeActionInProgress)
+                .disabled(viewModel.isTakeActionInProgress)
+
+                BasicButton(
+                    context: BasicButtonContext(
+                        action: { beginBulkDeleteConfirmation() },
+                        label: "Delete",
+                        systemImage: "trash",
+                        role: .destructive
+                    )
+                )
+                .disabled(viewModel.isTakeActionInProgress)
+            }
         }
     }
 
@@ -80,11 +93,17 @@ extension ContentView {
 
 #if os(iOS)
     var showsNarrowiPhoneBulkEditActionRow: Bool {
-        isNarrowiPhone && isEditingList && hasBulkEditSelection
+        isNarrowiPhone && isEditingList
+    }
+
+    var compactBulkEditImportLabel: String {
+        isNarrowiPhone ? "Import" : "Import MIDI File"
     }
 
     private var isNarrowiPhone: Bool {
         UIDevice.current.userInterfaceIdiom == .phone && horizontalSizeClass == .compact
     }
+#else
+    var compactBulkEditImportLabel: String { "Import MIDI File" }
 #endif
 }

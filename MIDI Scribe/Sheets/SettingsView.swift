@@ -283,14 +283,14 @@ private struct TakeStartEndControlSection: View {
                 TakeControlSignal.notes.name,
                 isOn: $settings.startTakeWithNoteEvents
             )
-            .toggleStyle(RoundCheckboxToggleStyle())
+            .toggleStyle(CheckboxToggleStyle())
 
             ForEach(TakeControlSignal.takeStartOptions.filter { $0 != .notes }) { signal in
                 Toggle(
                     "\(signal.name) \(signal.detail)",
                     isOn: controlSignalBinding(signal, selection: $settings.takeStartControlChanges)
                 )
-                .toggleStyle(RoundCheckboxToggleStyle())
+                .toggleStyle(CheckboxToggleStyle())
             }
         }
     }
@@ -308,7 +308,7 @@ private struct TakeStartEndControlSection: View {
                     "\(signal.name) \(signal.detail)",
                     isOn: controlSignalBinding(signal, selection: selection)
                 )
-                .toggleStyle(RoundCheckboxToggleStyle())
+                .toggleStyle(CheckboxToggleStyle())
             }
         }
     }

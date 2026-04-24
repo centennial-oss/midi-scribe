@@ -80,6 +80,32 @@ extension MIDILiveNoteViewModel {
         }
     }
 
+    func importMIDIFile(from url: URL) async -> Result<TakePersistenceService.ImportedTakeResult, Error> {
+        guard pendingOperation == nil else {
+            return .failure(SampleTakeLoadError.operationInProgress)
+        }
+        guard let persistenceService else {
+            let message = "Storage is not ready yet."
+            actionErrorText = message
+            return .failure(SampleTakeLoadError.storageUnavailable)
+        }
+
+        pendingOperation = .importing
+        actionErrorText = nil
+
+        do {
+            let imported = try await persistenceService.importMIDIFile(from: url)
+            pendingOperation = nil
+            selectedSidebarItem = .recentTake(imported.id)
+            return .success(imported)
+        } catch {
+            pendingOperation = nil
+            let message = "Unable to import MIDI file: \(error.localizedDescription)"
+            actionErrorText = message
+            return .failure(error)
+        }
+    }
+
     func splitCurrentPausedTake() {
         guard let takeID = playbackEngine.currentTakeID,
               let offset = playbackEngine.pausedAtOffset,

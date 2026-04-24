@@ -318,6 +318,8 @@ extension ContentView {
             adjustPianoRollZoom(by: 0.1)
         case .zoomOut:
             adjustPianoRollZoom(by: -0.1)
+        case .resetZoom:
+            resetPianoRollZoom()
         default:
             return false
         }
@@ -332,6 +334,10 @@ extension ContentView {
 
     func adjustPianoRollZoom(by delta: CGFloat) {
         pianoRollZoomLevel = max(0.0, min(1.0, pianoRollZoomLevel + delta))
+    }
+
+    func resetPianoRollZoom() {
+        pianoRollZoomLevel = 0.0
     }
 
     func updateTakeCommandState() {

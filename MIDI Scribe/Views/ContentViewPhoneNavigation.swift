@@ -10,6 +10,10 @@ import UIKit
 
 extension ContentView {
 #if os(iOS)
+    var isCompactIPhone: Bool {
+        UIDevice.current.userInterfaceIdiom == .phone && horizontalSizeClass == .compact
+    }
+
     func phoneFocusDetailColumnAfterSidebarSelection() {
         guard UIDevice.current.userInterfaceIdiom == .phone else { return }
         if suppressNextPhoneDetailFocus {

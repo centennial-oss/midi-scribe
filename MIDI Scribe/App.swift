@@ -129,6 +129,14 @@ struct MIDIScribeApp: App {
                 .keyboardShortcut("-", modifiers: [.command])
                 .disabled(!state.canPerformTakeAction || !state.canZoom)
 
+                Button("Reset Zoom") {
+                    if let takeID {
+                        appState.requestTakeCommand(.resetZoom(takeID))
+                    }
+                }
+                .keyboardShortcut("0", modifiers: [.command])
+                .disabled(!state.canPerformTakeAction || !state.canZoom)
+
                 Divider()
 
                 Button(state.isStarred ? "Unstar" : "Star") {
@@ -159,6 +167,14 @@ struct MIDIScribeApp: App {
             CommandGroup(replacing: .newItem) {
                 let state = appState.takeCommandState
                 let takeID = state.takeID
+
+                Button("Import MIDI File…") {
+                    appState.requestMIDIImport()
+                }
+                .keyboardShortcut("o", modifiers: [.command])
+                .disabled(state.isActionInProgress)
+
+                Divider()
 
                 Button("Export Take as .mid…") {
                     if let takeID {

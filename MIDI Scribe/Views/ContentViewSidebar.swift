@@ -199,7 +199,7 @@ extension ContentView {
                 Button {
                     toggleMultiSelection(take.id)
                 } label: {
-                    RoundCheckbox(isOn: viewModel.multiSelection.contains(take.id)) {
+                    Checkbox(isOn: viewModel.multiSelection.contains(take.id)) {
                         EmptyView()
                     }
                 }

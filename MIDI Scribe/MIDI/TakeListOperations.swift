@@ -6,6 +6,7 @@
 import Foundation
 
 enum TakeListPendingOperation: Equatable {
+    case importing
     case splitting
     case merging
     case renaming
@@ -15,6 +16,7 @@ enum TakeListPendingOperation: Equatable {
 
     var displayText: String {
         switch self {
+        case .importing: return "Importing MIDI file…"
         case .splitting: return "Splitting take…"
         case .merging: return "Merging takes…"
         case .renaming: return "Renaming take…"
@@ -28,7 +30,7 @@ enum TakeListPendingOperation: Equatable {
         switch self {
         case .starring:
             false
-        case .splitting, .merging, .renaming, .deleting, .loadingSamples:
+        case .importing, .splitting, .merging, .renaming, .deleting, .loadingSamples:
             true
         }
     }

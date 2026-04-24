@@ -51,12 +51,15 @@ extension ContentView {
     }
 
     private var editingTakesEmptySelectionHint: some View {
-        Text(
-            "Tap the circles next to Takes in the sidebar to select them. "
-                + "Once you've selected a Take, you can star or delete it in bulk. "
-                + "Merge becomes available after selecting two or more."
-        )
-        .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 16) {
+            Text(
+                "Tap Import MIDI File to bring in an exported take from another device, or tap the circles next to"
+                    + " Takes in the sidebar to select them for bulk actions."
+            )
+            .foregroundStyle(.secondary)
+
+            bulkEditActionButtons
+        }
     }
 
     private var editingTakesSelectionContent: some View {
@@ -109,7 +112,7 @@ extension ContentView {
             // just happened (if anything).
             let restore = resolvedSelectionAfterEdit()
 #if os(iOS)
-            if UIDevice.current.userInterfaceIdiom == .phone {
+            if isCompactIPhone {
                 suppressNextPhoneDetailFocus = true
             }
 #endif
@@ -120,7 +123,7 @@ extension ContentView {
             viewModel.selectedSidebarItem = restore
             preEditSelection = nil
 #if os(iOS)
-            if UIDevice.current.userInterfaceIdiom == .phone {
+            if isCompactIPhone {
                 preferredCompactColumn = .sidebar
                 phoneNavigationSplitColumnVisibility = .automatic
             }
@@ -130,14 +133,14 @@ extension ContentView {
             viewModel.multiSelection.removeAll()
             viewModel.clearLastBulkResult()
 #if os(iOS)
-            if UIDevice.current.userInterfaceIdiom == .phone {
+            if isCompactIPhone {
                 suppressNextPhoneDetailFocus = true
             }
 #endif
             isEditingList = true
             viewModel.selectedSidebarItem = .editingTakes
 #if os(iOS)
-            if UIDevice.current.userInterfaceIdiom == .phone {
+            if isCompactIPhone {
                 preferredCompactColumn = .sidebar
                 phoneNavigationSplitColumnVisibility = .automatic
             }

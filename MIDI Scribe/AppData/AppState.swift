@@ -24,6 +24,7 @@ enum TakeCommandRequest: Equatable {
     case export(UUID)
     case zoomIn(UUID)
     case zoomOut(UUID)
+    case resetZoom(UUID)
     case delete(UUID)
 
     var takeID: UUID? {
@@ -41,6 +42,7 @@ enum TakeCommandRequest: Equatable {
              .export(let takeID),
              .zoomIn(let takeID),
              .zoomOut(let takeID),
+             .resetZoom(let takeID),
              .delete(let takeID):
             return takeID
         }
@@ -95,6 +97,7 @@ final class AppState: ObservableObject {
     @Published var sampleTakeLoadResult: SampleTakeLoadResult?
     @Published var isLoadingSampleTakes = false
     @Published var dataResetRequestID = UUID()
+    @Published var midiImportRequestID = UUID()
     @Published var takeCommandState = TakeCommandState()
     @Published var takeCommandRequest: TakeCommandRequest?
     @Published var modalPresentationRequest: AppModalPresentationRequest?
@@ -156,6 +159,10 @@ final class AppState: ObservableObject {
         dataResetRequestID = UUID()
     }
 
+    func requestMIDIImport() {
+        midiImportRequestID = UUID()
+    }
+
     func requestTakeCommand(_ request: TakeCommandRequest) {
         takeCommandRequest = request
     }
@@ -195,6 +202,9 @@ final class AppState: ObservableObject {
             return true
         case "-":
             requestTakeCommand(.zoomOut(takeID))
+            return true
+        case "0":
+            requestTakeCommand(.resetZoom(takeID))
             return true
         default:
             return false

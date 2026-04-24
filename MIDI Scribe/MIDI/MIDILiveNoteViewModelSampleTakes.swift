@@ -35,7 +35,7 @@ extension MIDILiveNoteViewModel {
     }
 }
 
-private enum SampleTakeLoadError: LocalizedError {
+enum SampleTakeLoadError: LocalizedError {
     case operationInProgress
     case storageUnavailable
 

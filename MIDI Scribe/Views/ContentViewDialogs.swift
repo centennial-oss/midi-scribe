@@ -58,6 +58,11 @@ extension ContentView {
 
     private func exportContent(_ content: some View) -> some View {
         content
+            .fileImporter(
+                isPresented: $isPresentingImporter,
+                allowedContentTypes: [.midi],
+                onCompletion: handleMIDIImportSelection
+            )
             .fileExporter(
                 isPresented: $isPresentingExporter,
                 document: exportDocument,
@@ -75,6 +80,10 @@ extension ContentView {
     }
 
     private func alertContent(_ content: some View) -> some View {
+        importAlertContent(coreAlertContent(content))
+    }
+
+    private func coreAlertContent(_ content: some View) -> some View {
         content
             .alert("Merge \(viewModel.multiSelection.count) Takes", isPresented: $isPresentingMergeDialog) {
                 TextField("Silence between takes (ms)", text: $mergeSilenceMsText)
@@ -106,6 +115,39 @@ extension ContentView {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("This will permanently delete the selected takes. This action cannot be undone.")
+            }
+    }
+
+    private func importAlertContent(_ content: some View) -> some View {
+        content
+            .alert(
+                "Import MIDI File?",
+                isPresented: Binding(
+                    get: { pendingSharedImport != nil },
+                    set: { isPresented in
+                        if !isPresented {
+                            pendingSharedImport = nil
+                        }
+                    }
+                ),
+                presenting: pendingSharedImport
+            ) { sharedImport in
+                Button("Import") {
+                    pendingSharedImport = sharedImport
+                    confirmSharedMIDIImport()
+                }
+                Button("Cancel", role: .cancel) {
+                    pendingSharedImport = nil
+                }
+            } message: { sharedImport in
+                Text("Import \(sharedImport.fileName)?")
+            }
+            .alert(item: $importAlert) { alert in
+                Alert(
+                    title: Text(alert.title),
+                    message: Text(alert.message),
+                    dismissButton: .default(Text("OK"))
+                )
             }
     }
 

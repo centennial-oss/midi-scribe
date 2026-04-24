@@ -1,11 +1,11 @@
 //
-//  RoundCheckbox.swift
+//  Checkbox.swift
 //  MIDI Scribe
 //
 
 import SwiftUI
 
-struct RoundCheckbox<Label: View>: View {
+struct Checkbox<Label: View>: View {
     let isOn: Bool
     @ViewBuilder let label: () -> Label
 
@@ -20,12 +20,12 @@ struct RoundCheckbox<Label: View>: View {
     }
 }
 
-struct RoundCheckboxToggleStyle: ToggleStyle {
+struct CheckboxToggleStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
         Button {
             configuration.isOn.toggle()
         } label: {
-            RoundCheckbox(isOn: configuration.isOn) {
+            Checkbox(isOn: configuration.isOn) {
                 configuration.label
             }
             .contentShape(Rectangle())
