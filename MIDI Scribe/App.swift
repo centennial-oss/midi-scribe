@@ -82,7 +82,7 @@ struct MIDIScribeApp: App {
                 Button("Cancel Take", role: .destructive) {
                     appState.requestTakeCommand(.cancelCurrentTake)
                 }
-                .keyboardShortcut(.escape, modifiers: [])
+                .keyboardShortcut(.delete, modifiers: [])
                 .disabled(!state.canPerformCurrentTakeAction)
 
                 Button(state.isPlaying ? "Pause and Rewind to Beginning" : "Rewind to Beginning") {

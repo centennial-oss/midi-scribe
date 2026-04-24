@@ -44,7 +44,12 @@ extension PianoRollView {
     }
 
     var shouldCenterPausedPlayheadDuringZoom: Bool {
-        !isLive && !isTakePlaying && isZoomCentering
+        !isLive && !isTakePlaying && isZoomCentering && pausedZoomPlayheadAnchor != nil
+    }
+
+    var pausedZoomPlayheadAnchor: UnitPoint? {
+        guard let pausedZoomPlayheadAnchorX else { return nil }
+        return UnitPoint(x: pausedZoomPlayheadAnchorX, y: 0.5)
     }
 
     func shouldFollowPlayingPlayhead(at date: Date) -> Bool {
@@ -142,11 +147,19 @@ extension PianoRollView {
         proxy: ScrollViewProxy,
         context: PianoRollTimelineTickContext
     ) {
-        if shouldFollowPlayingPlayhead(at: date) || shouldCenterPausedPlayheadDuringZoom {
+        if shouldFollowPlayingPlayhead(at: date) {
             #if DEBUG
             NSLog("[PianoRollScrollTo] reason=timeline-follow target=playhead anchor=center")
             #endif
             proxy.scrollTo("playhead", anchor: .center)
+        } else if shouldCenterPausedPlayheadDuringZoom, let pausedZoomPlayheadAnchor {
+            #if DEBUG
+            NSLog(
+                "[PianoRollScrollTo] reason=paused-zoom-follow target=playhead anchorX=%.4f",
+                pausedZoomPlayheadAnchor.x
+            )
+            #endif
+            proxy.scrollTo("playhead", anchor: pausedZoomPlayheadAnchor)
         } else if isLive && context.rollWidth > context.layoutWidth {
             #if DEBUG
             NSLog("[PianoRollScrollTo] reason=timeline-live-trailing target=playhead anchor=trailing")
@@ -176,6 +189,8 @@ extension PianoRollView {
         localScrubOffset = nil
         dragZoomStartLocation = nil
         dragZoomCurrentLocation = nil
+        isThreeFingerZoomSwipeActive = false
+        pausedZoomPlayheadAnchorX = nil
         shouldCenterPlayheadAfterDragZoom = false
         viewModel.playbackEngine.stopScrubbingNotes()
         scrubEdgeAutoScrollDirection = 0
@@ -183,10 +198,18 @@ extension PianoRollView {
         playbackCenteringAnimationEndsAt = nil
     }
 
-    func beginPausedZoomCentering(debounce: Bool) {
+    func beginPausedZoomCentering(
+        debounce: Bool,
+        viewportFrameInGlobal: CGRect,
+        playheadGlobalX: CGFloat?
+    ) {
         guard !isLive, !isTakePlaying else { return }
         if !isZoomCentering {
             isZoomCentering = true
+            pausedZoomPlayheadAnchorX = pausedZoomAnchorX(
+                viewportFrameInGlobal: viewportFrameInGlobal,
+                playheadGlobalX: playheadGlobalX
+            )
         }
         guard debounce else { return }
 
@@ -196,9 +219,24 @@ extension PianoRollView {
             guard !Task.isCancelled else { return }
             await MainActor.run {
                 isZoomCentering = false
+                pausedZoomPlayheadAnchorX = nil
                 zoomCenteringTask = nil
             }
         }
+    }
+
+    private func pausedZoomAnchorX(
+        viewportFrameInGlobal: CGRect,
+        playheadGlobalX: CGFloat?
+    ) -> CGFloat? {
+        guard let playheadGlobalX else { return nil }
+        guard playheadGlobalX >= viewportFrameInGlobal.minX, playheadGlobalX <= viewportFrameInGlobal.maxX else {
+            return nil
+        }
+        let viewportWidth = viewportFrameInGlobal.width
+        guard viewportWidth > 0 else { return nil }
+        let normalizedX = (playheadGlobalX - viewportFrameInGlobal.minX) / viewportWidth
+        return min(max(0, normalizedX), 1)
     }
 
     func primeInitialLayoutIfNeeded(size: CGSize) {

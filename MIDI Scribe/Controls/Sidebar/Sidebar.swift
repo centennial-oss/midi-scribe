@@ -100,7 +100,7 @@ struct Sidebar<SidebarContent: View, DetailContent: View>: View {
     private let defaultSidebarWidth: CGFloat = 300
     #elseif os(iOS)
     private var defaultSidebarWidth: CGFloat {
-        UIDevice.current.userInterfaceIdiom == .phone ? 380 : 300
+        UIDevice.current.userInterfaceIdiom == .phone ? 380 : 380
     }
     #else
     private let defaultSidebarWidth: CGFloat = 300

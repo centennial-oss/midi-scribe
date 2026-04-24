@@ -74,6 +74,9 @@ final class MacScrollWheelCatcherView: NSView {
     }
 
     private func shouldHandleZoom(for event: NSEvent) -> Bool {
+        guard !event.hasPreciseScrollingDeltas else {
+            return false
+        }
         guard event.modifierFlags.isDisjoint(with: .deviceIndependentFlagsMask) else {
             return false
         }
