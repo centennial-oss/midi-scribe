@@ -229,6 +229,17 @@ struct ContentView: View {
 
     private func bulkResultObservationContent(_ content: some View) -> some View {
         content
+        #if os(iOS)
+        .onChange(of: isSidebarPresented) { _, isPresented in
+            // If the user dismisses the sidebar while in Edit mode, treat it
+            // the same as tapping Done in the sidebar: exit Edit mode and
+            // restore the prior detail selection.
+            guard !isPresented, isEditingList else { return }
+            DispatchQueue.main.async {
+                toggleEditMode()
+            }
+        }
+        #endif
         // When a bulk merge, star, or delete completes, exit Edit mode automatically
         // and restore/update the selected sidebar item appropriately.
         .onChange(of: viewModel.lastBulkResult) { _, newValue in

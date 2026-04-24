@@ -75,9 +75,24 @@ extension PianoRollView {
         pixelsPerSecond: CGFloat,
         playOffset: TimeInterval
     ) {
+        handleRollPressChanged(
+            start: value.startLocation,
+            location: value.location,
+            rollWidth: rollWidth,
+            pixelsPerSecond: pixelsPerSecond,
+            playOffset: playOffset
+        )
+    }
+
+    func handleRollPressChanged(
+        start: CGPoint,
+        location: CGPoint,
+        rollWidth: CGFloat,
+        pixelsPerSecond: CGFloat,
+        playOffset: TimeInterval
+    ) {
         guard !isLive, pixelsPerSecond > 0, rollWidth > 0 else { return }
         guard !isTakePlaying else { return }
-        let start = value.startLocation
         guard start.x.isFinite, start.y.isFinite else { return }
 
         if dragZoomStartLocation == nil {
@@ -89,11 +104,9 @@ extension PianoRollView {
             dragZoomStartLocation = start
             dragZoomCurrentLocation = start
             shouldCenterPlayheadAfterDragZoom = false
-            shouldAnchorPlayheadLeadingAfterDragZoom = false
         }
 
         guard dragZoomStartLocation != nil else { return }
-        let location = value.location
         guard location.x.isFinite, location.y.isFinite else { return }
         dragZoomCurrentLocation = location
     }
@@ -102,24 +115,20 @@ extension PianoRollView {
         value: DragGesture.Value,
         context: PianoRollDragZoomReleaseContext
     ) {
+        handleRollPressEnded(
+            start: dragZoomStartLocation ?? value.startLocation,
+            end: dragZoomCurrentLocation ?? value.location,
+            context: context
+        )
+    }
+
+    func handleRollPressEnded(
+        start: CGPoint,
+        end: CGPoint,
+        context: PianoRollDragZoomReleaseContext
+    ) {
         defer { resetDragZoomState() }
-
-        guard !isLive,
-              context.pixelsPerSecond > 0,
-              context.rollWidth > 0,
-              context.timelineLayoutWidth > 0 else { return }
-
-        let start = dragZoomStartLocation ?? value.startLocation
-        guard start.x.isFinite, start.y.isFinite else { return }
-        guard !isTapOnScrubHandle(
-            start,
-            pixelsPerSecond: context.pixelsPerSecond,
-            playOffset: context.playOffset
-        ) else { return }
-
-        if handleRollPressEndedWhilePlaying(start: start, context: context) { return }
-
-        let end = dragZoomCurrentLocation ?? value.location
+        guard shouldHandleRollPressEnd(start: start, context: context) else { return }
         guard end.x.isFinite, end.y.isFinite else { return }
 
         let dragWidth = abs(end.x - start.x)
@@ -127,6 +136,7 @@ extension PianoRollView {
             max(1, context.layoutWidth * Self.minimumDragZoomWidthFraction),
             Self.maximumForgivenDragWidth
         )
+        logDragZoomRelease(startX: start.x, endX: end.x, dragWidth: dragWidth, forgivenDragWidth: forgivenDragWidth)
         if dragWidth < forgivenDragWidth {
             handleRollTap(
                 at: start,
@@ -134,6 +144,7 @@ extension PianoRollView {
                 pixelsPerSecond: context.pixelsPerSecond,
                 playOffset: context.playOffset
             )
+            logDragZoomOutcomeTap()
             return
         }
 
@@ -143,22 +154,7 @@ extension PianoRollView {
             rollWidth: context.rollWidth,
             pixelsPerSecond: context.pixelsPerSecond
         )
-        guard selection.duration > 0 else { return }
-
-        let snappedSelection = snappedDragZoomSelectionStart(for: selection)
-        guard snappedSelection.duration > 0 else { return }
-
-        let nextZoomLevel = zoomLevel(for: snappedSelection, timelineLayoutWidth: context.timelineLayoutWidth)
-        let playheadWasInsideSelection =
-            context.playOffset >= snappedSelection.start && context.playOffset <= snappedSelection.end
-        if !playheadWasInsideSelection {
-            seekPlayback(to: snappedSelection.start)
-            shouldAnchorPlayheadLeadingAfterDragZoom = true
-        } else {
-            shouldAnchorPlayheadLeadingAfterDragZoom = false
-        }
-        shouldCenterPlayheadAfterDragZoom = !shouldAnchorPlayheadLeadingAfterDragZoom
-        zoomLevel = nextZoomLevel
+        applyDragZoomSelection(selection: selection, context: context)
     }
 
     private func handleRollPressEndedWhilePlaying(
@@ -206,16 +202,6 @@ extension PianoRollView {
         )
     }
 
-    private func snappedDragZoomSelectionStart(
-        for selection: PianoRollDragZoomSelection
-    ) -> PianoRollDragZoomSelection {
-        let snappedStart = snappedSeekOffset(forTappedOffset: selection.start)
-        return PianoRollDragZoomSelection(
-            start: min(snappedStart, selection.end),
-            end: selection.end
-        )
-    }
-
     private func zoomLevel(
         for selection: PianoRollDragZoomSelection,
         timelineLayoutWidth: CGFloat
@@ -237,5 +223,166 @@ extension PianoRollView {
                     (maxPixelsPerSecond - minPixelsPerSecond)
             )
         )
+    }
+
+    private func logDragZoomRelease(
+        startX: CGFloat,
+        endX: CGFloat,
+        dragWidth: CGFloat,
+        forgivenDragWidth: CGFloat
+    ) {
+        #if DEBUG
+        NSLog(
+            "[PianoRollDragZoom] release startX=%.2f endX=%.2f dragWidth=%.4f forgivenWidth=%.4f",
+            startX,
+            endX,
+            dragWidth,
+            forgivenDragWidth
+        )
+        #endif
+    }
+
+    private func logDragZoomOutcomeTap() {
+        #if DEBUG
+        NSLog("[PianoRollDragZoom] outcome=tap")
+        #endif
+    }
+
+    private func logDragZoomOutcomeCommit(
+        selection: PianoRollDragZoomSelection,
+        snappedSelection: PianoRollDragZoomSelection,
+        nextZoomLevel: CGFloat,
+        playheadWasInsideSelection: Bool
+    ) {
+        #if DEBUG
+        NSLog(
+            "[PianoRollDragZoom] outcome=commit selStart=%.4f selEnd=%.4f snappedStart=%.4f " +
+                "nextZoom=%.4f playheadInside=%@",
+            selection.start,
+            selection.end,
+            snappedSelection.start,
+            nextZoomLevel,
+            playheadWasInsideSelection ? "true" : "false"
+        )
+        #endif
+    }
+
+    private func applyDragZoomSelection(
+        selection: PianoRollDragZoomSelection,
+        context: PianoRollDragZoomReleaseContext
+    ) {
+        guard selection.duration > 0 else {
+            #if DEBUG
+            NSLog(
+                "[PianoRollDragZoom] outcome=abort reason=zeroSelection selStart=%.4f selEnd=%.4f",
+                selection.start,
+                selection.end
+            )
+            #endif
+            return
+        }
+        let effectiveSelection = selection
+        let nextZoomLevel = zoomLevel(for: effectiveSelection, timelineLayoutWidth: context.timelineLayoutWidth)
+        let playheadWasInsideSelection =
+            context.playOffset >= effectiveSelection.start && context.playOffset <= effectiveSelection.end
+        logDragZoomPreCommit(
+            effectiveSelection: effectiveSelection,
+            nextZoomLevel: nextZoomLevel,
+            context: context,
+            playheadWasInsideSelection: playheadWasInsideSelection
+        )
+        if !playheadWasInsideSelection {
+            let snappedSeek = snappedSeekOffset(forTappedOffset: effectiveSelection.start)
+            let clampedSeek = min(max(snappedSeek, effectiveSelection.start), effectiveSelection.end)
+            seekPlayback(to: clampedSeek)
+            delayPlaybackCenteringUntilCenter = true
+        } else {
+            let selectionMidpoint = (effectiveSelection.start + effectiveSelection.end) * 0.5
+            delayPlaybackCenteringUntilCenter = context.playOffset < selectionMidpoint
+        }
+        // Preserve the user-selected zoom window; do not auto-center
+        // when selection already includes the playhead.
+        shouldCenterPlayheadAfterDragZoom = false
+        logDragZoomOutcomeCommit(
+            selection: selection,
+            snappedSelection: effectiveSelection,
+            nextZoomLevel: nextZoomLevel,
+            playheadWasInsideSelection: playheadWasInsideSelection
+        )
+        dragZoomSelectionStartOffset = effectiveSelection.start
+        shouldAnchorDragZoomSelectionStart = true
+        skipNextPausedZoomCentering = true
+        zoomLevel = nextZoomLevel
+        logDragZoomPostCommit(
+            shouldCenterAfter: shouldCenterPlayheadAfterDragZoom,
+            skipPausedCenter: skipNextPausedZoomCentering,
+            delayPlaybackCenter: delayPlaybackCenteringUntilCenter
+        )
+    }
+
+    private func logDragZoomPreCommit(
+        effectiveSelection: PianoRollDragZoomSelection,
+        nextZoomLevel: CGFloat,
+        context: PianoRollDragZoomReleaseContext,
+        playheadWasInsideSelection: Bool
+    ) {
+        #if DEBUG
+        let selectionMidpoint = (effectiveSelection.start + effectiveSelection.end) * 0.5
+        let selectionHalfDuration = effectiveSelection.duration * 0.5
+        let playheadDeltaFromMid = context.playOffset - selectionMidpoint
+        let normalizedPlayheadPosition = selectionHalfDuration > 0
+            ? (playheadDeltaFromMid / selectionHalfDuration)
+            : 0
+        NSLog(
+            "[PianoRollDragZoom] pre-commit zoom=%.4f->%.4f play=%.4f inside=%@ " +
+                "selStart=%.4f selEnd=%.4f selDur=%.4f playDeltaMid=%.4f playNorm=%.4f " +
+                "layoutW=%.2f rollW=%.2f pxPerSec=%.4f",
+            zoomLevel,
+            nextZoomLevel,
+            context.playOffset,
+            playheadWasInsideSelection ? "true" : "false",
+            effectiveSelection.start,
+            effectiveSelection.end,
+            effectiveSelection.duration,
+            playheadDeltaFromMid,
+            normalizedPlayheadPosition,
+            context.layoutWidth,
+            context.rollWidth,
+            context.pixelsPerSecond
+        )
+        #endif
+    }
+
+    private func logDragZoomPostCommit(
+        shouldCenterAfter: Bool,
+        skipPausedCenter: Bool,
+        delayPlaybackCenter: Bool
+    ) {
+        #if DEBUG
+        NSLog(
+            "[PianoRollDragZoom] post-commit flags centerAfter=%@ skipPausedCenter=%@ delayPlaybackCenter=%@",
+            shouldCenterAfter ? "true" : "false",
+            skipPausedCenter ? "true" : "false",
+            delayPlaybackCenter ? "true" : "false"
+        )
+        #endif
+    }
+
+    private func shouldHandleRollPressEnd(
+        start: CGPoint,
+        context: PianoRollDragZoomReleaseContext
+    ) -> Bool {
+        guard !isLive,
+              context.pixelsPerSecond > 0,
+              context.rollWidth > 0,
+              context.timelineLayoutWidth > 0 else { return false }
+        guard start.x.isFinite, start.y.isFinite else { return false }
+        guard !isTapOnScrubHandle(
+            start,
+            pixelsPerSecond: context.pixelsPerSecond,
+            playOffset: context.playOffset
+        ) else { return false }
+        if handleRollPressEndedWhilePlaying(start: start, context: context) { return false }
+        return true
     }
 }

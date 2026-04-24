@@ -31,18 +31,20 @@ struct PianoRollView: View {
     @State var lastPlaybackModelDiagnosticUptime: TimeInterval?; @State var scrubEdgeAutoScrollDirection: CGFloat = 0
     @State var scrubLastDragTranslationWidth: CGFloat?; @State var dragZoomStartLocation: CGPoint?
     @State var dragZoomCurrentLocation: CGPoint?; @State var hasPointerHover = false
-    @State var shouldCenterPlayheadAfterDragZoom = false; @State var shouldAnchorPlayheadLeadingAfterDragZoom = false
+    @State var shouldCenterPlayheadAfterDragZoom = false
     /// Local scrub offset used when the playback engine has no active take
     /// for this piano roll (e.g. before the user has ever pressed Play).
     /// Without this, the engine's `currentPlaybackTime` would stay at 0
     /// during a drag because `currentTakeID` hasn't been assigned yet.
     @State var localScrubOffset: TimeInterval?; @State var isScrubHandleHovered = false
 
-    /// To smoothly zoom on iOS:
-    @State var currentMagnification: CGFloat = 1.0; @State var pinchStartZoomLevel: CGFloat?
-    @State var isZoomCentering = false; @State var isPinchZooming = false
-    @State var zoomCenteringTask: Task<Void, Never>?; @State var playbackCenteringAnimationEndsAt: Date?
+    @State var isZoomCentering = false; @State var zoomCenteringTask: Task<Void, Never>?
+    @State var playbackCenteringAnimationEndsAt: Date?
     @State var didPrimeInitialLayout = false; @State var layoutPrimeID = 0
+    @State var isTwoFingerZoomDragActive = false; @State var delayPlaybackCenteringUntilCenter = false
+    @State var skipNextPausedZoomCentering = false; @State var shouldAnchorDragZoomSelectionStart = false
+    @State var dragZoomSelectionStartOffset: TimeInterval?
+    @State var playheadGlobalX: CGFloat?
     /// iOS can deliver an initial 0x0 layout pass for this view. Prime once
     /// when we observe a usable size to force a deterministic first render.
 
@@ -54,7 +56,7 @@ struct PianoRollView: View {
                 let layoutWidth = max(geo.size.width, 1)
                 let layoutHeight = max(geo.size.height, 1)
                 let secondsLength = max(0.01, take.duration)
-                let zoomInterpolation = max(0, min(1, zoomLevel + (currentMagnification - 1.0) * 0.5))
+                let zoomInterpolation = max(0, min(1, zoomLevel))
                 let timelineLayoutWidth = max(layoutWidth - Self.timelineLeadingInset, 1)
                 let minPxPerSec = timelineLayoutWidth / secondsLength
                 let maxPxPerSec = timelineLayoutWidth / 5.0
@@ -74,9 +76,14 @@ struct PianoRollView: View {
                     ? Color.accentColor
                     : playheadChrome
                 let touchInputModifier = makeTouchInputModifier(
-                    rollWidth: rollWidth,
-                    pixelsPerSecond: pixelsPerSecond,
-                    playOffset: playOffset
+                    context: PianoRollTouchInputContext(
+                        rollWidth: rollWidth,
+                        layoutWidth: layoutWidth,
+                        timelineLayoutWidth: timelineLayoutWidth,
+                        pixelsPerSecond: pixelsPerSecond,
+                        playOffset: playOffset
+                    ),
+                    isTwoFingerZoomDragActive: $isTwoFingerZoomDragActive
                 )
 
                 ScrollView(.horizontal) {
@@ -107,14 +114,12 @@ struct PianoRollView: View {
 
                             let headX = Self.timelineLeadingInset + (playOffset * pixelsPerSecond)
 
-                            HStack(spacing: 0) {
-                                Spacer(minLength: 0)
-                                    .frame(width: headX)
-                                Color.clear
-                                    .frame(width: 1, height: viewHeight)
-                                    .id("playhead")
-                                Spacer(minLength: 0)
-                            }
+                            playheadMarkers(
+                                headX: headX,
+                                rollWidth: rollWidth,
+                                viewHeight: viewHeight,
+                                pixelsPerSecond: pixelsPerSecond
+                            )
 
                             Rectangle()
                                 .fill(playheadColor)
@@ -170,24 +175,37 @@ struct PianoRollView: View {
                             )
                         }
                         .onChange(of: zoomLevel) { _, _ in
-                            if shouldAnchorPlayheadLeadingAfterDragZoom {
-                                proxy.scrollTo("playhead", anchor: .leading)
+                            logZoomChangeDiagnostics(
+                                playOffset: playOffset,
+                                pixelsPerSecond: pixelsPerSecond,
+                                layoutWidth: layoutWidth
+                            )
+                            if shouldAnchorDragZoomSelectionStart {
+                                proxy.scrollTo("dragZoomSelectionStart", anchor: .leading)
+                                shouldAnchorDragZoomSelectionStart = false
                                 Task { @MainActor in
-                                    shouldAnchorPlayheadLeadingAfterDragZoom = false
-                                    shouldCenterPlayheadAfterDragZoom = false
+                                    await Task.yield()
+                                    proxy.scrollTo("dragZoomSelectionStart", anchor: .leading)
                                 }
                             } else if shouldCenterPlayheadAfterDragZoom {
                                 proxy.scrollTo("playhead", anchor: .center)
-                                Task { @MainActor in
-                                    shouldCenterPlayheadAfterDragZoom = false
-                                }
+                                shouldCenterPlayheadAfterDragZoom = false
+                                delayPlaybackCenteringUntilCenter = false
+                            } else if skipNextPausedZoomCentering {
+                                skipNextPausedZoomCentering = false
                             } else {
                                 beginPausedZoomCentering(debounce: true)
                             }
                         }
                         .onChange(of: isTakePlaying) { _, isPlaying in
                             if isPlaying {
-                                beginPlaybackCenteringAnimation(proxy: proxy)
+                                beginPlaybackCenteringAnimation(
+                                    proxy: proxy,
+                                    layoutWidth: layoutWidth,
+                                    pixelsPerSecond: pixelsPerSecond,
+                                    viewportFrameInGlobal: geo.frame(in: .global),
+                                    playheadGlobalX: playheadGlobalX
+                                )
                             } else {
                                 playbackCenteringAnimationEndsAt = nil
                             }
@@ -209,16 +227,12 @@ struct PianoRollView: View {
                                 including: isLive ? .subviews : .all
                             )
                         )
-                        .simultaneousGesture(
-                            MagnificationGesture()
-                                .onChanged(handlePinchZoomChanged)
-                                .onEnded(handlePinchZoomEnded),
-                            including: .all
-                        )
                         .modifier(touchInputModifier)
                         .onHover { if $0 { hasPointerHover = true } }
                     }
+                    .onPreferenceChange(PlayheadGlobalXPreferenceKey.self) { playheadGlobalX = $0 }
                 }
+                .scrollDisabled(isTwoFingerZoomDragActive)
                 .id(layoutPrimeID)
                 .frame(height: viewHeight)
                 .clipShape(RoundedRectangle(cornerRadius: Self.rollCornerRadius, style: .continuous))
