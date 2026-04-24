@@ -173,6 +173,7 @@ struct MIDIScribeTests {
         #expect(settings.hasWelcomeSheetShownValue)
     }
 
+    @MainActor
     @Test func splitUsesRenamedTakeTitleAsSplitBase() async throws {
         let container = try makeInMemoryModelContainer()
         let service = TakePersistenceService(container: container)
@@ -192,6 +193,7 @@ struct MIDIScribeTests {
         #expect(secondHalf.title == "Renamed Take")
     }
 
+    @MainActor
     @Test func splitPreservesExistingNumericSuffixAsStartingPoint() async throws {
         let container = try makeInMemoryModelContainer()
         let service = TakePersistenceService(container: container)
@@ -210,6 +212,7 @@ struct MIDIScribeTests {
         #expect(secondHalf.title == "My Asset")
     }
 
+    @MainActor
     private func makeInMemoryModelContainer() throws -> ModelContainer {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
         return try ModelContainer(

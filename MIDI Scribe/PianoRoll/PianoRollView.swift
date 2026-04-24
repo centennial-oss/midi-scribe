@@ -44,10 +44,12 @@ struct PianoRollView: View {
     @State var isTwoFingerZoomDragActive = false; @State var isThreeFingerZoomSwipeActive = false
     @State var pausedZoomPlayheadAnchorX: CGFloat?; @State var delayPlaybackCenteringUntilCenter = false
     @State var skipNextPausedZoomCentering = false; @State var shouldAnchorDragZoomSelectionStart = false
-    @State var dragZoomSelectionStartOffset: TimeInterval?
+    @State var dragZoomSelectionStartOffset: TimeInterval?; @State var measuredBottomScrollbarInset: CGFloat = 0
     /// iOS can deliver an initial 0x0 layout pass for this view. Prime once
     /// when we observe a usable size to force a deterministic first render.
+}
 
+extension PianoRollView {
     var body: some View {
         TimelineView(.animation(paused: !shouldAnimatePianoRoll)) { context in
             GeometryReader { geo in
@@ -172,6 +174,7 @@ struct PianoRollView: View {
                             )
                         }
                         .onChange(of: zoomLevel) { _, _ in
+                            logScrollbarZoomEvent()
                             logZoomChangeDiagnostics(
                                 playOffset: playOffset,
                                 pixelsPerSecond: pixelsPerSecond,
@@ -237,6 +240,11 @@ struct PianoRollView: View {
                 .scrollDisabled(!canScrollHorizontally || isTwoFingerZoomDragActive || isThreeFingerZoomSwipeActive)
                 .id(layoutPrimeID)
                 .frame(height: viewHeight)
+#if os(macOS)
+                .background(
+                    PianoRollOverlayScrollerConfigurator(zoomLevel: zoomLevel) { measuredBottomScrollbarInset = $0 }
+                )
+#endif
                 .clipShape(RoundedRectangle(cornerRadius: Self.rollCornerRadius, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: Self.rollCornerRadius, style: .continuous)
@@ -298,7 +306,6 @@ struct PianoRollView: View {
             }
         }
     }
-
 }
 
 extension PianoRollView {

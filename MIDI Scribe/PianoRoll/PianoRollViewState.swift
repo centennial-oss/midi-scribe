@@ -15,7 +15,11 @@ struct PianoRollTimelineTickContext {
 
 extension PianoRollView {
     func bottomScrollbarInset(for _: CGFloat) -> CGFloat {
+        #if os(macOS)
+        measuredBottomScrollbarInset
+        #else
         0
+        #endif
     }
 
     func makeDrawContext(
