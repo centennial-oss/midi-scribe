@@ -34,20 +34,22 @@ extension ContentView {
                 }
             }
 
-            SidebarList(
-                data: viewModel.recentTakes,
-                id: \.id,
-                selection: sidebarOptionalSelectionBinding,
-                header: SidebarListHeader(
-                    title: "Recent Takes",
-                    buttons: showsSidebarEditButton ? [sidebarEditButton] : []
-                ),
-                isMultiSelecting: isEditingList
-            ) { take in
-                sidebarTakeItem(take, item: .recentTake(take.id), asStarred: false)
-            }
-            .onMultiSelectionChange { selected in
-                viewModel.multiSelection = Set(selected.map(\.id))
+            if !viewModel.recentTakes.isEmpty {
+                SidebarList(
+                    data: viewModel.recentTakes,
+                    id: \.id,
+                    selection: sidebarOptionalSelectionBinding,
+                    header: SidebarListHeader(
+                        title: "Recent Takes",
+                        buttons: showsSidebarEditButton ? [sidebarEditButton] : []
+                    ),
+                    isMultiSelecting: isEditingList
+                ) { take in
+                    sidebarTakeItem(take, item: .recentTake(take.id), asStarred: false)
+                }
+                .onMultiSelectionChange { selected in
+                    viewModel.multiSelection = Set(selected.map(\.id))
+                }
             }
 
             if let pendingTakeOperation = viewModel.pendingOperation,
@@ -95,7 +97,6 @@ extension ContentView {
                 .labelsHidden()
                 .toggleStyle(.switch)
             }
-
             HStack {
                 Text("Mute Input")
                 Spacer()
@@ -112,7 +113,7 @@ extension ContentView {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.vertical, 12)
     }
 
     private var sidebarCurrentTakeRow: some View {
@@ -209,6 +210,8 @@ extension ContentView {
             }
             .labelsHidden()
             .pickerStyle(.menu)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
             .tint(.primary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
