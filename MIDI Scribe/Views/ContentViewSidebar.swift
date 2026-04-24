@@ -226,12 +226,77 @@ extension ContentView {
                 Text(viewModel.completedTakeDurationText(take))
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
+            } else {
+                sidebarRowRevealedActions(for: take)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing).combined(with: .opacity),
+                        removal: .opacity
+                    ))
             }
         }
+        .contentShape(Rectangle())
+        .simultaneousGesture(sidebarRowSwipeGesture(for: take.id))
         .contextMenu { sidebarRowContextMenu(for: take) }
 #if os(iOS)
         .swipeActions(edge: .trailing, allowsFullSwipe: false) { sidebarRowSwipeActions(for: take) }
 #endif
+    }
+
+    @ViewBuilder
+    private func sidebarRowRevealedActions(for take: RecordedTakeListItem) -> some View {
+        HStack(spacing: 16) {
+            Button {
+                withAnimation { swipeRevealedTakeID = nil }
+                beginRename(take)
+            } label: {
+                Image(systemName: "pencil")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(.primary)
+                    .frame(width: 16, height: 16)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            Button {
+                withAnimation { swipeRevealedTakeID = nil }
+                viewModel.toggleStar(takeID: take.id)
+            } label: {
+                Image(systemName: take.isStarred ? "star.fill" : "star")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(.yellow)
+                    .frame(width: 16, height: 16)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            Button {
+                withAnimation { swipeRevealedTakeID = nil }
+                beginDeleteTake(id: take.id)
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(.red)
+                    .frame(width: 16, height: 16)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.trailing, 4)
+    }
+
+    private func sidebarRowSwipeGesture(for takeID: UUID) -> some Gesture {
+        DragGesture(minimumDistance: 20, coordinateSpace: .local)
+            .onEnded { value in
+                if value.translation.width < -40 {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        swipeRevealedTakeID = takeID
+                    }
+                } else if value.translation.width > 40 {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        if swipeRevealedTakeID == takeID {
+                            swipeRevealedTakeID = nil
+                        }
+                    }
+                }
+            }
     }
 
     @ViewBuilder
