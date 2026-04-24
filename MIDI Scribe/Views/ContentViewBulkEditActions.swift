@@ -20,17 +20,6 @@ extension ContentView {
     @ViewBuilder
     var bulkEditActionButtons: some View {
         HStack(spacing: 16) {
-            if !hasBulkEditSelection {
-                BasicButton(
-                    context: BasicButtonContext(
-                        action: { beginMIDIImportPresentation() },
-                        label: compactBulkEditImportLabel,
-                        systemImage: "square.and.arrow.down"
-                    )
-                )
-                .disabled(viewModel.isTakeActionInProgress)
-            }
-
             if hasBulkEditSelection {
                 if canMergeSelectedTakes {
                     BasicButton(
@@ -96,14 +85,8 @@ extension ContentView {
         isNarrowiPhone && isEditingList
     }
 
-    var compactBulkEditImportLabel: String {
-        isNarrowiPhone ? "Import" : "Import MIDI File"
-    }
-
     private var isNarrowiPhone: Bool {
         UIDevice.current.userInterfaceIdiom == .phone && horizontalSizeClass == .compact
     }
-#else
-    var compactBulkEditImportLabel: String { "Import MIDI File" }
 #endif
 }

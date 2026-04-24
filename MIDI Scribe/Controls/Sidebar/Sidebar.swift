@@ -96,6 +96,21 @@ struct SidebarListHeader {
 }
 
 struct Sidebar<SidebarContent: View, DetailContent: View>: View {
+    #if os(macOS)
+    private let defaultSidebarWidth: CGFloat = 300
+    #elseif os(iOS)
+    private var defaultSidebarWidth: CGFloat {
+        UIDevice.current.userInterfaceIdiom == .phone ? 380 : 300
+    }
+    #else
+    private let defaultSidebarWidth: CGFloat = 300
+    #endif
+    private let customSidebarTopInsetNoCustomButtons: CGFloat = 8
+    /// Custom-overlay-only chrome toggle. When true, hides the custom
+    /// sidebar's built-in show/hide buttons (open-row button and floating
+    /// closed-state button).
+    let excludesCustomSidebarToggleButtons: Bool
+    let forceCustomSidebar: Bool?
     @Binding var isPresented: Bool
     @ViewBuilder let sidebar: () -> SidebarContent
     @ViewBuilder let detail: () -> DetailContent
@@ -104,9 +119,23 @@ struct Sidebar<SidebarContent: View, DetailContent: View>: View {
     /// On compact width (e.g. iPhone portrait), `columnVisibility` is ignored; this drives which column is on top.
     @State private var preferredCompactColumn: NavigationSplitViewColumn = .sidebar
     #if os(iOS)
-    @State private var deviceOrientation: UIDeviceOrientation = UIDevice.current.orientation
+    @State var deviceOrientation: UIDeviceOrientation = UIDevice.current.orientation
     private var isPhone: Bool { UIDevice.current.userInterfaceIdiom == .phone }
     #endif
+
+    init(
+        isPresented: Binding<Bool>,
+        excludesCustomSidebarToggleButtons: Bool = false,
+        forceCustomSidebar: Bool? = nil,
+        @ViewBuilder sidebar: @escaping () -> SidebarContent,
+        @ViewBuilder detail: @escaping () -> DetailContent
+    ) {
+        self._isPresented = isPresented
+        self.excludesCustomSidebarToggleButtons = excludesCustomSidebarToggleButtons
+        self.forceCustomSidebar = forceCustomSidebar
+        self.sidebar = sidebar
+        self.detail = detail
+    }
 
     var body: some View {
         #if os(iOS)
@@ -147,26 +176,25 @@ struct Sidebar<SidebarContent: View, DetailContent: View>: View {
                     .zIndex(1)
             }
 
-            // Sidebar Panel - explicit rect fill so `ScrollView` + clip do not
-            // leave a transparent panel on iPhone (see
-            // `sidebarPhoneScrollChrome` for split view).
             ZStack(alignment: .topLeading) {
                 #if os(iOS)
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
                     .fill(customOverlaySidebarPanelFill)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(width: defaultSidebarWidth, alignment: .topLeading)
+                    .frame(maxHeight: .infinity, alignment: .topLeading)
                 #endif
                 VStack(alignment: .trailing, spacing: 0) {
-                    // Button inside the sidebar when open
-                    Button {
-                        toggleSidebar()
-                    } label: {
-                        Image(systemName: "sidebar.left")
-                            .font(.title3)
-                            .foregroundColor(.primary)
+                    if !excludesCustomSidebarToggleButtons {
+                        Button {
+                            toggleSidebar()
+                        } label: {
+                            Image(systemName: "sidebar.left")
+                                .font(.title3)
+                                .foregroundColor(.primary)
+                        }
+                        .padding(.trailing, 16)
+                        .padding(.top, 16)
                     }
-                    .padding(.trailing, 16)
-                    .padding(.top, 16)
                     ScrollView {
                         sidebar()
                             .environment(\.sidebarUsesCustomLayout, true)
@@ -175,10 +203,15 @@ struct Sidebar<SidebarContent: View, DetailContent: View>: View {
                     #if os(iOS)
                     .scrollContentBackground(.hidden)
                     #endif
+                    .frame(width: defaultSidebarWidth, alignment: .topLeading)
                     .frame(maxHeight: .infinity, alignment: .top)
                 }
+                .padding(.top, excludesCustomSidebarToggleButtons ? customSidebarTopInsetNoCustomButtons : 0)
+                .frame(width: defaultSidebarWidth, alignment: .topLeading)
+                .frame(maxHeight: .infinity, alignment: .topLeading)
             }
-            .frame(width: 310)
+            .frame(width: defaultSidebarWidth, alignment: .topLeading)
+            .frame(maxHeight: .infinity, alignment: .topLeading)
             .frame(maxHeight: .infinity, alignment: .top)
             // .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 24))
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
@@ -186,12 +219,12 @@ struct Sidebar<SidebarContent: View, DetailContent: View>: View {
             .padding(.leading, 0)
             .padding(.top, 8)
             .padding(.bottom, -16)
-            .offset(x: isPresented ? 0 : -400) // Increased offset to ensure it's fully off-screen
+            .fixedSize(horizontal: true, vertical: false)
+            .offset(x: isPresented ? 0 : -(defaultSidebarWidth + 100))
             .animation(.spring(response: 0.35, dampingFraction: 0.8), value: isPresented)
             .zIndex(2)
 
-            // Toggle button visible when sidebar is closed
-            if !isPresented {
+            if !isPresented && !excludesCustomSidebarToggleButtons {
                 Button {
                     toggleSidebar()
                 } label: {
@@ -202,7 +235,7 @@ struct Sidebar<SidebarContent: View, DetailContent: View>: View {
                         .glassEffect(.regular.interactive(), in: Circle())
                 }
                 .padding(.leading, -30)
-                .padding(.top, 24) // Matched top padding to sidebar's internal button
+                .padding(.top, 24)
                 .zIndex(3)
             }
         }
@@ -241,6 +274,11 @@ struct Sidebar<SidebarContent: View, DetailContent: View>: View {
                     }
                 }
             }
+            .navigationSplitViewColumnWidth(
+                min: defaultSidebarWidth,
+                ideal: defaultSidebarWidth,
+                max: defaultSidebarWidth
+            )
             #else
             ScrollView {
                 sidebar()
@@ -248,6 +286,7 @@ struct Sidebar<SidebarContent: View, DetailContent: View>: View {
                     .environment(\.sidebarAfterDetailChangeRowAction, collapseSplitViewSidebarForDetailChange)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
             }
+            .navigationSplitViewColumnWidth(min: 200, ideal: defaultSidebarWidth)
             #endif
         } detail: {
             detail()
@@ -281,8 +320,11 @@ struct Sidebar<SidebarContent: View, DetailContent: View>: View {
             : Color(red: 0.99, green: 0.99, blue: 0.99)
     }
 
-    private var shouldUseCustomSidebar: Bool {
-        UIDevice.current.userInterfaceIdiom == .phone && deviceOrientation.isLandscape
+    var shouldUseCustomSidebar: Bool {
+        if let forceCustomSidebar {
+            return forceCustomSidebar
+        }
+        return UIDevice.current.userInterfaceIdiom == .phone && deviceOrientation.isLandscape
     }
 
     private func updateOrientation(_ orientation: UIDeviceOrientation) {

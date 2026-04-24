@@ -168,7 +168,7 @@ struct MIDIScribeApp: App {
                 let state = appState.takeCommandState
                 let takeID = state.takeID
 
-                Button("Import MIDI File…") {
+                Button("Import Take from MIDI File…") {
                     appState.requestMIDIImport()
                 }
                 .keyboardShortcut("o", modifiers: [.command])

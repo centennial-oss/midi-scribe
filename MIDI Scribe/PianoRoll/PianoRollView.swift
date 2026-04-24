@@ -7,55 +7,31 @@ import SwiftUI
 
 struct PianoRollView: View {
     private static let rollCornerRadius: CGFloat = 6
-    static let maxConcurrentScrubAuditionNotes = 24
-    static let timelineLeadingInset: CGFloat = 12
-    static let contentTopInset: CGFloat = 2
-    /// Nudges the paused scrub knob down so the rounded clip does not crop its top.
-    static let playheadKnobVerticalOffset: CGFloat = 2
+    static let maxConcurrentScrubAuditionNotes = 24; static let timelineLeadingInset: CGFloat = 12
+    static let contentTopInset: CGFloat = 2; static let playheadKnobVerticalOffset: CGFloat = 2
     @Environment(\.colorScheme) private var colorScheme
 
-    /// Lime note bars on the roll when not under the playhead.
-    var noteBarIdleColor: Color {
-        colorScheme == .dark ? Color(red: 0.6, green: 1.0, blue: 0.2) : Color(red: 0.1, green: 0.5, blue: 0.05)
-    }
-
-    /// Pink / fuchsia note bars while the playhead is over the note.
-    var noteBarPlayingColor: Color {
-        colorScheme == .dark ? Color(red: 1.0, green: 0.2, blue: 0.8) : Color(red: 0.9, green: 0.1, blue: 0.7)
-    }
-
-    let take: RecordedTake
-    @ObservedObject var viewModel: MIDILiveNoteViewModel
-    @Binding var zoomLevel: CGFloat
-    var scrollToStartRequestID = 0
+    let take: RecordedTake; @ObservedObject var viewModel: MIDILiveNoteViewModel
+    @Binding var zoomLevel: CGFloat; var scrollToStartRequestID = 0; var isLive: Bool = false
     /// When true, the piano roll is rendering a take that is actively being
     /// recorded. In this mode the playhead tracks the live tail of the
     /// take, the scrub circle is hidden, and the scroll view auto-follows
     /// the tail when the user has zoomed in past the fit-to-width minimum.
-    var isLive: Bool = false
-
-    @State var notes: [PianoRollNote] = []
-    @State var ccEvents: [PianoRollCC] = []
+    @State var notes: [PianoRollNote] = []; @State var ccEvents: [PianoRollCC] = []
     /// Cursor into `take.events` used for incremental updates in live
     /// mode so we don't re-scan the full events array on every new note
     /// (which was O(n) per event → O(n²) over the take and caused
     /// speaker echo lag that got worse as the take got longer).
-    @State var liveEventsProcessedCount: Int = 0
+    @State var liveEventsProcessedCount: Int = 0; @State var liveActiveNotes: [UInt8: PianoRollNote] = [:]
     /// In-flight notes keyed by pitch; appended to `notes` once closed.
-    @State var liveActiveNotes: [UInt8: PianoRollNote] = [:]
     /// In-flight CC regions keyed by cc number; appended to `ccEvents` once closed.
-    @State var liveActiveCCs: [UInt8: PianoRollCC] = [:]
-    /// Event IDs skipped due to invalid MIDI bounds. Used as a stable,
-    /// deduplicated counter so repeated redraws do not inflate the value.
-    @State var ignoredMalformedEventIDs: Set<UUID> = []
-
+    @State var liveActiveCCs: [UInt8: PianoRollCC] = [:]; @State var ignoredMalformedEventIDs: Set<UUID> = []
     @State var dragStartOffset: TimeInterval?; @State var dragIntersectedNotes: Set<UUID> = []
     @State var lastScrubAuditionUptime: TimeInterval?; @State var scrubAuditionDiagnostics = ScrubAuditionDiagnostics()
     @State var lastPlaybackModelDiagnosticUptime: TimeInterval?; @State var scrubEdgeAutoScrollDirection: CGFloat = 0
-    @State var scrubLastDragTranslationWidth: CGFloat?
-    @State var dragZoomStartLocation: CGPoint?; @State var dragZoomCurrentLocation: CGPoint?
-    @State var shouldCenterPlayheadAfterDragZoom = false
-    @State var shouldAnchorPlayheadLeadingAfterDragZoom = false
+    @State var scrubLastDragTranslationWidth: CGFloat?; @State var dragZoomStartLocation: CGPoint?
+    @State var dragZoomCurrentLocation: CGPoint?; @State var hasPointerHover = false
+    @State var shouldCenterPlayheadAfterDragZoom = false; @State var shouldAnchorPlayheadLeadingAfterDragZoom = false
     /// Local scrub offset used when the playback engine has no active take
     /// for this piano roll (e.g. before the user has ever pressed Play).
     /// Without this, the engine's `currentPlaybackTime` would stay at 0
@@ -63,10 +39,9 @@ struct PianoRollView: View {
     @State var localScrubOffset: TimeInterval?; @State var isScrubHandleHovered = false
 
     /// To smoothly zoom on iOS:
-    @State var currentMagnification: CGFloat = 1.0
-    @State var pinchStartZoomLevel: CGFloat?; @State var isZoomCentering = false
-    @State var isPinchZooming = false; @State var zoomCenteringTask: Task<Void, Never>?
-    @State var playbackCenteringAnimationEndsAt: Date?
+    @State var currentMagnification: CGFloat = 1.0; @State var pinchStartZoomLevel: CGFloat?
+    @State var isZoomCentering = false; @State var isPinchZooming = false
+    @State var zoomCenteringTask: Task<Void, Never>?; @State var playbackCenteringAnimationEndsAt: Date?
     @State var didPrimeInitialLayout = false; @State var layoutPrimeID = 0
     /// iOS can deliver an initial 0x0 layout pass for this view. Prime once
     /// when we observe a usable size to force a deterministic first render.
@@ -98,6 +73,11 @@ struct PianoRollView: View {
                 let playheadColor = (dragStartOffset != nil || isScrubHandleHovered)
                     ? Color.accentColor
                     : playheadChrome
+                let touchInputModifier = makeTouchInputModifier(
+                    rollWidth: rollWidth,
+                    pixelsPerSecond: pixelsPerSecond,
+                    playOffset: playOffset
+                )
 
                 ScrollView(.horizontal) {
                     ScrollViewReader { proxy in
@@ -177,23 +157,17 @@ struct PianoRollView: View {
                         .contentShape(Rectangle())
                         .transaction { $0.animation = nil }
                         .onChange(of: context.date) { _, _ in
-                            if shouldFollowPlayingPlayhead(at: context.date) || shouldCenterPausedPlayheadDuringZoom {
-                                proxy.scrollTo("playhead", anchor: .center)
-                            } else if isLive && rollWidth > layoutWidth {
-                                proxy.scrollTo("playhead", anchor: .trailing)
-                            }
-                            if dragStartOffset != nil {
-                                continueScrubAutoScrollIfNeeded(
-                                    proxy: proxy,
+                            handleTimelineTick(
+                                at: context.date,
+                                proxy: proxy,
+                                context: PianoRollTimelineTickContext(
+                                    rollWidth: rollWidth,
+                                    layoutWidth: layoutWidth,
                                     pixelsPerSecond: pixelsPerSecond,
-                                    autoScrollContext: ScrubDragAutoScrollContext(
-                                        rollWidth: rollWidth,
-                                        layoutWidth: layoutWidth,
-                                        viewportFrameInGlobal: geo.frame(in: .global)
-                                    )
+                                    viewportFrameInGlobal: geo.frame(in: .global),
+                                    playOffset: playOffset
                                 )
-                            }
-                            logPlaybackModelDiagnosticsIfNeeded(at: playOffset)
+                            )
                         }
                         .onChange(of: zoomLevel) { _, _ in
                             if shouldAnchorPlayheadLeadingAfterDragZoom {
@@ -222,15 +196,18 @@ struct PianoRollView: View {
                             guard !isLive else { return }
                             proxy.scrollTo("playheadStart", anchor: .leading)
                         }
-                        .gesture(
-                            dragZoomGesture(
-                                rollWidth: rollWidth,
-                                layoutWidth: layoutWidth,
-                                timelineLayoutWidth: timelineLayoutWidth,
-                                pixelsPerSecond: pixelsPerSecond,
-                                playOffset: playOffset
-                            ),
-                            including: isLive ? .subviews : .all
+                        .modifier(
+                            DragZoomGestureModifier(
+                                isEnabled: dragZoomShouldHandleInput,
+                                gesture: dragZoomGesture(
+                                    rollWidth: rollWidth,
+                                    layoutWidth: layoutWidth,
+                                    timelineLayoutWidth: timelineLayoutWidth,
+                                    pixelsPerSecond: pixelsPerSecond,
+                                    playOffset: playOffset
+                                ),
+                                including: isLive ? .subviews : .all
+                            )
                         )
                         .simultaneousGesture(
                             MagnificationGesture()
@@ -238,6 +215,8 @@ struct PianoRollView: View {
                                 .onEnded(handlePinchZoomEnded),
                             including: .all
                         )
+                        .modifier(touchInputModifier)
+                        .onHover { if $0 { hasPointerHover = true } }
                     }
                 }
                 .id(layoutPrimeID)
@@ -307,6 +286,16 @@ struct PianoRollView: View {
 }
 
 extension PianoRollView {
+    /// Lime note bars on the roll when not under the playhead.
+    var noteBarIdleColor: Color {
+        colorScheme == .dark ? Color(red: 0.6, green: 1.0, blue: 0.2) : Color(red: 0.1, green: 0.5, blue: 0.05)
+    }
+
+    /// Pink / fuchsia note bars while the playhead is over the note.
+    var noteBarPlayingColor: Color {
+        colorScheme == .dark ? Color(red: 1.0, green: 0.2, blue: 0.8) : Color(red: 0.9, green: 0.1, blue: 0.7)
+    }
+
     var rollBackground: Color {
         colorScheme == .dark ? Color.black : Color(white: 0.975)
     }
@@ -319,5 +308,29 @@ extension PianoRollView {
     /// Stroke around the clipped roll (`rollCornerRadius`).
     var rollBorderColor: Color {
         colorScheme == .dark ? Color.black : Color(red: 0.6, green: 0.6, blue: 0.6)
+    }
+
+    var dragZoomShouldHandleInput: Bool {
+        #if os(macOS)
+        true
+        #elseif os(iOS)
+        UIDevice.current.userInterfaceIdiom == .pad && hasPointerHover
+        #else
+        false
+        #endif
+    }
+}
+
+private struct DragZoomGestureModifier<G: Gesture>: ViewModifier {
+    let isEnabled: Bool
+    let gesture: G
+    let including: GestureMask
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.gesture(gesture, including: including)
+        } else {
+            content
+        }
     }
 }

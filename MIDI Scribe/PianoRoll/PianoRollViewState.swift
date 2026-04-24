@@ -5,6 +5,14 @@
 
 import SwiftUI
 
+struct PianoRollTimelineTickContext {
+    let rollWidth: CGFloat
+    let layoutWidth: CGFloat
+    let pixelsPerSecond: CGFloat
+    let viewportFrameInGlobal: CGRect
+    let playOffset: TimeInterval
+}
+
 extension PianoRollView {
     func bottomScrollbarInset(for _: CGFloat) -> CGFloat {
         0
@@ -52,6 +60,30 @@ extension PianoRollView {
         withAnimation(.easeOut(duration: duration)) {
             proxy.scrollTo("playhead", anchor: .center)
         }
+    }
+
+    func handleTimelineTick(
+        at date: Date,
+        proxy: ScrollViewProxy,
+        context: PianoRollTimelineTickContext
+    ) {
+        if shouldFollowPlayingPlayhead(at: date) || shouldCenterPausedPlayheadDuringZoom {
+            proxy.scrollTo("playhead", anchor: .center)
+        } else if isLive && context.rollWidth > context.layoutWidth {
+            proxy.scrollTo("playhead", anchor: .trailing)
+        }
+        if dragStartOffset != nil {
+            continueScrubAutoScrollIfNeeded(
+                proxy: proxy,
+                pixelsPerSecond: context.pixelsPerSecond,
+                autoScrollContext: ScrubDragAutoScrollContext(
+                    rollWidth: context.rollWidth,
+                    layoutWidth: context.layoutWidth,
+                    viewportFrameInGlobal: context.viewportFrameInGlobal
+                )
+            )
+        }
+        logPlaybackModelDiagnosticsIfNeeded(at: context.playOffset)
     }
 
     func resetScrubState() {

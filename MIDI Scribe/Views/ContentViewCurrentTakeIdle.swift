@@ -33,11 +33,24 @@ extension ContentView {
     }
 
     private var configureStartMethodsPrompt: some View {
-        Text("Configure more ways to start a new Take in Settings")
+        VStack(spacing: 8) {
+            Text("Configure more ways to start a new Take in Settings")
+                .font(currentTakeStartMethodFont)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+#if os(iOS)
+            HStack(spacing: 6) {
+                Text("Tap")
+                Image(systemName: "square.and.arrow.down")
+                Text("in the toolbar to import a Take from your files.")
+            }
             .font(currentTakeStartMethodFont)
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
             .padding(.top, 12)
+#endif
+        }
+        .padding(.top, 12)
     }
 
     private var currentTakeStartMethodList: some View {

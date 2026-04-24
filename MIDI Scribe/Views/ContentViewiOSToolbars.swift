@@ -9,18 +9,30 @@ import SwiftUI
 extension ContentView {
     @ToolbarContentBuilder
     func iPhoneSidebarToggleToolbar() -> some ToolbarContent {
-        if UIDevice.current.userInterfaceIdiom == .phone,
-           horizontalSizeClass == .compact {
+        if UIDevice.current.userInterfaceIdiom == .phone {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
-                    phoneNavigationSplitColumnVisibility = .doubleColumn
-                    preferredCompactColumn = .sidebar
+                    isSidebarPresented = true
                 } label: {
                     Image(systemName: "sidebar.left")
                 }
                 .accessibilityLabel("Show Takes Sidebar")
                 .help("Show Takes Sidebar")
             }
+        }
+    }
+
+    @ToolbarContentBuilder
+    func iOSImportToolbar() -> some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button {
+                beginMIDIImportPresentation()
+            } label: {
+                Image(systemName: "square.and.arrow.down")
+            }
+            .accessibilityLabel("Import MIDI File")
+            .help("Import MIDI File")
+            .disabled(viewModel.isTakeActionInProgress)
         }
     }
 

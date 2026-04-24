@@ -13,7 +13,7 @@ final class MIDILiveNoteViewModel: ObservableObject {
     private static let idleTimeoutDisplayDelay: TimeInterval = 5
     static let monitorStartRetryDelays: [TimeInterval] = [1, 2, 5, 10, 15, 30]
 
-    @Published var selectedSidebarItem: SidebarItem = .currentTake {
+    @Published var selectedSidebarItem: ContentSidebarItem = .currentTake {
         didSet {
             resetPlaybackIfDisplayedTakeChanged(old: oldValue, new: selectedSidebarItem)
         }
@@ -217,7 +217,7 @@ final class MIDILiveNoteViewModel: ObservableObject {
         lastBulkResult = nil
     }
 
-    private func resetPlaybackIfDisplayedTakeChanged(old: SidebarItem, new: SidebarItem) {
+    private func resetPlaybackIfDisplayedTakeChanged(old: ContentSidebarItem, new: ContentSidebarItem) {
         let oldTakeID = takeID(fromAny: old)
         let newTakeID = takeID(fromAny: new)
         guard oldTakeID != newTakeID, newTakeID != nil else { return }
@@ -225,7 +225,7 @@ final class MIDILiveNoteViewModel: ObservableObject {
         playbackEngine.stopAndReset()
     }
 
-    private func takeID(fromAny item: SidebarItem) -> UUID? {
+    private func takeID(fromAny item: ContentSidebarItem) -> UUID? {
         switch item {
         case .recentTake(let id), .starredTake(let id): return id
         default: return nil
@@ -315,7 +315,7 @@ final class MIDILiveNoteViewModel: ObservableObject {
 enum CompletedTakeSelectionMode {
     case showCompleted
     case stayOnCurrent
-    case preserveSelection(SidebarItem)
+    case preserveSelection(ContentSidebarItem)
 }
 
 struct DeferredPlaybackRequest {

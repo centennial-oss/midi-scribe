@@ -75,7 +75,7 @@ extension ContentView {
     /// `.editingTakes` so an accidental click on a take row doesn't navigate
     /// away from the bulk-actions detail pane. The user can still interact
     /// with the per-row checkboxes and the pencil button to exit without running a bulk action.
-    var sidebarSelectionBinding: Binding<SidebarItem> {
+    var sidebarSelectionBinding: Binding<ContentSidebarItem> {
         Binding(
             get: { viewModel.selectedSidebarItem },
             set: { newValue in
@@ -111,44 +111,23 @@ extension ContentView {
             // Exiting edit mode. Decide where to return focus based on what
             // just happened (if anything).
             let restore = resolvedSelectionAfterEdit()
-#if os(iOS)
-            if isCompactIPhone {
-                suppressNextPhoneDetailFocus = true
-            }
-#endif
+            suppressNextSidebarAutoHide = true
             isEditingList = false
             viewModel.multiSelection.removeAll()
             selectionAnchorID = nil
             viewModel.clearLastBulkResult()
             viewModel.selectedSidebarItem = restore
             preEditSelection = nil
-#if os(iOS)
-            if isCompactIPhone {
-                preferredCompactColumn = .sidebar
-                phoneNavigationSplitColumnVisibility = .automatic
-            }
-#endif
         } else {
             preEditSelection = viewModel.selectedSidebarItem
             viewModel.multiSelection.removeAll()
             viewModel.clearLastBulkResult()
-#if os(iOS)
-            if isCompactIPhone {
-                suppressNextPhoneDetailFocus = true
-            }
-#endif
             isEditingList = true
             viewModel.selectedSidebarItem = .editingTakes
-#if os(iOS)
-            if isCompactIPhone {
-                preferredCompactColumn = .sidebar
-                phoneNavigationSplitColumnVisibility = .automatic
-            }
-#endif
         }
     }
 
-    func resolvedSelectionAfterEdit() -> SidebarItem {
+    func resolvedSelectionAfterEdit() -> ContentSidebarItem {
         switch viewModel.lastBulkResult {
         case .merged(let newID, _):
             return .recentTake(newID)
@@ -162,7 +141,7 @@ extension ContentView {
         }
     }
 
-    func takeID(fromAny item: SidebarItem) -> UUID? {
+    func takeID(fromAny item: ContentSidebarItem) -> UUID? {
         switch item {
         case .recentTake(let id), .starredTake(let id): return id
         default: return nil
@@ -190,7 +169,10 @@ extension ContentView {
             #endif
             currentTakeActionsToolbar()
             #if os(iOS)
-            if viewModel.isTakeInProgress {
+            if !viewModel.isTakeInProgress {
+                iOSImportToolbar()
+                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+            } else {
                 ToolbarSpacer(.fixed, placement: .topBarTrailing)
             }
             iOSAppActionsToolbar()

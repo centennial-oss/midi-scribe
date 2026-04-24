@@ -15,7 +15,7 @@ import AppKit
 import UIKit
 #endif
 
-enum SidebarItem: Hashable {
+enum ContentSidebarItem: Hashable {
     case currentTake
     case organizing
     case editingTakes
@@ -51,7 +51,9 @@ struct ContentView: View {
     @State var selectionAnchorID: UUID?
     /// Selection to restore when leaving Edit mode (unless a merge/delete
     /// requires a different final selection).
-    @State var preEditSelection: SidebarItem?
+    @State var preEditSelection: ContentSidebarItem?
+    @State var isSidebarPresented = false
+    @State var suppressNextSidebarAutoHide = false
     @State var isPresentingBulkDeleteConfirm = false
     @State var pianoRollZoomLevel: CGFloat = 0.0
     @State var pianoRollScrollToStartRequestID = 0
@@ -60,17 +62,6 @@ struct ContentView: View {
     @State var swipeRevealedTakeID: UUID?
     @State var hasEvaluatedWelcomeSheet = false
     @State var isPresentingWelcomeSheet = false
-#if os(iOS)
-    /// When the split collapses to one column (typical iPhone landscape), this controls whether the
-    /// sidebar or detail is on top. `.detail` matches standard push behavior after choosing a row.
-    @State var preferredCompactColumn: NavigationSplitViewColumn = .detail
-    /// Large iPhones in landscape use a double-column `NavigationSplitView` where `preferredCompactColumn`
-    /// alone does not hide the floating sidebar.
-    /// Phone selection handlers set `.detailOnly` so the piano roll is full width.
-    @State var phoneNavigationSplitColumnVisibility: NavigationSplitViewVisibility = .automatic
-    @State var suppressNextPhoneDetailFocus = false
-#endif
-
     init(settings: AppSettings) {
         self.settings = settings
         _viewModel = StateObject(wrappedValue: MIDILiveNoteViewModel(settings: settings))
@@ -91,36 +82,41 @@ struct ContentView: View {
     }
 
     private var baseContent: some View {
+        Sidebar(
+            isPresented: $isSidebarPresented,
+            excludesCustomSidebarToggleButtons: true,
+            forceCustomSidebar: forceCustomSidebarOnCurrentDevice,
+            sidebar: {
+                sidebar
+#if os(macOS)
+                    .navigationSplitViewColumnWidth(min: 240, ideal: 280)
+#endif
+            },
+            detail: { sidebarDetailHost }
+        )
 #if os(iOS)
-        NavigationSplitView(
-            columnVisibility: $phoneNavigationSplitColumnVisibility,
-            preferredCompactColumn: $preferredCompactColumn
-        ) {
-            sidebar
-        } detail: {
-            detailContent
-        }
-        .navigationSplitViewStyle(.balanced)
-        .onChange(of: viewModel.selectedSidebarItem) { _, _ in
-            phoneFocusDetailColumnAfterSidebarSelection()
-        }
-        .onAppear {
-            phoneFocusDetailColumnAfterSidebarSelection()
-            DispatchQueue.main.async {
-                phoneFocusDetailColumnAfterSidebarSelection()
-            }
-        }
         .frame(minWidth: 0, minHeight: 320)
 #else
-        NavigationSplitView {
-            sidebar
-#if os(macOS)
-                .navigationSplitViewColumnWidth(min: 240, ideal: 280)
+        .frame(minWidth: 520, minHeight: 320)
 #endif
-        } detail: {
+    }
+
+    private var forceCustomSidebarOnCurrentDevice: Bool? {
+#if os(iOS)
+        UIDevice.current.userInterfaceIdiom == .phone ? true : nil
+#else
+        nil
+#endif
+    }
+
+    @ViewBuilder
+    private var sidebarDetailHost: some View {
+#if os(iOS)
+        NavigationStack {
             detailContent
         }
-        .frame(minWidth: 520, minHeight: 320)
+#else
+        detailContent
 #endif
     }
 
