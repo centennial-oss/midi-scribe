@@ -122,6 +122,11 @@ extension ContentView {
             action: { selectSidebarItem(.currentTake) },
             content: {
                 HStack(spacing: 8) {
+                    if !viewModel.isTakeInProgress {
+                        Image(systemName: "movieclapper")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.primary)
+                    }
                     Text(viewModel.isTakeInProgress ? "Recording Take…" : "Start a New Take")
                     Spacer(minLength: 8)
                     if viewModel.isTakeInProgress {
@@ -236,7 +241,22 @@ extension ContentView {
         }
         .contentShape(Rectangle())
         .simultaneousGesture(sidebarRowSwipeGesture(for: take.id))
+        .onTrackpadSwipe(
+            onSwipeLeft: {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    swipeRevealedTakeID = take.id
+                }
+            },
+            onSwipeRight: {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    if swipeRevealedTakeID == take.id {
+                        swipeRevealedTakeID = nil
+                    }
+                }
+            }
+        )
         .contextMenu { sidebarRowContextMenu(for: take) }
+
 #if os(iOS)
         .swipeActions(edge: .trailing, allowsFullSwipe: false) { sidebarRowSwipeActions(for: take) }
 #endif

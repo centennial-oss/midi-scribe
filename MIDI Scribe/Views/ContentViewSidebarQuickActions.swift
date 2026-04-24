@@ -1,6 +1,12 @@
 import SwiftUI
 
 extension ContentView {
+    #if os(macOS)
+    private static let sidebarQuickActionIconSize: CGFloat = 16
+    #else
+    private static let sidebarQuickActionIconSize: CGFloat = 24
+    #endif
+
     @ViewBuilder
     func sidebarRowQuickActions(for take: RecordedTakeListItem) -> some View {
         HStack(spacing: 24) {
@@ -9,9 +15,9 @@ extension ContentView {
                 beginRename(take)
             } label: {
                 Image(systemName: "pencil")
-                    .font(.system(size: 24, weight: .medium))
+                    .font(.system(size: Self.sidebarQuickActionIconSize, weight: .medium))
                     .foregroundStyle(.primary)
-                    .frame(width: 24, height: 24)
+                    .frame(width: Self.sidebarQuickActionIconSize, height: Self.sidebarQuickActionIconSize)
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
@@ -21,9 +27,9 @@ extension ContentView {
                 viewModel.toggleStar(takeID: take.id)
             } label: {
                 Image(systemName: take.isStarred ? "star.fill" : "star")
-                    .font(.system(size: 24, weight: .medium))
+                    .font(.system(size: Self.sidebarQuickActionIconSize, weight: .medium))
                     .foregroundStyle(.yellow)
-                    .frame(width: 24, height: 24)
+                    .frame(width: Self.sidebarQuickActionIconSize, height: Self.sidebarQuickActionIconSize)
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
@@ -33,9 +39,9 @@ extension ContentView {
                 beginDeleteTake(id: take.id)
             } label: {
                 Image(systemName: "trash")
-                    .font(.system(size: 24, weight: .medium))
+                    .font(.system(size: Self.sidebarQuickActionIconSize, weight: .medium))
                     .foregroundStyle(.red)
-                    .frame(width: 24, height: 24)
+                    .frame(width: Self.sidebarQuickActionIconSize, height: Self.sidebarQuickActionIconSize)
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)

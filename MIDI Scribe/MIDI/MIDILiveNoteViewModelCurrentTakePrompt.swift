@@ -6,13 +6,6 @@
 import Foundation
 
 extension MIDILiveNoteViewModel {
-    var currentTakePromptText: String {
-        if !settings.isScribingEnabled {
-            return "Enable scribing in the sidebar to start a new Take."
-        }
-        return "Start a new Take"
-    }
-
     var currentTakeStartMethods: [String] {
         guard settings.isScribingEnabled else { return [] }
 

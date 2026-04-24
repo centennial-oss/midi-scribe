@@ -9,7 +9,7 @@ extension ContentView {
     var currentTakeIdleContent: some View {
         VStack(spacing: 10) {
             if !viewModel.settings.isScribingEnabled {
-                Text(viewModel.currentTakePromptText)
+                Text("Enable scribing in the sidebar to start a new Take.")
                     .font(.title3)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
@@ -20,6 +20,7 @@ extension ContentView {
                     context: BasicButtonContext(
                         action: viewModel.startTake,
                         label: "Start a New Take",
+                        systemImage: "movieclapper",
                         size: .extraLarge
                     )
                 )
@@ -42,7 +43,7 @@ extension ContentView {
             HStack(spacing: 6) {
                 Text("Tap")
                 Image(systemName: "square.and.arrow.down")
-                Text("in the toolbar to import a Take from your files.")
+                Text("in the toolbar to import a Take from your files")
             }
             .font(currentTakeStartMethodFont)
             .foregroundStyle(.secondary)
