@@ -227,7 +227,7 @@ extension ContentView {
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             } else {
-                sidebarRowRevealedActions(for: take)
+                sidebarRowQuickActions(for: take)
                     .transition(.asymmetric(
                         insertion: .move(edge: .trailing).combined(with: .opacity),
                         removal: .opacity
@@ -240,46 +240,6 @@ extension ContentView {
 #if os(iOS)
         .swipeActions(edge: .trailing, allowsFullSwipe: false) { sidebarRowSwipeActions(for: take) }
 #endif
-    }
-
-    @ViewBuilder
-    private func sidebarRowRevealedActions(for take: RecordedTakeListItem) -> some View {
-        HStack(spacing: 16) {
-            Button {
-                withAnimation { swipeRevealedTakeID = nil }
-                beginRename(take)
-            } label: {
-                Image(systemName: "pencil")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(.primary)
-                    .frame(width: 16, height: 16)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            Button {
-                withAnimation { swipeRevealedTakeID = nil }
-                viewModel.toggleStar(takeID: take.id)
-            } label: {
-                Image(systemName: take.isStarred ? "star.fill" : "star")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(.yellow)
-                    .frame(width: 16, height: 16)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            Button {
-                withAnimation { swipeRevealedTakeID = nil }
-                beginDeleteTake(id: take.id)
-            } label: {
-                Image(systemName: "trash")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(.red)
-                    .frame(width: 16, height: 16)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.trailing, 4)
     }
 
     private func sidebarRowSwipeGesture(for takeID: UUID) -> some Gesture {

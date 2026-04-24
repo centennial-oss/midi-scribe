@@ -14,6 +14,14 @@ struct PianoRollTimelineTickContext {
 }
 
 extension PianoRollView {
+    func logScrollbarZoomEvent() {
+        #if os(macOS)
+        #if DEBUG
+        NSLog("[ScrollbarMonitor] event=zoomChanged zoomLevel=%.4f", zoomLevel)
+        #endif
+        #endif
+    }
+
     func bottomScrollbarInset(for _: CGFloat) -> CGFloat {
         #if os(macOS)
         measuredBottomScrollbarInset

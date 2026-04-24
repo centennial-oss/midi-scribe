@@ -161,14 +161,6 @@ struct PianoRollOverlayScrollerConfigurator: NSViewRepresentable {
     }
 }
 
-extension PianoRollView {
-    func logScrollbarZoomEvent() {
-        #if DEBUG
-        NSLog("[ScrollbarMonitor] event=zoomChanged zoomLevel=%.4f", zoomLevel)
-        #endif
-    }
-}
-
 private extension NSView {
     func descendantScrollViews() -> [NSScrollView] {
         var result: [NSScrollView] = []
