@@ -241,8 +241,17 @@ extension ContentView {
             currentTakeMetadata
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            livePianoRoll
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ZStack {
+                livePianoRoll
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                if viewModel.liveTakeEvents.isEmpty {
+                    Text("Start playing your MIDI instrument")
+                        .font(.system(size: 32, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
