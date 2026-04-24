@@ -82,9 +82,9 @@ extension ContentView {
     func exportTake(id: UUID) {
         viewModel.playbackEngine.pause()
         exportErrorMessage = nil
-
+        let preferredDisplayName = viewModel.recentTake(id: id)?.displayTitle
         if let cached = viewModel.materializedTake(id: id) {
-            presentExporter(for: cached)
+            presentExporter(for: cached, preferredDisplayName: preferredDisplayName)
             return
         }
 
@@ -103,13 +103,13 @@ extension ContentView {
                 exportErrorMessage = "Unable to load Take for export."
                 return
             }
-            presentExporter(for: take)
+            presentExporter(for: take, preferredDisplayName: preferredDisplayName)
         }
     }
 
-    func presentExporter(for take: RecordedTake) {
-        let document = MIDIFileDocument(take: take)
-        exportSuggestedName = document.suggestedFileName
+    func presentExporter(for take: RecordedTake, preferredDisplayName: String? = nil) {
+        let document = MIDIFileDocument(take: take, suggestedName: preferredDisplayName)
+        exportSuggestedName = suggestedExportFilename(from: document.suggestedFileName)
         exportDocument = document
         isPresentingExporter = true
     }

@@ -25,6 +25,7 @@ enum ContentSidebarItem: Hashable {
 
 struct ContentView: View {
     @Environment(\.modelContext) var modelContext
+    @Environment(\.scenePhase) var scenePhase
     @EnvironmentObject var appState: AppState
 #if os(iOS)
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
@@ -153,6 +154,7 @@ struct ContentView: View {
             let container = modelContext.container
             if viewModel.persistenceService == nil {
                 viewModel.persistenceService = TakePersistenceService(container: container)
+                importPendingSharedFilesIfAny()
             }
             viewModel.resolveFullTake = { id in
                 let context = ModelContext(container)
@@ -210,6 +212,23 @@ struct ContentView: View {
 
     private func commandObservationContent(_ content: some View) -> some View {
         content
+            .onAppear {
+                importPendingSharedFilesIfAny()
+                handlePendingIncomingURL()
+            }
+            .onChange(of: viewModel.pendingOperation) { _, operation in
+                guard operation == nil else { return }
+                importPendingSharedFilesIfAny()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                importPendingSharedFilesIfAny()
+            }
+#if os(iOS)
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                importPendingSharedFilesIfAny()
+            }
+#endif
             .onChange(of: appState.dataResetRequestID) { _, _ in
                 resetAfterDataErase()
             }
@@ -222,8 +241,8 @@ struct ContentView: View {
             .onChange(of: appState.modalPresentationRequest) { _, request in
                 handleModalPresentationRequest(request)
             }
-            .onOpenURL { url in
-                handleIncomingMIDIURL(url)
+            .onChange(of: appState.incomingURLRequestID) { _, _ in
+                handlePendingIncomingURL()
             }
     }
 
@@ -253,6 +272,13 @@ struct ContentView: View {
         }
     }
 
+}
+
+private extension ContentView {
+    func handlePendingIncomingURL() {
+        guard let url = appState.consumePendingIncomingURL() else { return }
+        handleIncomingMIDIURL(url)
+    }
 }
 
 struct PendingSharedImport: Identifiable, Equatable {

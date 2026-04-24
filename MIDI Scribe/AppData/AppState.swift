@@ -101,6 +101,9 @@ final class AppState: ObservableObject {
     @Published var takeCommandState = TakeCommandState()
     @Published var takeCommandRequest: TakeCommandRequest?
     @Published var modalPresentationRequest: AppModalPresentationRequest?
+    @Published private(set) var incomingURLRequestID = UUID()
+
+    private(set) var pendingIncomingURL: URL?
 
 #if os(macOS)
     private var keyDownMonitor: Any?
@@ -165,6 +168,19 @@ final class AppState: ObservableObject {
 
     func requestTakeCommand(_ request: TakeCommandRequest) {
         takeCommandRequest = request
+    }
+
+    func receiveIncomingURL(_ url: URL) {
+#if DEBUG
+        NSLog("[AppState] receiveIncomingURL: %@", url.absoluteString)
+#endif
+        pendingIncomingURL = url
+        incomingURLRequestID = UUID()
+    }
+
+    func consumePendingIncomingURL() -> URL? {
+        defer { pendingIncomingURL = nil }
+        return pendingIncomingURL
     }
 
 #if os(macOS)

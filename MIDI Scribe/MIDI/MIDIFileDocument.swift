@@ -16,9 +16,10 @@ struct MIDIFileDocument: FileDocument {
     let data: Data
     let suggestedFileName: String
 
-    init(take: RecordedTake) {
+    init(take: RecordedTake, suggestedName: String? = nil) {
         self.data = StandardMIDIFileWriter.data(for: take)
-        self.suggestedFileName = "\(Self.sanitize(take.displayTitle)).mid"
+        let exportBaseName = suggestedName ?? take.displayTitle
+        self.suggestedFileName = "\(Self.sanitize(exportBaseName)).mid"
     }
 
     init(configuration: ReadConfiguration) throws {

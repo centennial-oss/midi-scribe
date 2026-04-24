@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		E1AA00012F80000000AA0001 /* MIDI Scribe Share Extension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = E1AA00022F80000000AA0001 /* MIDI Scribe Share Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		D383E6D02F6F6354003C62A5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -23,16 +27,45 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		E1AA00082F80000000AA0001 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				E1AA00012F80000000AA0001 /* MIDI Scribe Share Extension.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		D383E6C02F6F6353003C62A5 /* MIDI Scribe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "MIDI Scribe.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D383E6CF2F6F6354003C62A5 /* MIDI ScribeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "MIDI ScribeTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D383E6D92F6F6354003C62A5 /* MIDI ScribeUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "MIDI ScribeUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		E1AA00022F80000000AA0001 /* MIDI Scribe Share Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "MIDI Scribe Share Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F2A9B3D2C7A14C5D8E1F9001 /* MIDI Scribe/Version.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "MIDI Scribe/Version.xcconfig"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		D31A07632F971AAA00F4A31A /* Exceptions for "MIDI Scribe" folder in "MIDI Scribe" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				Version.xcconfig,
+			);
+			target = D383E6BF2F6F6353003C62A5 /* MIDI Scribe */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		D383E6C22F6F6353003C62A5 /* MIDI Scribe */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				D31A07632F971AAA00F4A31A /* Exceptions for "MIDI Scribe" folder in "MIDI Scribe" target */,
+			);
 			path = "MIDI Scribe";
 			sourceTree = "<group>";
 		};
@@ -44,6 +77,11 @@
 		D383E6DC2F6F6354003C62A5 /* MIDI ScribeUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "MIDI ScribeUITests";
+			sourceTree = "<group>";
+		};
+		E1AA00032F80000000AA0001 /* MIDI Scribe Share Extension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "MIDI Scribe Share Extension";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -70,6 +108,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E1AA00042F80000000AA0001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -85,6 +130,7 @@
 			isa = PBXGroup;
 			children = (
 				D383E6C22F6F6353003C62A5 /* MIDI Scribe */,
+				E1AA00032F80000000AA0001 /* MIDI Scribe Share Extension */,
 				D383E6D22F6F6354003C62A5 /* MIDI ScribeTests */,
 				D383E6DC2F6F6354003C62A5 /* MIDI ScribeUITests */,
 				D383E6C12F6F6353003C62A5 /* Products */,
@@ -96,6 +142,7 @@
 			isa = PBXGroup;
 			children = (
 				D383E6C02F6F6353003C62A5 /* MIDI Scribe.app */,
+				E1AA00022F80000000AA0001 /* MIDI Scribe Share Extension.appex */,
 				D383E6CF2F6F6354003C62A5 /* MIDI ScribeTests.xctest */,
 				D383E6D92F6F6354003C62A5 /* MIDI ScribeUITests.xctest */,
 			);
@@ -112,6 +159,7 @@
 				D383E6BC2F6F6353003C62A5 /* Sources */,
 				D383E6BD2F6F6353003C62A5 /* Frameworks */,
 				D383E6BE2F6F6353003C62A5 /* Resources */,
+				E1AA00082F80000000AA0001 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
@@ -173,6 +221,28 @@
 			productReference = D383E6D92F6F6354003C62A5 /* MIDI ScribeUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		E1AA00052F80000000AA0001 /* MIDI Scribe Share Extension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E1AA000B2F80000000AA0001 /* Build configuration list for PBXNativeTarget "MIDI Scribe Share Extension" */;
+			buildPhases = (
+				E1AA00072F80000000AA0001 /* Sources */,
+				E1AA00042F80000000AA0001 /* Frameworks */,
+				E1AA00062F80000000AA0001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				E1AA00032F80000000AA0001 /* MIDI Scribe Share Extension */,
+			);
+			name = "MIDI Scribe Share Extension";
+			packageProductDependencies = (
+			);
+			productName = "MIDI Scribe Share Extension";
+			productReference = E1AA00022F80000000AA0001 /* MIDI Scribe Share Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -194,6 +264,9 @@
 						CreatedOnToolsVersion = 26.3;
 						TestTargetID = D383E6BF2F6F6353003C62A5;
 					};
+					E1AA00052F80000000AA0001 = {
+						CreatedOnToolsVersion = 26.3;
+					};
 				};
 			};
 			buildConfigurationList = D383E6BB2F6F6353003C62A5 /* Build configuration list for PBXProject "MIDI Scribe" */;
@@ -211,6 +284,7 @@
 			projectRoot = "";
 			targets = (
 				D383E6BF2F6F6353003C62A5 /* MIDI Scribe */,
+				E1AA00052F80000000AA0001 /* MIDI Scribe Share Extension */,
 				D383E6CE2F6F6354003C62A5 /* MIDI ScribeTests */,
 				D383E6D82F6F6354003C62A5 /* MIDI ScribeUITests */,
 			);
@@ -239,6 +313,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E1AA00062F80000000AA0001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -257,6 +338,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		D383E6D52F6F6354003C62A5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E1AA00072F80000000AA0001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -405,6 +493,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "MIDI Scribe/MIDI Scribe.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 86G4NP75W9;
@@ -412,9 +501,8 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readwrite;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDocumentTypes = "({CFBundleTypeName=MIDI File;CFBundleTypeRole=Editor;LSHandlerRank=Alternate;LSItemContentTypes=(\"public.midi-audio\");})";
-				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "MIDI Scribe/Info.plist";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -452,6 +540,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "MIDI Scribe/MIDI Scribe.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 86G4NP75W9;
@@ -459,9 +548,8 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readwrite;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDocumentTypes = "({CFBundleTypeName=MIDI File;CFBundleTypeRole=Editor;LSHandlerRank=Alternate;LSItemContentTypes=(\"public.midi-audio\");})";
-				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "MIDI Scribe/Info.plist";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -599,6 +687,56 @@
 			};
 			name = Release;
 		};
+		E1AA00092F80000000AA0001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = F2A9B3D2C7A14C5D8E1F9001 /* MIDI Scribe/Version.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "MIDI Scribe Share Extension.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 86G4NP75W9;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "MIDI Scribe Share Extension-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				PRODUCT_BUNDLE_IDENTIFIER = org.centennialoss.midiscribe.shareextension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+			};
+			name = Debug;
+		};
+		E1AA000A2F80000000AA0001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = F2A9B3D2C7A14C5D8E1F9001 /* MIDI Scribe/Version.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "MIDI Scribe Share Extension.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 86G4NP75W9;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "MIDI Scribe Share Extension-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				PRODUCT_BUNDLE_IDENTIFIER = org.centennialoss.midiscribe.shareextension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -634,6 +772,15 @@
 			buildConfigurations = (
 				D383E6EA2F6F6354003C62A5 /* Debug */,
 				D383E6EB2F6F6354003C62A5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E1AA000B2F80000000AA0001 /* Build configuration list for PBXNativeTarget "MIDI Scribe Share Extension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E1AA00092F80000000AA0001 /* Debug */,
+				E1AA000A2F80000000AA0001 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

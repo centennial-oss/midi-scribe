@@ -36,6 +36,9 @@ struct MIDIScribeApp: App {
             ContentView(settings: settings)
                 .environmentObject(appState)
                 .environmentObject(settings)
+                .onOpenURL { url in
+                    appState.receiveIncomingURL(url)
+                }
                 .onAppear {
 #if os(macOS)
                     MenuPlacement.configureMainMenu()
@@ -171,7 +174,7 @@ struct MIDIScribeApp: App {
                 Button("Import Take from MIDI File…") {
                     appState.requestMIDIImport()
                 }
-                .keyboardShortcut("o", modifiers: [.command])
+                .keyboardShortcut("o", modifiers: [.command, .shift])
                 .disabled(state.isActionInProgress)
 
                 Divider()
