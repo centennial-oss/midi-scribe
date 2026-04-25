@@ -266,15 +266,13 @@ extension ContentView {
                 Text("/")
                     .foregroundStyle(.secondary)
             }
-            if !BuildInfo.isPhone {
-                HStack(spacing: 6) {
-                    Text(viewModel.completedTakeDurationText(take))
-                        .font(.body.monospaced())
-                        .foregroundStyle(.secondary)
-                }
-                inlineLabeledValue("Notes", "\(max(take.summary.noteOnCount, take.summary.noteOffCount))")
-                inlineLabeledValue("Range", viewModel.completedTakeRangeText(take))
+            HStack(spacing: 6) {
+                Text(viewModel.completedTakeDurationText(take))
+                    .font(.body.monospaced())
+                    .foregroundStyle(.secondary)
             }
+            inlineLabeledValue("Notes", "\(max(take.summary.noteOnCount, take.summary.noteOffCount))")
+            inlineLabeledValue("Range", viewModel.completedTakeRangeText(take))
             #else
             HStack(spacing: 6) {
                 Text(viewModel.completedTakeDurationText(take))

@@ -110,7 +110,9 @@ struct IPadMacWelcomeSheet: View {
     }
 
     private var shouldShowTopCloseButton: Bool {
-        kind == .help && selection < panes.count - 1
+        kind == .help &&
+        selection < panes.count - 1 &&
+        !(selectedPane?.hideCloseButton ?? false)
     }
 
     private var selectedPane: OnboardingPane? {
@@ -119,13 +121,21 @@ struct IPadMacWelcomeSheet: View {
     }
 
     private func goBack() {
+        guard panes.indices.contains(selection),
+              panes.indices.contains(selection - 1) else {
+            return
+        }
         withAnimation(.easeInOut(duration: 0.22)) {
             selection -= 1
         }
     }
 
     private func advanceOrClose() {
-        if selection < panes.count - 1 {
+        guard panes.indices.contains(selection) else {
+            return
+        }
+
+        if panes.indices.contains(selection + 1) {
             withAnimation(.easeInOut(duration: 0.22)) {
                 selection += 1
             }

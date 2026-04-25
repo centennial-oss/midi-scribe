@@ -10,6 +10,8 @@ struct OnboardingPane: Identifiable, Hashable {
     var title: String?
     let content: OnboardingPaneContent
     var isShownInHelp = true
+    var hideCloseButton = false
+    var isPaneHidden = false
 }
 
 enum OnboardingPaneContent: Hashable {
@@ -39,11 +41,6 @@ enum OnboardingMessageKind: Hashable {
         }
     }
 }
-
-// enum OnboardingScreenshotVariant {
-//     case phone
-//     case regular
-// }
 
 enum OnboardingCaretPosition: Hashable {
     case top

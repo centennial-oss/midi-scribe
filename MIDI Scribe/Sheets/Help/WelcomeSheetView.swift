@@ -385,11 +385,12 @@ struct WelcomeSheetFlow: View {
     }
 
     private var activePanes: [OnboardingPane] {
+        let visiblePanes = onboardingPanes.filter { !$0.isPaneHidden }
         switch kind {
         case .welcome:
-            return onboardingPanes
+            return visiblePanes
         case .help:
-            return onboardingPanes.filter(\.isShownInHelp)
+            return visiblePanes.filter(\.isShownInHelp)
         }
     }
 }

@@ -28,6 +28,30 @@ struct PhoneWelcomeSheet: View {
                 .padding(.horizontal, 8)
                 .padding(.top, 8)
         }
+        .overlay(alignment: .topTrailing) {
+            if shouldShowTopCloseButton {
+                Button {
+                    onClose()
+                } label: {
+                    ZStack {
+                        Circle()
+                            .fill(.clear)
+                            .frame(width: 44, height: 44)
+
+                        Image(systemName: "xmark")
+                            .font(.title2)
+                            .foregroundColor(.primary)
+                            .padding(10)
+                            .glassEffect(.regular.interactive(), in: Circle())
+                    }
+                    .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close")
+                .padding(.trailing, 20)
+                .padding(.top, 14)
+            }
+        }
         .presentationDetents([.large])
     }
 
@@ -40,7 +64,7 @@ struct PhoneWelcomeSheet: View {
 
             OnboardingPageDots(count: panes.count, selection: selection)
 
-            if shouldShowCloseAction {
+            if shouldShowPrimaryAction {
                 BasicButton(
                     context: BasicButtonContext(
                         action: onClose,
@@ -80,8 +104,14 @@ struct PhoneWelcomeSheet: View {
         return panes[selection]
     }
 
-    private var shouldShowCloseAction: Bool {
-        kind == .help || selection == panes.count - 1
+    private var shouldShowTopCloseButton: Bool {
+        kind == .help &&
+        selection < panes.count - 1 &&
+        !(selectedPane?.hideCloseButton ?? false)
+    }
+
+    private var shouldShowPrimaryAction: Bool {
+        kind == .welcome && selection == panes.count - 1
     }
 }
 
