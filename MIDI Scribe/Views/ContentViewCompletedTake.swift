@@ -6,7 +6,7 @@
 import SwiftUI
 
 extension ContentView {
-    private var completedTakeToolbarPlacement: ToolbarItemPlacement {
+    var completedTakeToolbarPlacement: ToolbarItemPlacement {
         #if os(iOS)
         .topBarTrailing
         #else
@@ -96,7 +96,7 @@ extension ContentView {
             completedTakeActionsToolbar(for: take)
         }
         ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
-        iOSAppActionsToolbar()
+        completedTakeAppActionsToolbar()
         #else
         ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
         completedTakeActionsToolbar(for: take)

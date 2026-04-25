@@ -65,7 +65,7 @@ extension ContentView {
         }
     }
 
-    private var shouldShowAboutToolbarButton: Bool {
+    var shouldShowAboutToolbarButton: Bool {
         selectedSavedTakeID == nil
     }
 }
