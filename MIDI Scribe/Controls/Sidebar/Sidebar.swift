@@ -54,6 +54,7 @@ extension EnvironmentValues {
 struct SidebarMultiSelectContext {
     let isEnabled: Bool
     let isValueSelected: (AnyHashable) -> Bool
+    let isValueDisabled: (AnyHashable) -> Bool
     let toggleValue: (AnyHashable) -> Void
 }
 
@@ -61,6 +62,7 @@ private struct SidebarMultiSelectContextKey: EnvironmentKey {
     static let defaultValue = SidebarMultiSelectContext(
         isEnabled: false,
         isValueSelected: { _ in false },
+        isValueDisabled: { _ in false },
         toggleValue: { _ in }
     )
 }
@@ -95,12 +97,8 @@ struct SidebarListHeader {
     }
 }
 
-struct Sidebar<SidebarContent: View, DetailContent: View>: View {
-    #if os(iOS)
-    private var defaultSidebarWidth: CGFloat = 380
-    #else
-    private let defaultSidebarWidth: CGFloat = 300
-    #endif
+struct Sidebar<SidebarContent: View, DetailContent: View, UnderlayContent: View>: View {
+    private let defaultSidebarWidth = SidebarLayoutDefaults.defaultSidebarWidth
     private let customSidebarTopInsetNoCustomButtons: CGFloat = 8
     /// Custom-overlay-only chrome toggle. When true, hides the custom
     /// sidebar's built-in show/hide buttons (open-row button and floating
@@ -110,6 +108,7 @@ struct Sidebar<SidebarContent: View, DetailContent: View>: View {
     @Binding var isPresented: Bool
     @ViewBuilder let sidebar: () -> SidebarContent
     @ViewBuilder let detail: () -> DetailContent
+    @ViewBuilder let underSidebarOverlay: () -> UnderlayContent
     @Environment(\.colorScheme) private var colorScheme
     @State private var splitViewColumnVisibility: NavigationSplitViewVisibility = .automatic
     /// On compact width (e.g. iPhone portrait), `columnVisibility` is ignored; this drives which column is on top.
@@ -124,13 +123,15 @@ struct Sidebar<SidebarContent: View, DetailContent: View>: View {
         excludesCustomSidebarToggleButtons: Bool = false,
         forceCustomSidebar: Bool? = nil,
         @ViewBuilder sidebar: @escaping () -> SidebarContent,
-        @ViewBuilder detail: @escaping () -> DetailContent
+        @ViewBuilder detail: @escaping () -> DetailContent,
+        @ViewBuilder underSidebarOverlay: @escaping () -> UnderlayContent
     ) {
         self._isPresented = isPresented
         self.excludesCustomSidebarToggleButtons = excludesCustomSidebarToggleButtons
         self.forceCustomSidebar = forceCustomSidebar
         self.sidebar = sidebar
         self.detail = detail
+        self.underSidebarOverlay = underSidebarOverlay
     }
 
     var body: some View {
@@ -163,7 +164,7 @@ struct Sidebar<SidebarContent: View, DetailContent: View>: View {
                 .zIndex(0)
 
             if isPresented {
-                Color.black.opacity(0.5)
+                Color.black.opacity(0.68)
                     .ignoresSafeArea()
                     .onTapGesture {
                         toggleSidebar()
@@ -171,6 +172,9 @@ struct Sidebar<SidebarContent: View, DetailContent: View>: View {
                     .transition(.opacity)
                     .zIndex(1)
             }
+
+            underSidebarOverlay()
+                .zIndex(1.5)
 
             ZStack(alignment: .topLeading) {
                 #if os(iOS)
@@ -332,4 +336,23 @@ struct Sidebar<SidebarContent: View, DetailContent: View>: View {
         }
     }
     #endif
+}
+
+extension Sidebar where UnderlayContent == EmptyView {
+    init(
+        isPresented: Binding<Bool>,
+        excludesCustomSidebarToggleButtons: Bool = false,
+        forceCustomSidebar: Bool? = nil,
+        @ViewBuilder sidebar: @escaping () -> SidebarContent,
+        @ViewBuilder detail: @escaping () -> DetailContent
+    ) {
+        self.init(
+            isPresented: isPresented,
+            excludesCustomSidebarToggleButtons: excludesCustomSidebarToggleButtons,
+            forceCustomSidebar: forceCustomSidebar,
+            sidebar: sidebar,
+            detail: detail,
+            underSidebarOverlay: { EmptyView() }
+        )
+    }
 }

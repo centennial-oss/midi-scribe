@@ -125,14 +125,14 @@ extension ContentView {
             let restore = resolvedSelectionAfterEdit()
             suppressNextSidebarAutoHide = true
             isEditingList = false
-            viewModel.multiSelection.removeAll()
+            clearBulkSelection()
             selectionAnchorID = nil
             viewModel.clearLastBulkResult()
             viewModel.selectedSidebarItem = restore
             preEditSelection = nil
         } else {
             preEditSelection = viewModel.selectedSidebarItem
-            viewModel.multiSelection.removeAll()
+            clearBulkSelection()
             viewModel.clearLastBulkResult()
             isEditingList = true
             viewModel.selectedSidebarItem = .editingTakes

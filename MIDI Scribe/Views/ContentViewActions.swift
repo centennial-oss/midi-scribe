@@ -223,7 +223,7 @@ extension ContentView {
         viewModel.recentTakes = []
         viewModel.lastCompletedTake = nil
         viewModel.selectedSidebarItem = .currentTake
-        viewModel.multiSelection = []
+        clearBulkSelection()
         pendingDeleteTakeID = nil
         pendingSplitTakeID = nil
         isPresentingLiveTakeDeleteConfirm = false

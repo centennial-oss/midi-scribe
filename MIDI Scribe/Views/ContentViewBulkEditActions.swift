@@ -13,11 +13,15 @@ enum BulkEditCopy {
     static let emptySelectionInstruction = "Select one or more Takes in the sidebar to make changes."
 }
 
-#if os(iOS)
-private let defaultSidebarWidth: CGFloat = 380
-#endif
-
 extension ContentView {
+    private var iPhoneBulkEditPanelWidth: CGFloat { 340 }
+    private var bulkEditActionButtonWidth: CGFloat { 80 }
+    private var iPhoneBulkEditPanelLeadingGap: CGFloat { 10 }
+    private var iPhoneBulkEditHiddenOffset: CGFloat {
+        // Shift far enough left so the full panel starts behind the sidebar.
+        iPhoneBulkEditPanelWidth + iPhoneBulkEditPanelLeadingGap + 8
+    }
+
     var hasBulkEditSelection: Bool {
         !viewModel.multiSelection.isEmpty
     }
@@ -44,65 +48,97 @@ extension ContentView {
     private var bulkEditActionButtonContent: some View {
         if hasBulkEditSelection {
             if canMergeSelectedTakes {
-                BasicButton(
+                bulkEditActionButton(
                     context: BasicButtonContext(
                         action: {
                             mergeSilenceMsText = "0"
                             isPresentingMergeDialog = true
                         },
                         label: "Merge",
-                        systemImage: "arrow.triangle.merge"
+                        systemImage: "arrow.triangle.merge",
+                        size: .extraLarge,
+                        contentWidth: bulkEditActionButtonWidth
                     )
                 )
                 .disabled(viewModel.isTakeActionInProgress)
             }
 
-            BasicButton(
+            bulkEditActionButton(
                 context: BasicButtonContext(
-                    action: { viewModel.toggleStarForSelectedTakes() },
+                    action: {
+                        viewModel.toggleStarForSelectedTakes()
+                        clearBulkSelection()
+                    },
                     label: viewModel.allSelectedAreStarred ? "Unstar" : "Star",
                     systemImage: viewModel.allSelectedAreStarred ? "star.slash" : "star",
+                    size: .extraLarge,
                     backgroundColor: .yellow,
-                    foregroundColor: .black
+                    foregroundColor: .black,
+                    contentWidth: bulkEditActionButtonWidth
+
                 )
             )
             .disabled(viewModel.isTakeActionInProgress)
 
-            BasicButton(
+            bulkEditActionButton(
                 context: BasicButtonContext(
                     action: { beginBulkDeleteConfirmation() },
                     label: "Delete",
                     systemImage: "trash",
-                    role: .destructive
+                    role: .destructive,
+                    size: .extraLarge,
+                    contentWidth: bulkEditActionButtonWidth
                 )
             )
             .disabled(viewModel.isTakeActionInProgress)
         }
     }
 
+    private func bulkEditActionButton(context: BasicButtonContext) -> some View {
+        BasicButton(context: context)
+    }
+
     @ViewBuilder
-    func bottomBulkEditActionRowContent(_ content: some View) -> some View {
+    func iPhoneBulkActionPanel(_ content: some View) -> some View {
 #if os(iOS)
         content
             .overlay(alignment: .center) {
-                if showsiPhoneBulkEditFloatingPanel {
-                    GeometryReader { _ in
-                        HStack {
-                            Spacer(minLength: defaultSidebarWidth + 10)
-                            iPhoneBulkEditFloatingPanel
-                                .frame(width: 340)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.top, 8)
-                        .padding(.trailing, 16)
-                    }
-                    .ignoresSafeArea(edges: .bottom)
-                }
+                iPhoneBulkActionPanelOverlay
             }
 #else
         content
 #endif
     }
+
+#if os(iOS)
+    var iPhoneBulkActionPanelOverlay: some View {
+        GeometryReader { _ in
+            HStack {
+                Spacer(minLength: SidebarLayoutDefaults.defaultSidebarWidth + iPhoneBulkEditPanelLeadingGap)
+                iPhoneBulkEditFloatingPanel
+                    .frame(width: iPhoneBulkEditPanelWidth)
+                Spacer(minLength: 0)
+            }
+            .padding(.top, 8)
+            .padding(.trailing, 16)
+        }
+        .ignoresSafeArea(edges: .bottom)
+        .mask(alignment: .leading) {
+            HStack(spacing: 0) {
+                Color.clear.frame(width: SidebarLayoutDefaults.defaultSidebarWidth + 8)
+                Rectangle()
+            }
+        }
+        .offset(x: showsiPhoneBulkEditFloatingPanel ? 0 : -iPhoneBulkEditHiddenOffset)
+        .opacity(showsiPhoneBulkEditFloatingPanel ? 1 : 0)
+        .allowsHitTesting(showsiPhoneBulkEditFloatingPanel)
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: showsiPhoneBulkEditFloatingPanel)
+    }
+#else
+    var iPhoneBulkActionPanelOverlay: some View {
+        EmptyView()
+    }
+#endif
 
 #if os(iOS)
     private var iPhoneBulkEditFloatingPanel: some View {
@@ -112,7 +148,9 @@ extension ContentView {
                 .multilineTextAlignment(.center)
 
             if hasBulkEditSelection {
-                bulkEditActionButtonsStack
+                VStack(spacing: 16) {
+                    bulkEditActionButtonContent
+                }
                     .frame(maxWidth: .infinity)
             } else {
                 Text(BulkEditCopy.emptySelectionInstruction)

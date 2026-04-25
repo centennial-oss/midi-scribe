@@ -27,12 +27,15 @@ extension ContentView {
                         title: "Starred Takes",
                         buttons: showsEditButtonInStarredHeader ? [sidebarEditButton] : []
                     ),
-                    isMultiSelecting: isEditingList
+                    isMultiSelecting: isEditingList,
+                    multiSelectedIDs: $starredBulkSelection,
+                    disabledMultiSelectionIDs: recentBulkSelection
                 ) { take in
                     sidebarTakeItem(take, item: .starredTake(take.id), asStarred: true)
                 }
                 .onMultiSelectionChange { selected in
-                    viewModel.multiSelection = Set(selected.map(\.id))
+                    starredBulkSelection = Set(selected.map(\.id))
+                    syncBulkSelection()
                 }
             }
             if !viewModel.recentTakes.isEmpty {
@@ -44,12 +47,15 @@ extension ContentView {
                         title: "Recent Takes",
                         buttons: showsEditButtonInRecentHeader ? [sidebarEditButton] : []
                     ),
-                    isMultiSelecting: isEditingList
+                    isMultiSelecting: isEditingList,
+                    multiSelectedIDs: $recentBulkSelection,
+                    disabledMultiSelectionIDs: starredBulkSelection
                 ) { take in
                     sidebarTakeItem(take, item: .recentTake(take.id), asStarred: false)
                 }
                 .onMultiSelectionChange { selected in
-                    viewModel.multiSelection = Set(selected.map(\.id))
+                    recentBulkSelection = Set(selected.map(\.id))
+                    syncBulkSelection()
                 }
             }
             if let pendingTakeOperation = viewModel.pendingOperation,
@@ -347,53 +353,4 @@ extension ContentView {
 #endif
     }
 
-    func toggleMultiSelection(_ id: UUID) {
-        if viewModel.multiSelection.contains(id) {
-            viewModel.multiSelection.remove(id)
-        } else {
-            viewModel.multiSelection.insert(id)
-        }
-        selectionAnchorID = id
-    }
-
-#if os(macOS)
-    func handleSelectionChangeForModifiers(old: ContentSidebarItem, new: ContentSidebarItem) {
-        guard let tappedID = takeID(from: new) else { return }
-        let flags = NSEvent.modifierFlags
-        let command = flags.contains(.command)
-        let shift = flags.contains(.shift)
-        guard command || shift else {
-            if !isEditingList {
-                viewModel.multiSelection = []
-            }
-            selectionAnchorID = tappedID
-            return
-        }
-        if command {
-            if viewModel.multiSelection.contains(tappedID) {
-                viewModel.multiSelection.remove(tappedID)
-            } else {
-                viewModel.multiSelection.insert(tappedID)
-            }
-            selectionAnchorID = tappedID
-        } else if shift {
-            let anchor = selectionAnchorID ?? takeID(from: old) ?? tappedID
-            let allIDs = viewModel.recentTakes.map(\.id)
-            if let anchorIndex = allIDs.firstIndex(of: anchor),
-               let targetIndex = allIDs.firstIndex(of: tappedID) {
-                let range = min(anchorIndex, targetIndex) ... max(anchorIndex, targetIndex)
-                viewModel.multiSelection = Set(allIDs[range])
-            } else {
-                viewModel.multiSelection = [tappedID]
-            }
-        }
-    }
-
-    func takeID(from item: ContentSidebarItem) -> UUID? {
-        switch item {
-        case .recentTake(let id), .starredTake(let id): return id
-        default: return nil
-        }
-    }
-#endif
 }

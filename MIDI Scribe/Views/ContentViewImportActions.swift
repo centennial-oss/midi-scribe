@@ -104,7 +104,7 @@ extension ContentView {
 #endif
                 if isEditingList {
                     isEditingList = false
-                    viewModel.multiSelection.removeAll()
+                    clearBulkSelection()
                     selectionAnchorID = nil
                     preEditSelection = nil
                 }
@@ -253,7 +253,7 @@ extension ContentView {
         try? FileManager.default.removeItem(at: sourceURL)
         if isEditingList {
             isEditingList = false
-            viewModel.multiSelection.removeAll()
+            clearBulkSelection()
             selectionAnchorID = nil
             preEditSelection = nil
         }

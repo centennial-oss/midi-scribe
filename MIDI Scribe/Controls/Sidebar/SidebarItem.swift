@@ -23,6 +23,7 @@ struct SidebarItem<Value: Hashable, Content: View>: View {
 
     var body: some View {
         if multiSelectContext.isEnabled {
+            let isDisabled = multiSelectContext.isValueDisabled(AnyHashable(value))
             Button {
                 multiSelectContext.toggleValue(AnyHashable(value))
             } label: {
@@ -34,6 +35,8 @@ struct SidebarItem<Value: Hashable, Content: View>: View {
                 #endif
             }
             .buttonStyle(.plain)
+            .disabled(isDisabled)
+            .opacity(isDisabled ? 0.45 : 1)
         } else {
             Button {
                 let detailSelectionChanges = !isSelected

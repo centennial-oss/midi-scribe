@@ -13,8 +13,10 @@ struct SidebarList<Data: RandomAccessCollection, ID: Hashable, Selection: Hashab
     @Binding var selection: Selection?
     let header: SidebarListHeader?
     let isMultiSelecting: Bool
+    let disabledMultiSelectionIDs: Set<ID>
     @Environment(\.sidebarUsesCustomLayout) private var isCustom
     @State private var multiSelectedIDs: Set<ID> = []
+    private var externalMultiSelectedIDs: Binding<Set<ID>>?
     private var onMultiSelectionChange: (([Data.Element]) -> Void)?
     @ViewBuilder let rowContent: (Data.Element) -> RowContent
 
@@ -24,6 +26,8 @@ struct SidebarList<Data: RandomAccessCollection, ID: Hashable, Selection: Hashab
         selection: Binding<Selection?>,
         header: SidebarListHeader? = nil,
         isMultiSelecting: Bool = false,
+        multiSelectedIDs: Binding<Set<ID>>? = nil,
+        disabledMultiSelectionIDs: Set<ID> = [],
         @ViewBuilder rowContent: @escaping (Data.Element) -> RowContent
     ) {
         self.data = data
@@ -31,6 +35,8 @@ struct SidebarList<Data: RandomAccessCollection, ID: Hashable, Selection: Hashab
         self._selection = selection
         self.header = header
         self.isMultiSelecting = isMultiSelecting
+        self.disabledMultiSelectionIDs = disabledMultiSelectionIDs
+        self.externalMultiSelectedIDs = multiSelectedIDs
         self.onMultiSelectionChange = nil
         self.rowContent = rowContent
     }
@@ -69,7 +75,13 @@ struct SidebarList<Data: RandomAccessCollection, ID: Hashable, Selection: Hashab
                 guard let valueID = value.base as? ID else {
                     return false
                 }
-                return multiSelectedIDs.contains(valueID)
+                return selectedIDs.contains(valueID)
+            },
+            isValueDisabled: { value in
+                guard let valueID = value.base as? ID else {
+                    return false
+                }
+                return disabledMultiSelectionIDs.contains(valueID)
             },
             toggleValue: { value in
                 guard let valueID = value.base as? ID else {
@@ -80,7 +92,7 @@ struct SidebarList<Data: RandomAccessCollection, ID: Hashable, Selection: Hashab
         ))
         .onChange(of: isMultiSelecting) { _, newValue in
             if !newValue {
-                multiSelectedIDs.removeAll()
+                selectedIDs = []
                 onMultiSelectionChange?([])
             }
         }
@@ -94,16 +106,31 @@ struct SidebarList<Data: RandomAccessCollection, ID: Hashable, Selection: Hashab
     }
 
     private func toggleSelection(for id: ID) {
-        if multiSelectedIDs.contains(id) {
-            multiSelectedIDs.remove(id)
+        var nextSelection = selectedIDs
+        if nextSelection.contains(id) {
+            nextSelection.remove(id)
         } else {
-            multiSelectedIDs.insert(id)
+            nextSelection.insert(id)
         }
+        selectedIDs = nextSelection
         onMultiSelectionChange?(selectedElements)
     }
 
     private var selectedElements: [Data.Element] {
-        data.filter { multiSelectedIDs.contains($0[keyPath: id]) }
+        data.filter { selectedIDs.contains($0[keyPath: id]) }
+    }
+
+    private var selectedIDs: Set<ID> {
+        get {
+            externalMultiSelectedIDs?.wrappedValue ?? multiSelectedIDs
+        }
+        nonmutating set {
+            if let externalMultiSelectedIDs {
+                externalMultiSelectedIDs.wrappedValue = newValue
+            } else {
+                multiSelectedIDs = newValue
+            }
+        }
     }
 
     func onMultiSelectionChange(_ action: @escaping ([Data.Element]) -> Void) -> Self {

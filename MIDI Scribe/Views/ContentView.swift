@@ -48,6 +48,8 @@ struct ContentView: View {
     @State var renamingTakeID: UUID?
     @State var renameDraft: String = ""
     @State var isEditingList = false
+    @State var starredBulkSelection: Set<UUID> = []
+    @State var recentBulkSelection: Set<UUID> = []
     /// Anchor for shift-click range selection on macOS.
     @State var selectionAnchorID: UUID?
     /// Selection to restore when leaving Edit mode (unless a merge/delete
@@ -74,11 +76,9 @@ struct ContentView: View {
     }
 
     private var configuredContent: some View {
-        bottomBulkEditActionRowContent(
-            idleTimerContent(
+        idleTimerContent(
             welcomeSheetContent(
                 dialogContent(observerContent(setupContent(baseContent)))
-            )
             )
         )
     }
@@ -94,7 +94,8 @@ struct ContentView: View {
                     .navigationSplitViewColumnWidth(min: 240, ideal: 280)
 #endif
             },
-            detail: { sidebarDetailHost }
+            detail: { sidebarDetailHost },
+            underSidebarOverlay: { iPhoneBulkActionPanelOverlay }
         )
 #if os(iOS)
         .frame(minWidth: 0, minHeight: 320)

@@ -93,6 +93,7 @@ extension ContentView {
                 Button("Merge") {
                     let silenceMillis = Int(mergeSilenceMsText) ?? 0
                     viewModel.mergeSelectedTakes(silenceBetweenMs: silenceMillis)
+                    clearBulkSelection()
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
@@ -111,6 +112,7 @@ extension ContentView {
             .alert("Delete \(viewModel.multiSelection.count) Takes?", isPresented: $isPresentingBulkDeleteConfirm) {
                 Button("Delete", role: .destructive) {
                     viewModel.deleteSelectedTakes()
+                    clearBulkSelection()
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {

@@ -14,6 +14,8 @@ struct BasicButtonContext {
     var size: ControlSize
     var backgroundColor: Color?
     var foregroundColor: Color?
+    var contentWidth: CGFloat?
+    var contentHeight: CGFloat?
 
     init(
         action: @escaping () -> Void,
@@ -23,7 +25,9 @@ struct BasicButtonContext {
         keyboardShortcut: KeyboardShortcut? = nil,
         size: ControlSize = .large,
         backgroundColor: Color? = nil,
-        foregroundColor: Color? = nil
+        foregroundColor: Color? = nil,
+        contentWidth: CGFloat? = nil,
+        contentHeight: CGFloat? = nil
     ) {
         self.action = action
         self.label = label
@@ -33,6 +37,8 @@ struct BasicButtonContext {
         self.size = size
         self.backgroundColor = backgroundColor
         self.foregroundColor = foregroundColor
+        self.contentWidth = contentWidth
+        self.contentHeight = contentHeight
     }
 }
 
@@ -62,6 +68,7 @@ struct BasicButton: View {
                 Text(context.label)
             }
         }
+        .frame(width: context.contentWidth, height: context.contentHeight)
         .foregroundStyle(labelColor)
     }
 
