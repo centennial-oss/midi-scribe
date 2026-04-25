@@ -2,8 +2,6 @@
 //  AppSettings.swift
 //  MIDI Scribe
 //
-//  Created by Codex on 3/21/26.
-//
 
 import Combine
 import Foundation

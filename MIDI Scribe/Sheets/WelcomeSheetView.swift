@@ -2,8 +2,6 @@
 //  WelcomeSheetView.swift
 //  MIDI Scribe
 //
-//  Created by Codex on 4/20/26.
-//
 
 import SwiftUI
 
@@ -310,28 +308,31 @@ struct WelcomeSheetFlow: View {
 
     var body: some View {
         let panes = activePanes
-
-        Group {
-            #if os(iOS)
-            if BuildInfo.isPhone {
-                PhoneWelcomeSheet(
-                    kind: kind,
-                    panes: panes,
-                    selection: $selection,
-                    onClose: onClose
-                )
-            }
-            #endif
-            if !BuildInfo.isPhone {
-                IPadMacWelcomeSheet(
-                    kind: kind,
-                    panes: panes,
-                    selection: $selection,
-                    onClose: onClose
-                )
-            }
+        #if os(iOS)
+        if BuildInfo.isPhone {
+            PhoneWelcomeSheet(
+                kind: kind,
+                panes: panes,
+                selection: $selection,
+                onClose: onClose
+            )
+        } else {
+            IPadMacWelcomeSheet(
+                kind: kind,
+                panes: panes,
+                selection: $selection,
+                onClose: onClose
+            )
         }
-        #if os(macOS)
+        #elseif os(macOS)
+        Group {
+            IPadMacWelcomeSheet(
+                kind: kind,
+                panes: panes,
+                selection: $selection,
+                onClose: onClose
+            )
+        }
         .onKeyPress(.escape) {
             guard kind == .help || selection == panes.count - 1 else {
                 return .ignored

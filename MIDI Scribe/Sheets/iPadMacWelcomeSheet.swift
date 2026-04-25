@@ -5,8 +5,6 @@
 
 import SwiftUI
 
-let iPadMacWelcomeSheetPadding: CGFloat = BuildInfo.isPad ? 8 : 20
-
 struct IPadMacWelcomeSheet: View {
     let kind: OnboardingPresentationKind
     let panes: [OnboardingPane]
@@ -14,19 +12,17 @@ struct IPadMacWelcomeSheet: View {
     let onClose: () -> Void
 
     var body: some View {
-        NavigationStack {
+        // NavigationStack {
             VStack(spacing: 20) {
                 onboardingHeader
-
                 OnboardingSwipeCarouselView(
                     panes: panes,
                     selection: $selection
                 )
-                .aspectRatio(16 / 10, contentMode: .fit)
-
+                .aspectRatio(4 / 3, contentMode: .fit)
                 onboardingFooter
             }
-            .padding(iPadMacWelcomeSheetPadding)
+            .background(.regularMaterial)
             .overlay(alignment: .topTrailing) {
                 if shouldShowTopCloseButton {
                     Button {
@@ -47,12 +43,10 @@ struct IPadMacWelcomeSheet: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Close")
-                    .padding(.trailing, 24)
+                    .padding(.trailing, 20)
                 }
             }
-        }
-        .frame(width: 700, height: 570)
-        .background(.regularMaterial)
+        // }
     }
 
     private var onboardingHeader: some View {
