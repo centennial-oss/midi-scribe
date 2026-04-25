@@ -96,12 +96,8 @@ struct SidebarListHeader {
 }
 
 struct Sidebar<SidebarContent: View, DetailContent: View>: View {
-    #if os(macOS)
-    private let defaultSidebarWidth: CGFloat = 300
-    #elseif os(iOS)
-    private var defaultSidebarWidth: CGFloat {
-        UIDevice.current.userInterfaceIdiom == .phone ? 380 : 380
-    }
+    #if os(iOS)
+    private var defaultSidebarWidth: CGFloat = 380
     #else
     private let defaultSidebarWidth: CGFloat = 300
     #endif
@@ -213,7 +209,6 @@ struct Sidebar<SidebarContent: View, DetailContent: View>: View {
             .frame(width: defaultSidebarWidth, alignment: .topLeading)
             .frame(maxHeight: .infinity, alignment: .topLeading)
             .frame(maxHeight: .infinity, alignment: .top)
-            // .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 24))
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             .shadow(color: .black.opacity(0.3), radius: 22, x: 0, y: 10)
             .padding(.leading, 0)

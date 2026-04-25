@@ -21,8 +21,23 @@ extension ContentView {
     }
 
     var editingTakesDetail: some View {
+        Group {
+#if os(iOS)
+            if UIDevice.current.userInterfaceIdiom == .phone {
+                Color.clear
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                editingTakesDetailContent
+            }
+#else
+            editingTakesDetailContent
+#endif
+        }
+    }
+
+    private var editingTakesDetailContent: some View {
         VStack(alignment: .leading, spacing: 24) {
-            Text("Manage Saved Takes")
+            Text(BulkEditCopy.panelTitle)
                 .font(.title2)
 
             if viewModel.multiSelection.isEmpty {
@@ -52,9 +67,7 @@ extension ContentView {
 
     private var editingTakesEmptySelectionHint: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(
-                "Select one or more Takes in the sidebar to make changes."
-            )
+            Text(BulkEditCopy.emptySelectionInstruction)
             .foregroundStyle(.secondary)
 
             bulkEditActionButtons

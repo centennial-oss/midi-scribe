@@ -15,16 +15,21 @@ extension ContentView {
 
     var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sidebarControls
-            Divider()
-            sidebarCurrentTakeRow
+            if !shouldHideSidebarTopChromeDuringEdit {
+                sidebarControls
+                Divider()
+                sidebarCurrentTakeRow
+            }
 
             if !viewModel.starredTakes.isEmpty {
                 SidebarList(
                     data: viewModel.starredTakes,
                     id: \.id,
                     selection: sidebarOptionalSelectionBinding,
-                    header: SidebarListHeader(title: "Starred Takes"),
+                    header: SidebarListHeader(
+                        title: "Starred Takes",
+                        buttons: showsEditButtonInStarredHeader ? [sidebarEditButton] : []
+                    ),
                     isMultiSelecting: isEditingList
                 ) { take in
                     sidebarTakeItem(take, item: .starredTake(take.id), asStarred: true)
@@ -41,7 +46,7 @@ extension ContentView {
                     selection: sidebarOptionalSelectionBinding,
                     header: SidebarListHeader(
                         title: "Recent Takes",
-                        buttons: showsSidebarEditButton ? [sidebarEditButton] : []
+                        buttons: showsEditButtonInRecentHeader ? [sidebarEditButton] : []
                     ),
                     isMultiSelecting: isEditingList
                 ) { take in
@@ -65,13 +70,6 @@ extension ContentView {
                 .padding(.vertical, 8)
             }
 
-#if os(iOS)
-            if showsNarrowiPhoneBulkEditActionRow {
-                Color.clear
-                    .frame(height: 84)
-                    .accessibilityHidden(true)
-            }
-#endif
             Spacer(minLength: 0)
         }
         .onChange(of: viewModel.selectedSidebarItem) { _, newValue in
@@ -341,6 +339,22 @@ extension ContentView {
 
     private var showsSidebarEditButton: Bool {
         true
+    }
+
+    private var showsEditButtonInStarredHeader: Bool {
+        showsSidebarEditButton && !viewModel.starredTakes.isEmpty
+    }
+
+    private var showsEditButtonInRecentHeader: Bool {
+        showsSidebarEditButton && viewModel.starredTakes.isEmpty
+    }
+
+    private var shouldHideSidebarTopChromeDuringEdit: Bool {
+#if os(iOS)
+        UIDevice.current.userInterfaceIdiom == .phone && isEditingList
+#else
+        false
+#endif
     }
 
     func toggleMultiSelection(_ id: UUID) {
