@@ -22,16 +22,12 @@ extension ContentView {
 
     var editingTakesDetail: some View {
         Group {
-#if os(iOS)
-            if UIDevice.current.userInterfaceIdiom == .phone {
+            if BuildInfo.isPhone {
                 Color.clear
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 editingTakesDetailContent
             }
-#else
-            editingTakesDetailContent
-#endif
         }
     }
 
@@ -178,9 +174,7 @@ extension ContentView {
         .toolbar {
             #if os(iOS)
             iPhoneSidebarToggleToolbar()
-            #endif
             currentTakeActionsToolbar()
-            #if os(iOS)
             if !viewModel.isTakeInProgress {
                 iOSImportToolbar()
                 ToolbarSpacer(.fixed, placement: .topBarTrailing)
@@ -188,6 +182,8 @@ extension ContentView {
                 ToolbarSpacer(.fixed, placement: .topBarTrailing)
             }
             iOSAppActionsToolbar()
+            #else
+            currentTakeActionsToolbar()
             #endif
         }
     }

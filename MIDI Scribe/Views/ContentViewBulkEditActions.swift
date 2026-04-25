@@ -170,7 +170,7 @@ extension ContentView {
     }
 
     var showsiPhoneBulkEditFloatingPanel: Bool {
-        UIDevice.current.userInterfaceIdiom == .phone && isEditingList
+        BuildInfo.isPhone && isEditingList
     }
 #endif
 }

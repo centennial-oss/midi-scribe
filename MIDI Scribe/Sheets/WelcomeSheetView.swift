@@ -73,104 +73,232 @@ enum OnboardingPresentationKind {
     }
 }
 
-struct OnboardingPane: Identifiable, Hashable {
-    enum ScreenshotSlot: String {
-        case liveTake
-        case playback
-        case editing
-        case bulkEdit
-        case settings
-    }
-
-    let id: Int
-    let eyebrow: String
-    let title: String
-    let body: String
-    let bullets: [String]
-    let screenshotSlot: ScreenshotSlot
-}
-
 private let onboardingPanes: [OnboardingPane] = [
     OnboardingPane(
         id: 0,
-        eyebrow: "Live Capture",
-        title: "Start and end a new Take",
-        body: """
-            Use the large Start a New Take button, the Take menu, or your configured shortcuts to begin
-            recording. While a Take is in progress, the stop button ends it and the trash button cancels it.
-            """,
-        bullets: [
-            "The piano roll fills in live as you play. During live capture it is read-only.",
-            "Show the Start button, Stop button, and Cancel Take button in the screenshot.",
-            "If you have alternate start methods configured in Settings, they appear under the Start button."
-        ],
-        screenshotSlot: .liveTake
+        content: .message(.welcome),
+        isShownInHelp: false
     ),
     OnboardingPane(
         id: 1,
-        eyebrow: "Playback",
-        title: "Review and navigate a saved Take",
-        body: """
-            Select a saved Take from the sidebar to open playback mode. Use rewind, play or pause, restart,
-            and the piano roll to inspect the performance before making changes. You can also drag across
-            the piano roll to zoom into a selected region.
-            """,
-        bullets: [
-            "Show the saved Take playback toolbar controls: rewind, play or pause, and restart.",
-            "Clicking or tapping in the piano roll moves the playhead to that location.",
-            "If playback is paused, dragging the Handle at the top of the playhead scrubs across the roll.",
-            "Call out the new click or tap-drag zoom gesture: drag a rectangle across the piano roll to " +
-                "zoom into that selected area."
-        ],
-        screenshotSlot: .playback
+        title: "Live Capture",
+        content: .screenshot(
+            .liveTake,
+            OnboardingAnnotationSet(
+            phone: [
+                OnboardingAnnotation(
+                    id: "phone-live-start",
+                    sourceX: 520,
+                    sourceY: 1080,
+                    label: "Start a Take from here. When recording begins, this becomes the live capture view.",
+                    caretPosition: .bottom
+                ),
+                OnboardingAnnotation(
+                    id: "phone-live-roll",
+                    sourceX: 1760,
+                    sourceY: 420,
+                    label: "The piano roll fills in as you play. Live capture is read-only.",
+                    caretPosition: .top
+                )
+            ],
+            regular: [
+                OnboardingAnnotation(
+                    id: "regular-live-start",
+                    sourceX: 620,
+                    sourceY: 1740,
+                    label: "Start a Take here, from the Take menu, or with your configured shortcut.",
+                    caretPosition: .bottom
+                ),
+                OnboardingAnnotation(
+                    id: "regular-live-roll",
+                    sourceX: 1850,
+                    sourceY: 760,
+                    label: "The piano roll fills in live as MIDI arrives.",
+                    caretPosition: .top
+                )
+            ]
+        )
+        )
     ),
     OnboardingPane(
         id: 2,
-        eyebrow: "Per-Take Actions",
-        title: "Rename, split, and export",
-        body: """
-            Once a saved Take is selected, you can rename it, split it at the current playhead position,
-            or export it as a MIDI file. These actions apply to the current Take only.
-            """,
-        bullets: [
-            "Split Take Here depends on where the playhead is parked, so this pane should visually follow " +
-                "the playback pane.",
-            "Show the Rename Take, Split Take Here, and Export .mid actions on a saved Take.",
-            "If it fits cleanly, mention that star and unstar are also available per-Take."
-        ],
-        screenshotSlot: .editing
+        title: "Ending a Take",
+        content: .screenshot(
+            .liveTake,
+            OnboardingAnnotationSet(
+            phone: [
+                OnboardingAnnotation(
+                    id: "phone-live-stop",
+                    sourceX: 1420,
+                    sourceY: 1095,
+                    label: "Stop saves the Take. Trash cancels the recording without keeping it.",
+                    caretPosition: .bottom
+                )
+            ],
+            regular: [
+                OnboardingAnnotation(
+                    id: "regular-live-stop",
+                    sourceX: 1320,
+                    sourceY: 1780,
+                    label: "Stop ends and saves the Take. Trash cancels the recording.",
+                    caretPosition: .bottom
+                )
+            ]
+        )
+        )
     ),
     OnboardingPane(
         id: 3,
-        eyebrow: "Bulk Actions",
-        title: "Bulk edit and merge",
-        body: """
-            Enter bulk edit mode from the sidebar to select multiple Takes. Star and Delete work on any
-            selection, while Merge only appears after at least two Takes are selected.
-            """,
-        bullets: [
-            "On iPhone, show the floating bottom action row that appears during bulk edit mode.",
-            "Call out that Merge is hidden until bulk edit mode is active and two or more Takes are selected.",
-            "Star and Delete work here too, but Merge is the bulk-only action that needs the strongest " +
-                "callout."
-        ],
-        screenshotSlot: .bulkEdit
+        title: "Playback Controls",
+        content: .screenshot(
+            .playback,
+            OnboardingAnnotationSet(
+            phone: [
+                OnboardingAnnotation(
+                    id: "phone-playback-controls",
+                    sourceX: 1360,
+                    sourceY: 1080,
+                    label: "Use rewind, play or pause, and restart to review a saved Take.",
+                    caretPosition: .bottom
+                ),
+                OnboardingAnnotation(
+                    id: "phone-playback-playhead",
+                    sourceX: 1780,
+                    sourceY: 350,
+                    label: "Tap in the roll to move the playhead. Drag its handle to scrub while paused.",
+                    caretPosition: .top
+                )
+            ],
+            regular: [
+                OnboardingAnnotation(
+                    id: "regular-playback-controls",
+                    sourceX: 1500,
+                    sourceY: 1760,
+                    label: "Playback controls let you rewind, play or pause, and restart.",
+                    caretPosition: .bottom
+                ),
+                OnboardingAnnotation(
+                    id: "regular-playback-playhead",
+                    sourceX: 1900,
+                    sourceY: 650,
+                    label: "Click the roll to move the playhead. Drag the handle to scrub.",
+                    caretPosition: .top
+                )
+            ]
+        )
+        )
     ),
     OnboardingPane(
         id: 4,
-        eyebrow: "Settings",
-        title: "Adjust how MIDI Scribe behaves",
-        body: """
-            Settings lets you configure recording triggers and other app behavior. Most controls are
-            self-explanatory once opened, so this pane only needs a light tour.
-            """,
-        bullets: [
-            "Show the Settings button location for the platform.",
-            "If you want one annotation here, point to recording start options because they affect the " +
-                "first pane.",
-            "Use this final pane as the natural end of the lesson."
-        ],
-        screenshotSlot: .settings
+        title: "Zooming the Piano Roll",
+        content: .screenshot(
+            .playback,
+            OnboardingAnnotationSet(
+            phone: [
+                OnboardingAnnotation(
+                    id: "phone-playback-zoom",
+                    sourceX: 2060,
+                    sourceY: 575,
+                    label: "Drag a rectangle across the piano roll to zoom into that region.",
+                    caretPosition: .right
+                )
+            ],
+            regular: [
+                OnboardingAnnotation(
+                    id: "regular-playback-zoom",
+                    sourceX: 2100,
+                    sourceY: 820,
+                    label: "Drag across the piano roll to zoom into a selected region.",
+                    caretPosition: .right
+                )
+            ]
+        )
+        )
+    ),
+    OnboardingPane(
+        id: 5,
+        title: "Take Actions",
+        content: .screenshot(
+            .editing,
+            OnboardingAnnotationSet(
+            phone: [
+                OnboardingAnnotation(
+                    id: "phone-edit-actions",
+                    sourceX: 2360,
+                    sourceY: 250,
+                    label: "Rename, split at the playhead, star, or export the selected Take.",
+                    caretPosition: .right
+                )
+            ],
+            regular: [
+                OnboardingAnnotation(
+                    id: "regular-edit-actions",
+                    sourceX: 480,
+                    sourceY: 620,
+                    label: "Per-Take actions include rename, split at the playhead, star, and export.",
+                    caretPosition: .left
+                )
+            ]
+        )
+        )
+    ),
+    OnboardingPane(
+        id: 6,
+        title: "Bulk Edit",
+        content: .screenshot(
+            .bulkEdit,
+            OnboardingAnnotationSet(
+            phone: [
+                OnboardingAnnotation(
+                    id: "phone-bulk-actions",
+                    sourceX: 1390,
+                    sourceY: 1090,
+                    label: "Bulk edit lets you select multiple Takes. Merge appears after two or more are selected.",
+                    caretPosition: .bottom
+                )
+            ],
+            regular: [
+                OnboardingAnnotation(
+                    id: "regular-bulk-actions",
+                    sourceX: 560,
+                    sourceY: 1640,
+                    label: "Select multiple Takes to star, delete, or merge them together.",
+                    caretPosition: .bottom
+                )
+            ]
+        )
+        )
+    ),
+    OnboardingPane(
+        id: 7,
+        title: "Settings",
+        content: .screenshot(
+            .settings,
+            OnboardingAnnotationSet(
+            phone: [
+                OnboardingAnnotation(
+                    id: "phone-settings",
+                    sourceX: 2230,
+                    sourceY: 210,
+                    label: "Settings controls recording triggers and app behavior.",
+                    caretPosition: .top
+                )
+            ],
+            regular: [
+                OnboardingAnnotation(
+                    id: "regular-settings",
+                    sourceX: 2060,
+                    sourceY: 420,
+                    label: "Use Settings to tune recording triggers and MIDI Scribe behavior.",
+                    caretPosition: .top
+                )
+            ]
+        )
+        )
+    ),
+    OnboardingPane(
+        id: 8,
+        content: .message(.happyScribing)
     )
 ]
 
@@ -181,38 +309,46 @@ struct WelcomeSheetFlow: View {
     @State private var selection = 0
 
     var body: some View {
+        let panes = activePanes
+
         Group {
             #if os(iOS)
-            if UIDevice.current.userInterfaceIdiom == .phone {
+            if BuildInfo.isPhone {
                 PhoneWelcomeSheet(
                     kind: kind,
-                    panes: onboardingPanes,
-                    selection: $selection,
-                    onClose: onClose
-                )
-            } else {
-                IPadMacWelcomeSheet(
-                    kind: kind,
-                    panes: onboardingPanes,
+                    panes: panes,
                     selection: $selection,
                     onClose: onClose
                 )
             }
-            #else
-            IPadMacWelcomeSheet(
-                kind: kind,
-                panes: onboardingPanes,
-                selection: $selection,
-                onClose: onClose
-            )
             #endif
+            if !BuildInfo.isPhone {
+                IPadMacWelcomeSheet(
+                    kind: kind,
+                    panes: panes,
+                    selection: $selection,
+                    onClose: onClose
+                )
+            }
         }
         #if os(macOS)
         .onKeyPress(.escape) {
+            guard kind == .help || selection == panes.count - 1 else {
+                return .ignored
+            }
             onClose()
             return .handled
         }
         #endif
+    }
+
+    private var activePanes: [OnboardingPane] {
+        switch kind {
+        case .welcome:
+            return onboardingPanes
+        case .help:
+            return onboardingPanes.filter(\.isShownInHelp)
+        }
     }
 }
 

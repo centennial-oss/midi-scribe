@@ -2,18 +2,10 @@ import SwiftUI
 
 extension Font {
     static var takeMetadataLabel: Font {
-        #if os(macOS)
-        .system(size: 16, weight: .semibold)
-        #else
-        .headline
-        #endif
+        BuildInfo.isMac ? .system(size: 16, weight: .semibold) : .headline
     }
 
     static var takeMetadataValue: Font {
-        #if os(macOS)
-        .system(size: 16)
-        #else
-        .body
-        #endif
+        BuildInfo.isMac ? .system(size: 16) : .body
     }
 }

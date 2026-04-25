@@ -6,9 +6,6 @@
 //
 
 import SwiftUI
-#if os(iOS)
-import UIKit
-#endif
 #if os(macOS)
 import AppKit
 import Combine
@@ -115,7 +112,6 @@ struct Sidebar<SidebarContent: View, DetailContent: View, UnderlayContent: View>
     @State private var preferredCompactColumn: NavigationSplitViewColumn = .sidebar
     #if os(iOS)
     @State var deviceOrientation: UIDeviceOrientation = UIDevice.current.orientation
-    private var isPhone: Bool { UIDevice.current.userInterfaceIdiom == .phone }
     #endif
 
     init(
@@ -247,7 +243,7 @@ struct Sidebar<SidebarContent: View, DetailContent: View, UnderlayContent: View>
         ) {
             #if os(iOS)
             Group {
-                if isPhone {
+                if BuildInfo.isPhone {
                     ZStack(alignment: .top) {
                         Color(uiColor: .systemBackground)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -295,7 +291,7 @@ struct Sidebar<SidebarContent: View, DetailContent: View, UnderlayContent: View>
 
     private func collapseSplitViewSidebarForDetailChange() {
         #if os(iOS)
-        guard UIDevice.current.userInterfaceIdiom == .phone else {
+        guard BuildInfo.isPhone else {
             return
         }
         withAnimation {
@@ -323,7 +319,7 @@ struct Sidebar<SidebarContent: View, DetailContent: View, UnderlayContent: View>
         if let forceCustomSidebar {
             return forceCustomSidebar
         }
-        return UIDevice.current.userInterfaceIdiom == .phone && deviceOrientation.isLandscape
+        return BuildInfo.isPhone && deviceOrientation.isLandscape
     }
 
     private func updateOrientation(_ orientation: UIDeviceOrientation) {

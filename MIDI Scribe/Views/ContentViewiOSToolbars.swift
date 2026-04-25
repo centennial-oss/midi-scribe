@@ -9,7 +9,7 @@ import SwiftUI
 extension ContentView {
     @ToolbarContentBuilder
     func iPhoneSidebarToggleToolbar() -> some ToolbarContent {
-        if UIDevice.current.userInterfaceIdiom == .phone {
+        if BuildInfo.isPhone {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
                     isSidebarPresented = true

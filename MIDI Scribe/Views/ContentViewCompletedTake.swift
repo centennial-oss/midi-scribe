@@ -91,10 +91,8 @@ extension ContentView {
         }
         completedTakePlaybackToolbar(for: take)
         #if os(iOS)
-        if !hideTakeActionsToolbarOnPhone {
-            ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
-            completedTakeActionsToolbar(for: take)
-        }
+        ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
+        completedTakeActionsToolbar(for: take)
         ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
         completedTakeAppActionsToolbar()
         #else
@@ -106,8 +104,7 @@ extension ContentView {
     @ToolbarContentBuilder
     private func completedTakeZoomToolbar() -> some ToolbarContent {
         ToolbarItem(placement: completedTakeToolbarPlacement) {
-            #if os(iOS)
-            if UIDevice.current.userInterfaceIdiom == .pad {
+            if BuildInfo.isPad {
                 Button {
                     isPresentingZoomPopover.toggle()
                 } label: {
@@ -123,9 +120,6 @@ extension ContentView {
             } else {
                 completedTakeZoomSliderRow()
             }
-            #else
-            completedTakeZoomSliderRow()
-            #endif
         }
     }
 
@@ -266,15 +260,13 @@ extension ContentView {
     private func completedTakeMetadata(for take: RecordedTakeListItem) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             #if os(iOS)
-            if UIDevice.current.userInterfaceIdiom == .phone {
+            if BuildInfo.isPhone {
                 Text(take.displayTitle)
                     .font(.headline)
-                if !hideTakeActionsToolbarOnPhone {
-                    Text("/")
-                        .foregroundStyle(.secondary)
-                }
+                Text("/")
+                    .foregroundStyle(.secondary)
             }
-            if UIDevice.current.userInterfaceIdiom != .phone || !hideTakeActionsToolbarOnPhone {
+            if !BuildInfo.isPhone {
                 HStack(spacing: 6) {
                     Text(viewModel.completedTakeDurationText(take))
                         .font(.body.monospaced())
@@ -296,24 +288,14 @@ extension ContentView {
     }
 
     private func shouldShowCompletedTakeZoomToolbar(for take: RecordedTakeListItem) -> Bool {
-        guard take.summary.duration >= 5.0 else { return false }
-        #if os(iOS)
-        return !hideTakeActionsToolbarOnPhone
-        #else
-        return true
-        #endif
+        take.summary.duration >= 5.0
     }
 
     private func completedTakeZoomSliderRow() -> some View {
         HStack(spacing: 2) {
             Image(systemName: "minus.magnifyingglass")
-
             Slider(value: completedTakeZoomSliderBinding, in: 0...1)
-                #if os(macOS)
-                .frame(minWidth: 150, maxWidth: 200)
-                #else
-                .frame(minWidth: 100, maxWidth: 220)
-                #endif
+                .frame(minWidth: BuildInfo.isMac ? 150 : 100, maxWidth: BuildInfo.isMac ? 200 : 220)
             Image(systemName: "plus.magnifyingglass")
         }
         .padding(.horizontal, 6)
@@ -355,11 +337,9 @@ extension ContentView {
     }
 
     private func completedTakeNavigationTitle(for takeID: UUID) -> String {
-        #if os(iOS)
-        if UIDevice.current.userInterfaceIdiom == .phone {
+        if BuildInfo.isPhone {
             return ""
         }
-        #endif
         return viewModel.recentTake(id: takeID)?.displayTitle ?? "Take"
     }
 
@@ -390,10 +370,8 @@ extension ContentView {
     }
     private var completedTakeZoomSliderCurveBase: CGFloat { 9.0 }
     private func waitForCompletedTakeDetailTransition() async {
-        #if os(iOS)
-        if UIDevice.current.userInterfaceIdiom == .phone {
+        if BuildInfo.isPhone {
             try? await Task.sleep(for: .milliseconds(450))
         }
-        #endif
     }
 }

@@ -346,11 +346,7 @@ extension ContentView {
     }
 
     private var shouldHideSidebarTopChromeDuringEdit: Bool {
-#if os(iOS)
-        UIDevice.current.userInterfaceIdiom == .phone && isEditingList
-#else
-        false
-#endif
+        BuildInfo.isPhone && isEditingList
     }
 
 }

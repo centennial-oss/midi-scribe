@@ -97,19 +97,11 @@ struct ContentView: View {
             detail: { sidebarDetailHost },
             underSidebarOverlay: { iPhoneBulkActionPanelOverlay }
         )
-#if os(iOS)
-        .frame(minWidth: 0, minHeight: 320)
-#else
-        .frame(minWidth: 520, minHeight: 320)
-#endif
+        .frame(minWidth: BuildInfo.isPhonePad ? 0 : 520, minHeight: 320)
     }
 
     private var forceCustomSidebarOnCurrentDevice: Bool? {
-#if os(iOS)
-        UIDevice.current.userInterfaceIdiom == .phone ? true : nil
-#else
-        nil
-#endif
+        BuildInfo.isPhone ? true : nil
     }
 
     @ViewBuilder

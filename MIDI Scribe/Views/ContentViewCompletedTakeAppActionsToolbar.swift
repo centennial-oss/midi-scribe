@@ -9,7 +9,7 @@ import SwiftUI
 extension ContentView {
     @ToolbarContentBuilder
     func completedTakeAppActionsToolbar() -> some ToolbarContent {
-        if UIDevice.current.userInterfaceIdiom == .phone {
+        if BuildInfo.isPhone {
             ToolbarItem(placement: completedTakeToolbarPlacement) {
                 Menu {
                     Button {

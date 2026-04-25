@@ -7,6 +7,9 @@
 //
 
 import Foundation
+#if os(iOS)
+import UIKit
+#endif
 
 enum BuildInfo {
     /// App display name (single source of truth for UI text).
@@ -31,18 +34,27 @@ enum BuildInfo {
     static var buildDate: String { BuildInfoGenerated.buildDate }
     static var buildType: String { BuildInfoGenerated.buildConfiguration }
     static var buildArch: String { BuildInfoGenerated.buildArch }
-    nonisolated static var platform: String {
-        #if os(macOS)
-        "macOS"
-        #else
-        "iPad"
-        #endif
-    }
+
+    #if os(iOS)
+    nonisolated static let isPhonePad = true
+    nonisolated static let isPhone = UIDevice.current.userInterfaceIdiom == .phone
+    nonisolated static let isPad = UIDevice.current.userInterfaceIdiom == .pad
+    nonisolated static let isMac = false
+    nonisolated static let platform: String = "iOS"
+    nonisolated static let deviceOS: String = isPad ? "iPadOS" : "iOS"
+    #elseif os(macOS)
+    nonisolated static let isPhonePad = false
+    nonisolated static let isPhone = false
+    nonisolated static let isPad = false
+    nonisolated static let isMac = true
+    nonisolated static let platform: String = "macOS"
+    nonisolated static let deviceOS: String = "macOS"
+    #endif
 
     /// Copyable blob for support/debug (e.g. paste into issues).
     static var copyableBlob: String {
         """
-        Version: \(version) (\(platform), \(buildArch))
+        Version: \(version) (\(deviceOS), \(buildArch))
         Commit: \(commit)
         Date: \(buildDate)
         Build Type: \(buildType)

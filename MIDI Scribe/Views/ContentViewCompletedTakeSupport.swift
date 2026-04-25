@@ -14,10 +14,10 @@ extension ContentView {
 
 #if os(iOS)
     var completedTakePhoneBleedInsets: EdgeInsets {
-        UIDevice.current.userInterfaceIdiom == .phone
+        BuildInfo.isPhone
             ? EdgeInsets(
                 top: 0,
-                leading: hideTakeActionsToolbarOnPhone ? -10 : -30,
+                leading: -30,
                 bottom: 0,
                 trailing: -20
             )

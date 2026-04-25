@@ -364,11 +364,7 @@ extension PianoRollView {
     }
 
     var dragZoomShouldHandleInput: Bool {
-        #if os(macOS)
-        true
-        #else
-        false
-        #endif
+        BuildInfo.isMac
     }
 }
 

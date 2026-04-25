@@ -65,11 +65,7 @@ struct SidebarButton: View {
     @ViewBuilder
     private func chrome<Content: View>(_ button: Content) -> some View {
         button
-            #if os(macOS)
-            .font(.system(size: 15))
-            #else
-            .font(.system(size: 22))
-            #endif
+            .font(.system(size: BuildInfo.isMac ? 15 : 22))
             .buttonStyle(.plain)
             .controlSize(context.size)
     }

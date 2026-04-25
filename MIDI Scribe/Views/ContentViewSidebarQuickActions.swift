@@ -1,11 +1,7 @@
 import SwiftUI
 
 extension ContentView {
-    #if os(macOS)
-    private static let sidebarQuickActionIconSize: CGFloat = 16
-    #else
-    private static let sidebarQuickActionIconSize: CGFloat = 24
-    #endif
+    private static let sidebarQuickActionIconSize: CGFloat = BuildInfo.isMac ? 16 : 24
 
     @ViewBuilder
     func sidebarRowQuickActions(for take: RecordedTakeListItem) -> some View {
