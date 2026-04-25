@@ -22,7 +22,7 @@ extension ContentView {
 
     var editingTakesDetail: some View {
         VStack(alignment: .leading, spacing: 24) {
-            Text("Edit Takes")
+            Text("Manage Saved Takes")
                 .font(.title2)
 
             if viewModel.multiSelection.isEmpty {
@@ -53,8 +53,7 @@ extension ContentView {
     private var editingTakesEmptySelectionHint: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(
-                "Tap Import MIDI File to bring in an exported take from another device, or tap the circles next to"
-                    + " Takes in the sidebar to select them for bulk actions."
+                "Select one or more Takes in the sidebar to make changes."
             )
             .foregroundStyle(.secondary)
 
