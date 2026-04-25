@@ -93,7 +93,6 @@ extension PianoRollView {
                             Color.clear
                                 .frame(width: 1, height: viewHeight)
                                 .id("playheadStart")
-
                             // Render all notes + CCs in a single Canvas to
                             // avoid SwiftUI diffing thousands of Rectangle
                             // views on every new event (which caused
@@ -276,12 +275,6 @@ extension PianoRollView {
                 .onChange(of: geo.size) { _, newSize in
                     primeInitialLayoutIfNeeded(size: newSize)
                 }
-
-                // Tooltips layer intentionally omitted: previously a
-                // per-note hover .help() was rendered here, but the
-                // resulting ForEach over thousands of notes was a
-                // significant diffing cost during live recording and
-                // hover tooltips aren't usable at that density anyway.
             }
         }
         .overlay {

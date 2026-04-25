@@ -86,7 +86,7 @@ extension ContentView {
         content
             .overlay(alignment: .center) {
                 if showsiPhoneBulkEditFloatingPanel {
-                    GeometryReader { geometry in
+                    GeometryReader { _ in
                         HStack {
                             Spacer(minLength: defaultSidebarWidth + 10)
                             iPhoneBulkEditFloatingPanel

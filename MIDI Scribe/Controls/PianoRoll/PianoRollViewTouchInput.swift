@@ -27,57 +27,80 @@ extension PianoRollView {
             isTwoFingerZoomDragActive: isTwoFingerZoomDragActive,
             isIndirectPointerDragActive: isIndirectPointerDragActive,
             isThreeFingerZoomSwipeActive: isThreeFingerZoomSwipeActive,
-            onTap: { location, width, pxPerSec, offset in
-                handleRollTap(
-                    at: location,
-                    rollWidth: width,
-                    pixelsPerSecond: pxPerSec,
-                    playOffset: offset
-                )
-            },
-            onTwoFingerDragChanged: { start, location, width, pxPerSec, offset in
-                handleRollPressChanged(
-                    start: start,
-                    location: location,
-                    rollWidth: width,
-                    pixelsPerSecond: pxPerSec,
-                    playOffset: offset
-                )
-            },
-            onTwoFingerDragEnded: { start, end, width, layout, timeline, pxPerSec, offset in
-                handleRollPressEnded(
-                    start: start,
-                    end: end,
-                    context: PianoRollDragZoomReleaseContext(
-                        rollWidth: width,
-                        layoutWidth: layout,
-                        timelineLayoutWidth: timeline,
-                        pixelsPerSecond: pxPerSec,
-                        playOffset: offset
-                    )
-                )
-            },
-            shouldBeginIndirectPointerDragAt: { location, pxPerSec, offset in
-                !isTapOnScrubHandle(
-                    location,
-                    pixelsPerSecond: pxPerSec,
-                    playOffset: offset
-                )
-            },
-            onIndirectPointerDragChanged: { start, location, width, pxPerSec, offset in
-                let didAccept = handleRollPressChanged(
-                    start: start,
-                    location: location,
-                    rollWidth: width,
-                    pixelsPerSecond: pxPerSec,
-                    playOffset: offset
-                )
-                isIndirectPointerDragActive.wrappedValue = didAccept
-            },
-            onThreeFingerSwipeChanged: { deltaX in
-                handleThreeFingerSwipeZoom(deltaX: deltaX)
-            }
+            onTap: handleTouchInputTap,
+            onTwoFingerDragChanged: handleTouchInputDragChanged,
+            onTwoFingerDragEnded: handleTouchInputDragEnded,
+            shouldBeginIndirectPointerDragAt: shouldBeginIndirectPointerDrag,
+            onIndirectPointerDragChanged: makeIndirectPointerDragChangedHandler(
+                isIndirectPointerDragActive: isIndirectPointerDragActive
+            ),
+            onThreeFingerSwipeChanged: handleThreeFingerSwipeZoom(deltaX:)
         )
+    }
+
+    private func handleTouchInputTap(
+        location: CGPoint,
+        rollWidth: CGFloat,
+        pixelsPerSecond: CGFloat,
+        playOffset: TimeInterval
+    ) {
+        handleRollTap(
+            at: location,
+            rollWidth: rollWidth,
+            pixelsPerSecond: pixelsPerSecond,
+            playOffset: playOffset
+        )
+    }
+
+    private func handleTouchInputDragChanged(
+        start: CGPoint,
+        location: CGPoint,
+        rollWidth: CGFloat,
+        pixelsPerSecond: CGFloat,
+        playOffset: TimeInterval
+    ) {
+        handleRollPressChanged(
+            start: start,
+            location: location,
+            rollWidth: rollWidth,
+            pixelsPerSecond: pixelsPerSecond,
+            playOffset: playOffset
+        )
+    }
+
+    private func handleTouchInputDragEnded(
+        start: CGPoint,
+        end: CGPoint,
+        context: PianoRollDragZoomReleaseContext
+    ) {
+        handleRollPressEnded(start: start, end: end, context: context)
+    }
+
+    private func shouldBeginIndirectPointerDrag(
+        location: CGPoint,
+        pixelsPerSecond: CGFloat,
+        playOffset: TimeInterval
+    ) -> Bool {
+        !isTapOnScrubHandle(
+            location,
+            pixelsPerSecond: pixelsPerSecond,
+            playOffset: playOffset
+        )
+    }
+
+    private func makeIndirectPointerDragChangedHandler(
+        isIndirectPointerDragActive: Binding<Bool>
+    ) -> (CGPoint, CGPoint, CGFloat, CGFloat, TimeInterval) -> Void {
+        { start, location, rollWidth, pixelsPerSecond, playOffset in
+            let didAccept = handleRollPressChanged(
+                start: start,
+                location: location,
+                rollWidth: rollWidth,
+                pixelsPerSecond: pixelsPerSecond,
+                playOffset: playOffset
+            )
+            isIndirectPointerDragActive.wrappedValue = didAccept
+        }
     }
 }
 
@@ -89,7 +112,7 @@ struct PianoRollTouchInputModifier: ViewModifier {
     @Binding var isThreeFingerZoomSwipeActive: Bool
     let onTap: (CGPoint, CGFloat, CGFloat, TimeInterval) -> Void
     let onTwoFingerDragChanged: (CGPoint, CGPoint, CGFloat, CGFloat, TimeInterval) -> Void
-    let onTwoFingerDragEnded: (CGPoint, CGPoint, CGFloat, CGFloat, CGFloat, CGFloat, TimeInterval) -> Void
+    let onTwoFingerDragEnded: (CGPoint, CGPoint, PianoRollDragZoomReleaseContext) -> Void
     let shouldBeginIndirectPointerDragAt: (CGPoint, CGFloat, TimeInterval) -> Bool
     let onIndirectPointerDragChanged: (CGPoint, CGPoint, CGFloat, CGFloat, TimeInterval) -> Void
     let onThreeFingerSwipeChanged: (CGFloat) -> Void
@@ -133,11 +156,7 @@ struct PianoRollTouchInputModifier: ViewModifier {
                     onTwoFingerDragEnded(
                         start,
                         end,
-                        context.rollWidth,
-                        context.layoutWidth,
-                        context.timelineLayoutWidth,
-                        context.pixelsPerSecond,
-                        context.playOffset
+                        releaseContext
                     )
                 }
             )
@@ -178,15 +197,21 @@ struct PianoRollTouchInputModifier: ViewModifier {
                     onTwoFingerDragEnded(
                         start,
                         end,
-                        context.rollWidth,
-                        context.layoutWidth,
-                        context.timelineLayoutWidth,
-                        context.pixelsPerSecond,
-                        context.playOffset
+                        releaseContext
                     )
                 }
             )
         }
+    }
+
+    private var releaseContext: PianoRollDragZoomReleaseContext {
+        PianoRollDragZoomReleaseContext(
+            rollWidth: context.rollWidth,
+            layoutWidth: context.layoutWidth,
+            timelineLayoutWidth: context.timelineLayoutWidth,
+            pixelsPerSecond: context.pixelsPerSecond,
+            playOffset: context.playOffset
+        )
     }
 }
 #elseif os(macOS)
@@ -205,7 +230,7 @@ extension PianoRollView {
             isThreeFingerZoomSwipeActive: isThreeFingerZoomSwipeActive,
             onTap: { _, _, _, _ in },
             onTwoFingerDragChanged: { _, _, _, _, _ in },
-            onTwoFingerDragEnded: { _, _, _, _, _, _, _ in },
+            onTwoFingerDragEnded: { _, _, _ in },
             shouldBeginIndirectPointerDragAt: { _, _, _ in false },
             onIndirectPointerDragChanged: { _, _, _, _, _ in },
             onThreeFingerSwipeChanged: { deltaX in
@@ -223,7 +248,7 @@ struct PianoRollTouchInputModifier: ViewModifier {
     @Binding var isThreeFingerZoomSwipeActive: Bool
     let onTap: (CGPoint, CGFloat, CGFloat, TimeInterval) -> Void
     let onTwoFingerDragChanged: (CGPoint, CGPoint, CGFloat, CGFloat, TimeInterval) -> Void
-    let onTwoFingerDragEnded: (CGPoint, CGPoint, CGFloat, CGFloat, CGFloat, CGFloat, TimeInterval) -> Void
+    let onTwoFingerDragEnded: (CGPoint, CGPoint, PianoRollDragZoomReleaseContext) -> Void
     let shouldBeginIndirectPointerDragAt: (CGPoint, CGFloat, TimeInterval) -> Bool
     let onIndirectPointerDragChanged: (CGPoint, CGPoint, CGFloat, CGFloat, TimeInterval) -> Void
     let onThreeFingerSwipeChanged: (CGFloat) -> Void

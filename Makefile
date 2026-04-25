@@ -93,7 +93,7 @@ build-macos:
 build-ios: 
 	mkdir -p build
 	xcodebuild -project "$(PROJECT)" -scheme "$(XCODE_SCHEME)" -configuration Debug -derivedDataPath $(DERIVED_DATA) -destination 'generic/platform=iOS Simulator' build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
-	cp -R "$(DERIVED_DATA)/Build/Products/Debug-iphonesimulator/$(APP_NAME).app" "build/$(APP_NAME)-iPad.app"
+	cp -R "$(DERIVED_DATA)/Build/Products/Debug-iphonesimulator/$(APP_NAME).app" "build/$(APP_NAME)-iOS.app"
 
 build-release-unsigned:
 	mkdir -p dist

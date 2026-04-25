@@ -1,6 +1,5 @@
 //
-//  ContentView+Sidebar.swift
-//  MIDI Scribe
+//  ContentViewSidebar.swift
 //
 
 import SwiftUI
@@ -12,7 +11,6 @@ import UIKit
 
 extension ContentView {
     // MARK: - Sidebar
-
     var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
             if !shouldHideSidebarTopChromeDuringEdit {
@@ -20,7 +18,6 @@ extension ContentView {
                 Divider()
                 sidebarCurrentTakeRow
             }
-
             if !viewModel.starredTakes.isEmpty {
                 SidebarList(
                     data: viewModel.starredTakes,
@@ -38,7 +35,6 @@ extension ContentView {
                     viewModel.multiSelection = Set(selected.map(\.id))
                 }
             }
-
             if !viewModel.recentTakes.isEmpty {
                 SidebarList(
                     data: viewModel.recentTakes,
@@ -56,7 +52,6 @@ extension ContentView {
                     viewModel.multiSelection = Set(selected.map(\.id))
                 }
             }
-
             if let pendingTakeOperation = viewModel.pendingOperation,
                pendingTakeOperation.shouldDisplayProgressNotice {
                 HStack(spacing: 8) {
@@ -69,7 +64,6 @@ extension ContentView {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
             }
-
             Spacer(minLength: 0)
         }
         .onChange(of: viewModel.selectedSidebarItem) { _, newValue in
@@ -105,7 +99,6 @@ extension ContentView {
                 .labelsHidden()
                 .toggleStyle(.switch)
             }
-
             playbackOutputPicker
                 .padding(.top, 4)
         }
@@ -301,7 +294,6 @@ extension ContentView {
     @ViewBuilder
     private func sidebarRowSwipeActions(for take: RecordedTakeListItem) -> some View {
         let actionsDisabled = viewModel.isTakeActionInProgress || isEditingList
-
         Button {
             swipeRevealedTakeID = nil
             beginDeleteTake(id: take.id)
@@ -312,7 +304,6 @@ extension ContentView {
         }
         .disabled(actionsDisabled)
         .tint(.clear)
-
         Button {
             swipeRevealedTakeID = nil
             beginRename(take)
@@ -323,7 +314,6 @@ extension ContentView {
         }
         .disabled(actionsDisabled)
         .tint(.clear)
-
         Button {
             swipeRevealedTakeID = nil
             viewModel.toggleStar(takeID: take.id)
@@ -367,12 +357,6 @@ extension ContentView {
     }
 
 #if os(macOS)
-    /// When the user single-clicks a sidebar row on macOS with the command or
-    /// shift modifier held, also update `multiSelection` accordingly. This
-    /// lets power users range-select / toggle-select without entering the
-    /// Edit mode, while still allowing the List's built-in single selection
-    /// to drive the detail pane. This runs after the List has updated the
-    /// primary selection, so we read `NSEvent.modifierFlags` synchronously.
     func handleSelectionChangeForModifiers(old: ContentSidebarItem, new: ContentSidebarItem) {
         guard let tappedID = takeID(from: new) else { return }
         let flags = NSEvent.modifierFlags
@@ -385,7 +369,6 @@ extension ContentView {
             selectionAnchorID = tappedID
             return
         }
-
         if command {
             if viewModel.multiSelection.contains(tappedID) {
                 viewModel.multiSelection.remove(tappedID)

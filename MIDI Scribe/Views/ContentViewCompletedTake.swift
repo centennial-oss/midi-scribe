@@ -135,7 +135,6 @@ extension ContentView {
         let playLabel = isPlaying ? "Pause" : "Play"
         let playIcon = isPlaying ? "pause.fill" : "play.fill"
         let rewindLabel = isPlaying ? "Pause and Rewind to Beginning" : "Rewind to Beginning"
-
         ToolbarItemGroup(placement: completedTakeToolbarPlacement) {
             toolbarIconButton(
                 rewindLabel,
@@ -163,7 +162,6 @@ extension ContentView {
         let isDeleteDisabled = isPlaybackInProgress || actionDisabled
         let starLabel = take.isStarred ? "Unstar" : "Star"
         let starIcon = take.isStarred ? "star.fill" : "star"
-
         ToolbarItemGroup(placement: completedTakeToolbarPlacement) {
             toolbarIconButton(
                 "Rename Take",
@@ -253,13 +251,11 @@ extension ContentView {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-
         if let exportErrorMessage {
             Text(exportErrorMessage)
                 .font(.footnote)
                 .foregroundStyle(.red)
         }
-
         if let actionErrorText = viewModel.actionErrorText {
             Text(actionErrorText)
                 .font(.footnote)
@@ -318,7 +314,6 @@ extension ContentView {
                 #else
                 .frame(minWidth: 100, maxWidth: 220)
                 #endif
-
             Image(systemName: "plus.magnifyingglass")
         }
         .padding(.horizontal, 6)
@@ -372,8 +367,6 @@ extension ContentView {
         "\(takeID.uuidString)-\(completedTakeRenderDelayRequestID)"
     }
 
-    /// Give the low-zoom end more physical slider travel so fit-to-width
-    /// no longer jumps immediately into a much tighter zoom.
     private var completedTakeZoomSliderBinding: Binding<CGFloat> {
         Binding(
             get: {
@@ -390,15 +383,12 @@ extension ContentView {
         let base = completedTakeZoomSliderCurveBase
         return log(1.0 + (base - 1.0) * clampedZoom) / log(base)
     }
-
     private func zoomLevel(for sliderValue: CGFloat) -> CGFloat {
         let clampedSliderValue = max(0.0, min(1.0, sliderValue))
         let base = completedTakeZoomSliderCurveBase
         return (pow(base, clampedSliderValue) - 1.0) / (base - 1.0)
     }
-
     private var completedTakeZoomSliderCurveBase: CGFloat { 9.0 }
-
     private func waitForCompletedTakeDetailTransition() async {
         #if os(iOS)
         if UIDevice.current.userInterfaceIdiom == .phone {
@@ -406,5 +396,4 @@ extension ContentView {
         }
         #endif
     }
-
 }
