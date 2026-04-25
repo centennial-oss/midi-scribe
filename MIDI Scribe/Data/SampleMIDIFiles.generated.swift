@@ -9,8 +9,8 @@ struct SampleMIDIFile: Sendable, Equatable {
 
 enum SampleMIDIFiles {
     static let all: [SampleMIDIFile] = [
-        SampleMIDIFile(title: "Chopin - Prelude O28 N20", assetName: "Chopin - Prelude O28 N20"),
+        SampleMIDIFile(title: "Chopin - Op. 28 No. 20", assetName: "Chopin - Op. 28 No. 20"),
         SampleMIDIFile(title: "Debussy - Clair de Lune", assetName: "Debussy - Clair de Lune"),
-        SampleMIDIFile(title: "Rachmaninov - Prelude O3 N2", assetName: "Rachmaninov - Prelude O3 N2")
+        SampleMIDIFile(title: "Rachmaninoff - Op. 3 No. 2", assetName: "Rachmaninoff - Op. 3 No. 2")
     ]
 }
