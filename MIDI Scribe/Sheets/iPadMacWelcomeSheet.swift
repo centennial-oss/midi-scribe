@@ -12,7 +12,7 @@ struct IPadMacWelcomeSheet: View {
     let onClose: () -> Void
 
     var body: some View {
-        // NavigationStack {
+        NavigationStack {
             VStack(spacing: 20) {
                 onboardingHeader
                 OnboardingSwipeCarouselView(
@@ -46,7 +46,7 @@ struct IPadMacWelcomeSheet: View {
                     .padding(.trailing, 20)
                 }
             }
-        // }
+        }
     }
 
     private var onboardingHeader: some View {
