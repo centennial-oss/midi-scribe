@@ -10,19 +10,31 @@ struct IPadMacWelcomeSheet: View {
     let panes: [OnboardingPane]
     @Binding var selection: Int
     let onClose: () -> Void
-
+    
     var body: some View {
+        #if os(macOS)
+        sheetContent()
+            .frame(width: 750, height: 720)
+        #else
+        sheetContent()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        #endif
+    }
+    
+    private func sheetContent() -> some View {
         NavigationStack {
-            VStack(spacing: 20) {
+            VStack(spacing: 8) {
                 onboardingHeader
                 OnboardingSwipeCarouselView(
                     panes: panes,
                     selection: $selection
                 )
-                .aspectRatio(4 / 3, contentMode: .fit)
+                .aspectRatio(16 / 10, contentMode: .fit)
+                .frame(maxWidth: .infinity)
                 onboardingFooter
             }
-            .background(.regularMaterial)
+            .padding(.horizontal, 20)
+            .padding(.bottom, BuildInfo.isPad ? -20 : 0)
             .overlay(alignment: .topTrailing) {
                 if shouldShowTopCloseButton {
                     Button {
@@ -54,16 +66,15 @@ struct IPadMacWelcomeSheet: View {
             AppIconImage()
                 .frame(width: 52, height: 52)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(kind.title)
-                    .font(.title.weight(.semibold))
-                if let title = selectedPane?.title {
-                    Text(title)
-                        .foregroundStyle(.secondary)
-                }
+            Text(kind.title)
+                .font(.title.weight(.semibold))
+            if let title = selectedPane?.title {
+                Text("/")
+                .font(.title)
+                .foregroundStyle(.secondary)
+                Text(title)
+                .font(.title)
             }
-
             Spacer()
         }
         .padding(.horizontal, 24)

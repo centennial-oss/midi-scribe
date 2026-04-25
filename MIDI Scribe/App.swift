@@ -60,11 +60,19 @@ struct MIDIScribeApp: App {
                     .interactiveDismissDisabled()
                     #endif
                 }
+                #if os(iOS)
+                .modifier(
+                    IPadHelpPresentationModifier(
+                        isShowingHelp: $appState.isShowingHelp
+                    )
+                )
+                #else
                 .sheet(isPresented: $appState.isShowingHelp) {
                     HelpView {
                         appState.isShowingHelp = false
                     }
                 }
+                #endif
         }
         .modelContainer(modelContainer)
         .commands {
@@ -220,6 +228,30 @@ struct MIDIScribeApp: App {
         }
     }
 }
+
+#if os(iOS)
+private struct IPadHelpPresentationModifier: ViewModifier {
+    @Binding var isShowingHelp: Bool
+
+    func body(content: Content) -> some View {
+        if BuildInfo.isPhone {
+            content
+                .sheet(isPresented: $isShowingHelp) {
+                    HelpView {
+                        isShowingHelp = false
+                    }
+                }
+        } else {
+            content
+                .fullScreenCover(isPresented: $isShowingHelp) {
+                    HelpView {
+                        isShowingHelp = false
+                    }
+                }
+        }
+    }
+}
+#endif
 
 private func currentTakeSpaceCommandTitle(for state: TakeCommandState) -> String {
     if state.isCurrentTakeSelected {

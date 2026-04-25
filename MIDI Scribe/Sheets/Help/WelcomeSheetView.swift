@@ -7,6 +7,17 @@ import SwiftUI
 
 extension ContentView {
     func welcomeSheetContent(_ content: some View) -> some View {
+        #if os(iOS)
+        content
+            .modifier(
+                IPadWelcomePresentationModifier(
+                    isPresentingWelcomeSheet: $isPresentingWelcomeSheet,
+                    onDismiss: {
+                        settings.markWelcomeSheetShown()
+                    }
+                )
+            )
+        #else
         content
             .sheet(
                 isPresented: $isPresentingWelcomeSheet,
@@ -17,6 +28,7 @@ extension ContentView {
                     WelcomeSheetView()
                 }
             )
+        #endif
     }
 
     func evaluateWelcomeSheetPresentationIfNeeded() {
@@ -38,6 +50,35 @@ extension ContentView {
         }
     }
 }
+
+#if os(iOS)
+private struct IPadWelcomePresentationModifier: ViewModifier {
+    @Binding var isPresentingWelcomeSheet: Bool
+    let onDismiss: () -> Void
+
+    func body(content: Content) -> some View {
+        if BuildInfo.isPhone {
+            content
+                .sheet(
+                    isPresented: $isPresentingWelcomeSheet,
+                    onDismiss: onDismiss,
+                    content: {
+                        WelcomeSheetView()
+                    }
+                )
+        } else {
+            content
+                .fullScreenCover(
+                    isPresented: $isPresentingWelcomeSheet,
+                    onDismiss: onDismiss,
+                    content: {
+                        WelcomeSheetView()
+                    }
+                )
+        }
+    }
+}
+#endif
 
 enum OnboardingPresentationKind {
     case welcome

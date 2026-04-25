@@ -20,13 +20,13 @@ struct PhoneWelcomeSheet: View {
                 selection: $selection
             )
             .padding(.horizontal, 8)
-            .padding(.top, 8)
-            .padding(.bottom, 40)
+            .padding(.bottom, -12)
+            .padding(.top, 48)
         }
-        .overlay(alignment: .bottom) {
+        .overlay(alignment: .top) {
             footer
                 .padding(.horizontal, 8)
-                .padding(.bottom, -12)
+                .padding(.top, 8)
         }
         .presentationDetents([.large])
     }
@@ -56,11 +56,22 @@ struct PhoneWelcomeSheet: View {
 
     @ViewBuilder
     private var paneTitle: some View {
-        if let title = selectedPane?.title {
-            Text(title)
+        HStack {
+            Text("Help")
                 .font(.title2.weight(.semibold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
+            if let title = selectedPane?.title {
+                Text("/")
+                    .font(.title2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                Text(title)
+                    .font(.title2)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
         }
     }
 
