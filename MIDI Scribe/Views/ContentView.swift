@@ -66,6 +66,7 @@ struct ContentView: View {
     @State var isPresentingZoomPopover = false
     @State var hasEvaluatedWelcomeSheet = false
     @State var isPresentingWelcomeSheet = false
+    @State var hasAttemptedLastViewedTakeRestore = false
     init(settings: AppSettings) {
         self.settings = settings
         _viewModel = StateObject(wrappedValue: MIDILiveNoteViewModel(settings: settings))
@@ -159,6 +160,7 @@ struct ContentView: View {
                 return (try? context.fetch(descriptor))?.first?.recordedTake
             }
             viewModel.setRecentTakes(storedRecentTakes.map(\.listItem))
+            restoreLastViewedTakeIfNeeded()
             evaluateWelcomeSheetPresentationIfNeeded()
         }
     }
@@ -173,7 +175,11 @@ struct ContentView: View {
                 let items = storedRecentTakes.map(\.listItem)
                 DispatchQueue.main.async {
                     viewModel.setRecentTakes(items)
+                    restoreLastViewedTakeIfNeeded()
                 }
+            }
+            .onChange(of: viewModel.selectedSidebarItem) { _, newValue in
+                persistLastViewedTakeSelection(newValue)
             }
 #if os(macOS)
             .onChange(of: viewModel.selectedSidebarItem) { oldValue, newValue in

@@ -223,6 +223,7 @@ extension ContentView {
         viewModel.recentTakes = []
         viewModel.lastCompletedTake = nil
         viewModel.selectedSidebarItem = .currentTake
+        hasAttemptedLastViewedTakeRestore = false
         clearBulkSelection()
         pendingDeleteTakeID = nil
         pendingSplitTakeID = nil
@@ -249,7 +250,6 @@ extension ContentView {
         if performCurrentTakeCommand(request) {
             return
         }
-
         performSavedTakeCommand(request)
     }
 

@@ -10,7 +10,7 @@ struct IPadMacWelcomeSheet: View {
     let panes: [OnboardingPane]
     @Binding var selection: Int
     let onClose: () -> Void
-    
+
     var body: some View {
         #if os(macOS)
         sheetContent()
@@ -20,7 +20,7 @@ struct IPadMacWelcomeSheet: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         #endif
     }
-    
+
     private func sheetContent() -> some View {
         NavigationStack {
             VStack(spacing: 8) {
