@@ -60,7 +60,7 @@ extension AppSettings {
         if speakerOutputProgram != updatedSpeakerOutputProgram {
             #if DEBUG
             NSLog(
-                "MIDI Scribe speaker program debug: settings reload changed " +
+                "[SpeakerProgram] settings reload changed " +
                     "old=\(speakerOutputProgram) new=\(updatedSpeakerOutputProgram) " +
                     "rawUserDefault=\(rawSpeakerOutputProgramText)"
             )
@@ -71,7 +71,7 @@ extension AppSettings {
         if rawSpeakerOutputProgram != updatedSpeakerOutputProgram {
             #if DEBUG
             NSLog(
-                "MIDI Scribe speaker program debug: settings reload normalizing " +
+                "[SpeakerProgram] settings reload normalizing " +
                     "rawUserDefault=\(rawSpeakerOutputProgramText) " +
                     "resolved=\(updatedSpeakerOutputProgram)"
             )

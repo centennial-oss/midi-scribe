@@ -253,7 +253,7 @@ extension PianoRollView {
         scrubAuditionDiagnostics.startedUptime = ProcessInfo.processInfo.systemUptime
         #if DEBUG
         NSLog(
-            "MIDI Scribe scrub audition started: " +
+            "[ScrubAudition] started: " +
                 "take=\(take.id) offset=\(String(format: "%.3f", offset)) " +
                 "duration=\(String(format: "%.3f", take.duration)) notes=\(notes.count) " +
                 "target=\(viewModel.selectedPlaybackTarget)"
@@ -268,7 +268,7 @@ extension PianoRollView {
         guard scrubAuditionDiagnostics.batches > 0 || scrubAuditionDiagnostics.suppressedFrames > 0 else { return }
         #if DEBUG
         NSLog(
-            "MIDI Scribe scrub audition ended: " +
+            "[ScrubAudition] ended: " +
                 "take=\(take.id) elapsed=\(String(format: "%.3f", elapsed))s " +
                 "batches=\(scrubAuditionDiagnostics.batches) noteOns=\(scrubAuditionDiagnostics.noteOnCount) " +
                 "noteOffs=\(scrubAuditionDiagnostics.noteOffCount) " +
@@ -297,7 +297,7 @@ extension PianoRollView {
 
         #if DEBUG
         NSLog(
-            "MIDI Scribe piano roll model mismatch: " +
+            "[PianoRollModel] model mismatch: " +
                 "take=\(take.id) offset=\(String(format: "%.3f", offset)) " +
                 "renderedCount=\(rendered.count) rendered=\(rendered.signature) " +
                 "rawCount=\(raw.count) raw=\(raw.signature) events=\(take.events.count) notes=\(notes.count)"

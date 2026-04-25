@@ -128,7 +128,7 @@ final class AppSettings: ObservableObject {
         speakerOutputProgram = resolvedSpeakerOutputProgram
         #if DEBUG
         NSLog(
-            "MIDI Scribe speaker program debug: settings init " +
+            "[SpeakerProgram] settings init " +
                 "rawUserDefault=\(rawSpeakerOutputProgram.map(String.init) ?? "nil") " +
                 "resolved=\(resolvedSpeakerOutputProgram) default=\(Self.defaultSpeakerOutputProgram)"
         )
@@ -174,7 +174,7 @@ final class AppSettings: ObservableObject {
     func markWelcomeSheetShown() {
         userDefaults.set(true, forKey: Self.welcomeSheetShownKey)
         #if DEBUG
-        NSLog("MIDI Scribe welcome debug: marked welcome sheet shown")
+        NSLog("[Welcome Sheet] marked welcome sheet shown")
         #endif
     }
 

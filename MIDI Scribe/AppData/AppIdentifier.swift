@@ -15,7 +15,7 @@ enum AppIdentifier {
 
     nonisolated static func logBundleIdentifier() {
         #if DEBUG
-        NSLog("\(BuildInfo.appName) bundle identifier: \(bundleID) (source: Bundle.main)")
+        NSLog("[AppInfo] \(BuildInfo.appName) bundle identifier: \(bundleID) (source: Bundle.main)")
         #endif
     }
 }

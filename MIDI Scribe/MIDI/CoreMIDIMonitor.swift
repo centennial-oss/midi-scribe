@@ -254,7 +254,7 @@ extension CoreMIDIMonitor {
         #if DEBUG
         let state = message.data2 == 0 ? "off" : "on"
         NSLog(
-            "MIDI Scribe CC: " +
+            "[MIDIChangeControl] " +
                 "channel=\(message.channel) " +
                 "controller=\(message.data1) " +
                 "value=\(message.data2) " +

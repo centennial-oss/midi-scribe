@@ -65,7 +65,7 @@ final class MIDIPlaybackEngine: ObservableObject {
         self.speakerProgram = settings.speakerOutputProgram
         #if DEBUG
         NSLog(
-            "MIDI Scribe speaker program debug: playback engine init " +
+            "[SpeakerProgram] playback engine init " +
                 "settingsProgram=\(settings.speakerOutputProgram) cachedProgram=\(speakerProgram)"
         )
         #endif
@@ -77,7 +77,7 @@ final class MIDIPlaybackEngine: ObservableObject {
             .removeDuplicates()
             .sink { [weak self] program in
                 #if DEBUG
-                NSLog("MIDI Scribe speaker program debug: settings publisher program=\(program)")
+                NSLog("[SpeakerProgram] settings publisher program=\(program)")
                 #endif
                 self?.speakerProgram = program
                 self?.reloadInstrument()
@@ -105,7 +105,7 @@ final class MIDIPlaybackEngine: ObservableObject {
                 guard let self else { return }
                 #if DEBUG
                 NSLog(
-                    "MIDI Scribe speaker program debug: AVAudioEngineConfigurationChange " +
+                    "[SpeakerProgram] AVAudioEngineConfigurationChange " +
                         "program=\(self.speakerProgram) engineRunning=\(self.audioEngine.isRunning)"
                 )
                 #endif
@@ -198,7 +198,7 @@ extension MIDIPlaybackEngine {
             #endif
         } catch {
             #if DEBUG
-            NSLog("MIDI Scribe playback audio setup failed: \(error)")
+            NSLog("[MIDIPlayback] audio setup failed: \(error)")
             #endif
         }
     }
@@ -214,14 +214,14 @@ extension MIDIPlaybackEngine {
                     catchObjC("audioEngine.start") {
                         do { try self.audioEngine.start() } catch {
                             #if DEBUG
-                            NSLog("MIDI Scribe playback audio start failed: \(error)")
+                            NSLog("[MIDIPlayback] audio start failed: \(error)")
                             #endif
                         }
                     }
                 }
             } catch {
                 #if DEBUG
-                NSLog("MIDI Scribe playback instrument reload failed: \(error)")
+                NSLog("[MIDIPlayback] instrument reload failed: \(error)")
                 #endif
             }
         }
@@ -247,13 +247,13 @@ extension MIDIPlaybackEngine {
                 catchObjC("audioEngine.start") {
                     do { try self.audioEngine.start() } catch {
                         #if DEBUG
-                        NSLog("MIDI Scribe playback audio start failed: \(error)")
+                        NSLog("[MIDIPlayback] audio start failed: \(error)")
                         #endif
                     }
                 }
             } catch {
                 #if DEBUG
-                NSLog("MIDI Scribe playback output route refresh failed: \(error)")
+                NSLog("[MIDIPlayback] output route refresh failed: \(error)")
                 #endif
             }
         }
@@ -281,7 +281,7 @@ extension MIDIPlaybackEngine {
         let didSucceed = MSCatchObjCException(block, &caught)
         if !didSucceed {
             NSLog(
-                "MIDI Scribe playback: caught \(label) exception " +
+                "[MIDIPlayback] caught \(label) exception " +
                     "error=\(caught?.localizedDescription ?? "nil")"
             )
         }
@@ -364,7 +364,7 @@ extension MIDIPlaybackEngine {
         }, &caught)
         if !didSucceed {
             NSLog(
-                "MIDI Scribe playback: caught sendMIDIEvent exception " +
+                "[MIDIPlayback] caught sendMIDIEvent exception " +
                     "status=\(status) data1=\(data1) data2=\(data2) error=\(caught?.localizedDescription ?? "nil")"
             )
         }
@@ -377,7 +377,7 @@ extension MIDIPlaybackEngine {
         let now = ProcessInfo.processInfo.systemUptime
         if now - lastScrubDropLogUptime > 1.0, !scrubDropReasons.isEmpty {
             lastScrubDropLogUptime = now
-            NSLog("MIDI Scribe scrub audition drops: \(scrubDropReasons)")
+            NSLog("[MIDIPlayback] scrub audition drops: \(scrubDropReasons)")
             scrubDropReasons.removeAll(keepingCapacity: true)
         }
         #endif
@@ -521,7 +521,7 @@ extension MIDIPlaybackEngine {
         let bankLSB = UInt8(kAUSampler_DefaultBankLSB)
         #if DEBUG
         NSLog(
-            "MIDI Scribe speaker program debug: loadSoundBankInstrument " +
+            "[SpeakerProgram] loadSoundBankInstrument " +
                 "program=\(program) bankMSB=\(bankMSB) bankLSB=\(bankLSB) url=\(soundBankURL.lastPathComponent)"
         )
         #endif
@@ -542,7 +542,7 @@ extension MIDIPlaybackEngine {
                 self.audioEngine.detach(newInstrument)
             }
             #if DEBUG
-            NSLog("MIDI Scribe playback: loadSoundBankInstrument failed program=\(program) error=\(error)")
+            NSLog("[MIDIPlayback] loadSoundBankInstrument failed program=\(program) error=\(error)")
             #endif
             throw error
         }
@@ -626,7 +626,7 @@ extension MIDIPlaybackEngine {
                 try rebuildSampler()
             } catch {
                 #if DEBUG
-                NSLog("MIDI Scribe playback sampler rebuild failed: \(error)")
+                NSLog("[MIDIPlayback] sampler rebuild failed: \(error)")
                 #endif
                 return false
             }
@@ -638,13 +638,13 @@ extension MIDIPlaybackEngine {
                     try self.audioEngine.start()
                 } catch {
                     #if DEBUG
-                    NSLog("MIDI Scribe playback audio start failed: \(error)")
+                    NSLog("[MIDIPlayback] audio start failed: \(error)")
                     #endif
                 }
             }, &caught)
             if !didSucceed {
                 NSLog(
-                    "MIDI Scribe playback: caught audioEngine.start exception " +
+                    "[MIDIPlayback] caught audioEngine.start exception " +
                         "error=\(caught?.localizedDescription ?? "nil")"
                 )
                 return false
