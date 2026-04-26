@@ -228,7 +228,7 @@ extension ContentView {
             Button {
                 beginHelpPresentation()
             } label: {
-                Image(systemName: "lightbulb")
+                Image(systemName: "questionmark.circle")
             }
             .help("Help")
             .accessibilityLabel("Help")

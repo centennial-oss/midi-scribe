@@ -62,7 +62,7 @@ struct ContentView: View {
     @State var pianoRollScrollToStartRequestID = 0
     @State var completedTakeRenderDelayRequestID = 0
     @State var completedTakeReadyToRenderID: UUID?
-    @State var swipeRevealedTakeID: UUID?
+    @State var swipeRevealedSidebarItem: ContentSidebarItem?
     @State var isPresentingZoomPopover = false
     @State var hasEvaluatedWelcomeSheet = false
     @State var isPresentingWelcomeSheet = false

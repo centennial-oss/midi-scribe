@@ -10,6 +10,7 @@ import SwiftUI
 struct SidebarItem<Value: Hashable, Content: View>: View {
     let value: Value
     let isSelected: Bool
+    let allowsNestedInteractions: Bool
     let action: () -> Void
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.sidebarMultiSelectContext) private var multiSelectContext
@@ -20,6 +21,20 @@ struct SidebarItem<Value: Hashable, Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     private var isDarkAppearance: Bool { colorScheme == .dark }
+
+    init(
+        value: Value,
+        isSelected: Bool,
+        allowsNestedInteractions: Bool = false,
+        action: @escaping () -> Void,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.value = value
+        self.isSelected = isSelected
+        self.allowsNestedInteractions = allowsNestedInteractions
+        self.action = action
+        self.content = content
+    }
 
     var body: some View {
         if multiSelectContext.isEnabled {
@@ -38,58 +53,39 @@ struct SidebarItem<Value: Hashable, Content: View>: View {
             .disabled(isDisabled)
             .opacity(isDisabled ? 0.45 : 1)
         } else {
-            Button {
-                let detailSelectionChanges = !isSelected
-                action()
-                if detailSelectionChanges {
-                    afterDetailChangeRowAction()
+            if allowsNestedInteractions {
+                styledLabel
+                    .contentShape(Rectangle())
+                    .gesture(
+                        TapGesture().onEnded {
+                            let detailSelectionChanges = !isSelected
+                            action()
+                            if detailSelectionChanges {
+                                afterDetailChangeRowAction()
+                            }
+                        },
+                        including: .gesture
+                    )
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityAction {
+                        let detailSelectionChanges = !isSelected
+                        action()
+                        if detailSelectionChanges {
+                            afterDetailChangeRowAction()
+                        }
+                    }
+            } else {
+                Button {
+                    let detailSelectionChanges = !isSelected
+                    action()
+                    if detailSelectionChanges {
+                        afterDetailChangeRowAction()
+                    }
+                } label: {
+                    styledLabel
                 }
-            } label: {
-                #if os(macOS)
-                label
-                    .background(
-                        isSelected
-                            ? (macApplicationIsActive.isActive
-                                ? (isDarkAppearance
-                                    ? Color(red: 0.05, green: 0.35, blue: 0.82)
-                                    : Color(red: 0.02, green: 0.39, blue: 0.885))
-                                : (isDarkAppearance
-                                    ? Color(white: 0.27)
-                                    : Color(white: 0.86)))
-                            : Color.clear,
-                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    )
-                    .foregroundStyle(
-                        isSelected
-                            ? (macApplicationIsActive.isActive
-                                ? Color.white
-                                : (isDarkAppearance
-                                    ? Color(white: 0.49)
-                                    : Color(white: 0.58)))
-                            : Color.primary
-                    )
-                #elseif os(iOS)
-                label
-                    .padding(.vertical, 4)
-                    .background(
-                        isSelected
-                            ? (isDarkAppearance
-                                ? Color(red: 0.16, green: 0.16, blue: 0.16)
-                                : Color(red: 0.87, green: 0.87, blue: 0.87))
-                            : Color.clear,
-                        in: Capsule()
-                    )
-                    .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
-                #else
-                label
-                    .background(
-                        isSelected ? Color.secondary.opacity(0.15) : Color.clear,
-                        in: Capsule()
-                    )
-                    .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
-                #endif
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
     }
 
@@ -101,5 +97,53 @@ struct SidebarItem<Value: Hashable, Content: View>: View {
             .padding(.horizontal, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private var styledLabel: some View {
+        #if os(macOS)
+        label
+            .padding(.vertical, 2)
+            .background(
+                isSelected
+                    ? (macApplicationIsActive.isActive
+                        ? (isDarkAppearance
+                        ? Color(red: 0.16, green: 0.16, blue: 0.16)
+                        : Color(red: 0.87, green: 0.87, blue: 0.87))
+                        : (isDarkAppearance
+                            ? Color(white: 0.27)
+                            : Color(white: 0.86)))
+                    : Color.clear,
+                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+            )
+            .foregroundStyle(
+                isSelected
+                    ? (macApplicationIsActive.isActive
+                        ? Color.accentColor
+                        : (isDarkAppearance
+                            ? Color(white: 0.49)
+                            : Color(white: 0.58)))
+                    : Color.primary
+            )
+        #elseif os(iOS)
+        label
+            .padding(.vertical, 4)
+            .background(
+                isSelected
+                    ? (isDarkAppearance
+                        ? Color(red: 0.16, green: 0.16, blue: 0.16)
+                        : Color(red: 0.87, green: 0.87, blue: 0.87))
+                    : Color.clear,
+                in: Capsule()
+            )
+            .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+        #else
+        label
+            .background(
+                isSelected ? Color.secondary.opacity(0.15) : Color.clear,
+                in: Capsule()
+            )
+            .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+        #endif
     }
 }

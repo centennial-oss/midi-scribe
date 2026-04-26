@@ -4,6 +4,11 @@
 //
 
 import SwiftUI
+#if os(iOS)
+import UIKit
+#else
+import AppKit
+#endif
 
 struct BasicButtonContext {
     let action: () -> Void
@@ -12,6 +17,7 @@ struct BasicButtonContext {
     var role: ButtonRole?
     var keyboardShortcut: KeyboardShortcut?
     var size: ControlSize
+    var labelWeight: Font.Weight
     var backgroundColor: Color?
     var foregroundColor: Color?
     var contentWidth: CGFloat?
@@ -24,6 +30,7 @@ struct BasicButtonContext {
         role: ButtonRole? = nil,
         keyboardShortcut: KeyboardShortcut? = nil,
         size: ControlSize = .large,
+        labelWeight: Font.Weight = .semibold,
         backgroundColor: Color? = nil,
         foregroundColor: Color? = nil,
         contentWidth: CGFloat? = nil,
@@ -35,6 +42,7 @@ struct BasicButtonContext {
         self.role = role
         self.keyboardShortcut = keyboardShortcut
         self.size = size
+        self.labelWeight = labelWeight
         self.backgroundColor = backgroundColor
         self.foregroundColor = foregroundColor
         self.contentWidth = contentWidth
@@ -56,7 +64,11 @@ struct BasicButton: View {
         if context.backgroundColor != nil {
             return .primary
         }
-        return .white
+#if os(macOS)
+    return Color(nsColor: .windowBackgroundColor)
+#else
+    return Color(uiColor: .systemBackground)
+#endif
     }
 
     @ViewBuilder
@@ -76,19 +88,19 @@ struct BasicButton: View {
     private func chrome<Content: View>(_ button: Content) -> some View {
         if let backgroundColor = context.backgroundColor {
             button
-                .font(.system(size: 15))
-                .buttonStyle(.borderedProminent)
+                .font(.system(size: 15, weight: context.labelWeight))
+                .buttonStyle(.glassProminent)
                 .tint(backgroundColor)
                 .controlSize(context.size)
         } else if isDestructive {
             button
-                .font(.system(size: 15))
-                .buttonStyle(.borderedProminent)
+                .font(.system(size: 15, weight: context.labelWeight))
+                .buttonStyle(.glassProminent)
                 .tint(.red)
                 .controlSize(context.size)
         } else {
             button
-                .font(.system(size: 15))
+                .font(.system(size: 15, weight: context.labelWeight))
                 .buttonStyle(.glassProminent)
                 .controlSize(context.size)
         }

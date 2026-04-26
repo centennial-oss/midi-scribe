@@ -55,11 +55,11 @@ extension PianoRollView {
     func dragZoomSelectionOverlay(viewHeight: CGFloat) -> some View {
         if let dragZoomRect = dragZoomRect(viewHeight: viewHeight) {
             Rectangle()
-                .fill(Color.accentColor.opacity(0.18))
+                .fill(Color.blue.opacity(0.18))
                 .overlay {
                     Rectangle()
                         .stroke(
-                            Color.accentColor.opacity(0.9),
+                            Color.blue.opacity(0.9),
                             style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])
                         )
                 }

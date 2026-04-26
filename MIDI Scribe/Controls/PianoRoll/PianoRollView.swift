@@ -6,7 +6,7 @@
 import SwiftUI
 
 struct PianoRollView: View {
-    private static let rollCornerRadius: CGFloat = 6
+    private static let rollCornerRadius: CGFloat = 12
     static let maxConcurrentScrubAuditionNotes = 24; static let timelineLeadingInset: CGFloat = 12
     static let contentTopInset: CGFloat = 2; static let playheadKnobVerticalOffset: CGFloat = 2
     @Environment(\.colorScheme) private var colorScheme
@@ -77,7 +77,7 @@ extension PianoRollView {
 
                 let playOffset = currentPlaybackOffset
                 let playheadColor =
-                    (dragStartOffset != nil || isScrubHandleHovered) ? Color.accentColor : playheadChrome
+                    (dragStartOffset != nil || isScrubHandleHovered) ? Color.blue : playheadChrome
                 let touchInputModifier = pianoRollTouchInputModifier(
                     rollWidth: rollWidth,
                     layoutWidth: layoutWidth,
@@ -341,6 +341,7 @@ extension PianoRollView {
 
     /// Lime note bars on the roll when not under the playhead.
     var noteBarIdleColor: Color {
+        // dark: 153, 255, 51,  light: 26, 128, 13
         colorScheme == .dark ? Color(red: 0.6, green: 1.0, blue: 0.2) : Color(red: 0.1, green: 0.5, blue: 0.05)
     }
 

@@ -269,11 +269,7 @@ struct Sidebar<SidebarContent: View, DetailContent: View, UnderlayContent: View>
                     }
                 }
             }
-            .navigationSplitViewColumnWidth(
-                min: defaultSidebarWidth,
-                ideal: defaultSidebarWidth,
-                max: defaultSidebarWidth
-            )
+            .navigationSplitViewColumnWidth(min: 260, ideal: defaultSidebarWidth)
             #else
             ScrollView {
                 sidebar()

@@ -94,6 +94,7 @@ extension ContentView {
                 ))
                 .labelsHidden()
                 .toggleStyle(.switch)
+                .tint(.accentColor)
             }
             HStack {
                 Text("Mute Input")
@@ -104,6 +105,7 @@ extension ContentView {
                 ))
                 .labelsHidden()
                 .toggleStyle(.switch)
+                .tint(.accentColor)
             }
             playbackOutputPicker
                 .padding(.top, 4)
@@ -171,6 +173,7 @@ extension ContentView {
         SidebarItem(
             value: take.id,
             isSelected: !isEditingList && viewModel.selectedSidebarItem == item,
+            allowsNestedInteractions: true,
             action: { selectSidebarItem(item) },
             content: {
                 sidebarRow(for: take, asStarred: asStarred)
@@ -179,7 +182,7 @@ extension ContentView {
     }
 
     private func selectSidebarItem(_ item: ContentSidebarItem) {
-        swipeRevealedTakeID = nil
+        swipeRevealedSidebarItem = nil
         prepareCompletedTakeDetailForSelection(item)
         sidebarSelectionBinding.wrappedValue = item
         if item != .editingTakes {
@@ -198,6 +201,7 @@ extension ContentView {
         HStack(spacing: 12) {
             Text("Playback to")
                 .foregroundStyle(.primary)
+                .lineLimit(1)
             Spacer(minLength: 8)
             Picker("", selection: $viewModel.selectedPlaybackTarget) {
                 Text("Speakers").tag(PlaybackOutputTarget.osSpeakers)
@@ -217,7 +221,9 @@ extension ContentView {
 
     @ViewBuilder
     func sidebarRow(for take: RecordedTakeListItem, asStarred: Bool) -> some View {
-        HStack(spacing: 8) {
+        let rowItem: ContentSidebarItem = asStarred ? .starredTake(take.id) : .recentTake(take.id)
+        let isRowRevealed = swipeRevealedSidebarItem == rowItem
+        let rowContent = HStack(spacing: 8) {
             Text(take.displayTitle)
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -227,7 +233,7 @@ extension ContentView {
                     .font(.caption)
             }
             Spacer(minLength: 8)
-            if swipeRevealedTakeID != take.id {
+            if swipeRevealedSidebarItem != rowItem {
                 Text(viewModel.completedTakeDurationText(take))
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
@@ -239,40 +245,63 @@ extension ContentView {
                     ))
             }
         }
-        .contentShape(Rectangle())
-        .simultaneousGesture(sidebarRowSwipeGesture(for: take.id))
-        .onTrackpadSwipe(
-            onSwipeLeft: {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    swipeRevealedTakeID = take.id
-                }
-            },
-            onSwipeRight: {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    if swipeRevealedTakeID == take.id {
-                        swipeRevealedTakeID = nil
-                    }
-                }
-            }
-        )
-        .contextMenu { sidebarRowContextMenu(for: take) }
-
-#if os(iOS)
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) { sidebarRowSwipeActions(for: take) }
-#endif
+        if isRowRevealed {
+            revealedSidebarRow(rowContent, take: take)
+        } else {
+            swipeEnabledSidebarRow(rowContent, take: take, rowItem: rowItem)
+        }
     }
 
-    private func sidebarRowSwipeGesture(for takeID: UUID) -> some Gesture {
+    @ViewBuilder
+    private func revealedSidebarRow<V: View>(_ rowContent: V, take: RecordedTakeListItem) -> some View {
+        rowContent
+            .contentShape(Rectangle())
+            .contextMenu { sidebarRowContextMenu(for: take) }
+        #if os(iOS)
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) { sidebarRowSwipeActions(for: take) }
+        #endif
+    }
+
+    @ViewBuilder
+    private func swipeEnabledSidebarRow<V: View>(
+        _ rowContent: V,
+        take: RecordedTakeListItem,
+        rowItem: ContentSidebarItem
+    ) -> some View {
+        rowContent
+            .contentShape(Rectangle())
+            .simultaneousGesture(sidebarRowSwipeGesture(for: rowItem))
+            .onTrackpadSwipe(
+                onSwipeLeft: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        swipeRevealedSidebarItem = rowItem
+                    }
+                },
+                onSwipeRight: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        if swipeRevealedSidebarItem == rowItem {
+                            swipeRevealedSidebarItem = nil
+                        }
+                    }
+                }
+            )
+            .contextMenu { sidebarRowContextMenu(for: take) }
+        #if os(iOS)
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) { sidebarRowSwipeActions(for: take) }
+        #endif
+    }
+
+    private func sidebarRowSwipeGesture(for rowItem: ContentSidebarItem) -> some Gesture {
         DragGesture(minimumDistance: 20, coordinateSpace: .local)
             .onEnded { value in
                 if value.translation.width < -40 {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        swipeRevealedTakeID = takeID
+                        swipeRevealedSidebarItem = rowItem
                     }
                 } else if value.translation.width > 40 {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        if swipeRevealedTakeID == takeID {
-                            swipeRevealedTakeID = nil
+                        if swipeRevealedSidebarItem == rowItem {
+                            swipeRevealedSidebarItem = nil
                         }
                     }
                 }
@@ -301,7 +330,7 @@ extension ContentView {
     private func sidebarRowSwipeActions(for take: RecordedTakeListItem) -> some View {
         let actionsDisabled = viewModel.isTakeActionInProgress || isEditingList
         Button {
-            swipeRevealedTakeID = nil
+            swipeRevealedSidebarItem = nil
             beginDeleteTake(id: take.id)
         } label: {
             Image(systemName: "trash")
@@ -311,7 +340,7 @@ extension ContentView {
         .disabled(actionsDisabled)
         .tint(.clear)
         Button {
-            swipeRevealedTakeID = nil
+            swipeRevealedSidebarItem = nil
             beginRename(take)
         } label: {
             Image(systemName: "pencil")
@@ -321,7 +350,7 @@ extension ContentView {
         .disabled(actionsDisabled)
         .tint(.clear)
         Button {
-            swipeRevealedTakeID = nil
+            swipeRevealedSidebarItem = nil
             viewModel.toggleStar(takeID: take.id)
         } label: {
             Image(systemName: "star")

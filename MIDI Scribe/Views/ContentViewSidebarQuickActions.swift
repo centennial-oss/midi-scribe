@@ -7,7 +7,7 @@ extension ContentView {
     func sidebarRowQuickActions(for take: RecordedTakeListItem) -> some View {
         HStack(spacing: 24) {
             Button {
-                withAnimation { swipeRevealedTakeID = nil }
+                withAnimation { swipeRevealedSidebarItem = nil }
                 beginRename(take)
             } label: {
                 Image(systemName: "pencil")
@@ -19,7 +19,7 @@ extension ContentView {
             .buttonStyle(.plain)
 
             Button {
-                withAnimation { swipeRevealedTakeID = nil }
+                withAnimation { swipeRevealedSidebarItem = nil }
                 viewModel.toggleStar(takeID: take.id)
             } label: {
                 Image(systemName: take.isStarred ? "star.fill" : "star")
@@ -31,7 +31,7 @@ extension ContentView {
             .buttonStyle(.plain)
 
             Button {
-                withAnimation { swipeRevealedTakeID = nil }
+                withAnimation { swipeRevealedSidebarItem = nil }
                 beginDeleteTake(id: take.id)
             } label: {
                 Image(systemName: "trash")

@@ -282,6 +282,7 @@ private struct TakeStartEndControlSection: View {
                 isOn: $settings.startTakeWithNoteEvents
             )
             .toggleStyle(CheckboxToggleStyle())
+            .tint(.accentColor)
 
             ForEach(TakeControlSignal.takeStartOptions.filter { $0 != .notes }) { signal in
                 Toggle(
@@ -289,6 +290,7 @@ private struct TakeStartEndControlSection: View {
                     isOn: controlSignalBinding(signal, selection: $settings.takeStartControlChanges)
                 )
                 .toggleStyle(CheckboxToggleStyle())
+                .tint(.accentColor)
             }
         }
     }
@@ -301,6 +303,7 @@ private struct TakeStartEndControlSection: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
             .font(.system(size: 14, weight: .semibold))
+            .tint(.accentColor)
             ForEach(signals) { signal in
                 Toggle(
                     "\(signal.name) \(signal.detail)",

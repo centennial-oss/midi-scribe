@@ -29,7 +29,7 @@ extension ContentView {
                     Button {
                         beginHelpPresentation()
                     } label: {
-                        Label("Help", systemImage: "lightbulb")
+                        Label("Help", systemImage: "questionmark.circle")
                     }
                 } label: {
                     Image(systemName: "ellipsis")
