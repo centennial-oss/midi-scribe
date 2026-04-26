@@ -5,18 +5,28 @@
 
 import SwiftUI
 
+enum OnboardingDeviceType: Hashable {
+    case iPhone
+    case iPad
+    case macOS
+}
+
+struct OnboardingPaneCollection: Hashable {
+    let device: OnboardingDeviceType
+    let onboardingPanes: [OnboardingPane]
+}
+
 struct OnboardingPane: Identifiable, Hashable {
     let id: Int
     var title: String?
     let content: OnboardingPaneContent
     var isShownInHelp = true
     var hideCloseButton = false
-    var isPaneHidden = false
 }
 
 enum OnboardingPaneContent: Hashable {
     case message(OnboardingMessageKind)
-    case screenshot(OnboardingScreenshotAsset, OnboardingAnnotationSet)
+    case screenshot(OnboardingScreenshotContent)
 }
 
 enum OnboardingMessageKind: Hashable {
@@ -47,30 +57,41 @@ enum OnboardingCaretPosition: Hashable {
     case left
     case right
     case bottom
+    case none
 }
 
-struct OnboardingScreenshotAsset: Hashable {
-    let phoneName: String
-    let phoneOriginalSize: CGSize
-    let regularName: String
-    let regularOriginalSize: CGSize
+struct OnboardingScreenshotContent: Hashable {
+    let assetName: String
+    let originalSize: CGSize
+    let annotations: [OnboardingAnnotation]
+    let undimmedZones: [OnboardingUndimmedZone]
 
-    func name() -> String {
-        BuildInfo.isPhone ? phoneName : regularName
-    }
-
-    func originalSize() -> CGSize {
-        BuildInfo.isPhone ? phoneOriginalSize : regularOriginalSize
+    init(
+        assetName: String,
+        originalSize: CGSize,
+        annotations: [OnboardingAnnotation],
+        undimmedZones: [OnboardingUndimmedZone] = []
+    ) {
+        self.assetName = assetName
+        self.originalSize = originalSize
+        self.annotations = annotations
+        self.undimmedZones = undimmedZones
     }
 }
 
-struct OnboardingAnnotationSet: Hashable {
-    let phone: [OnboardingAnnotation]
-    let regular: [OnboardingAnnotation]
-
-    func annotations() -> [OnboardingAnnotation] {
-        BuildInfo.isPhone ? phone : regular
-    }
+enum OnboardingUndimmedZone: Hashable {
+    case roundedRect(
+        centerX: CGFloat,
+        centerY: CGFloat,
+        width: CGFloat,
+        height: CGFloat,
+        cornerRadius: CGFloat
+    )
+    case circle(
+        centerX: CGFloat,
+        centerY: CGFloat,
+        diameter: CGFloat
+    )
 }
 
 struct OnboardingAnnotation: Identifiable, Hashable {
@@ -80,41 +101,4 @@ struct OnboardingAnnotation: Identifiable, Hashable {
     let sourceY: CGFloat
     let label: String
     let caretPosition: OnboardingCaretPosition
-}
-
-extension OnboardingScreenshotAsset {
-    static let liveTake = OnboardingScreenshotAsset(
-        phoneName: "OnboardingPhoneLiveTake",
-        phoneOriginalSize: CGSize(width: 2796, height: 1290),
-        regularName: "OnboardingRegularLiveTake",
-        regularOriginalSize: CGSize(width: 2732, height: 2048)
-    )
-
-    static let playback = OnboardingScreenshotAsset(
-        phoneName: "OnboardingPhonePlayback",
-        phoneOriginalSize: CGSize(width: 2796, height: 1290),
-        regularName: "OnboardingRegularPlayback",
-        regularOriginalSize: CGSize(width: 2732, height: 2048)
-    )
-
-    static let editing = OnboardingScreenshotAsset(
-        phoneName: "OnboardingPhoneEditing",
-        phoneOriginalSize: CGSize(width: 2796, height: 1290),
-        regularName: "OnboardingRegularEditing",
-        regularOriginalSize: CGSize(width: 2732, height: 2048)
-    )
-
-    static let bulkEdit = OnboardingScreenshotAsset(
-        phoneName: "OnboardingPhoneBulkEdit",
-        phoneOriginalSize: CGSize(width: 2796, height: 1290),
-        regularName: "OnboardingRegularBulkEdit",
-        regularOriginalSize: CGSize(width: 2732, height: 2048)
-    )
-
-    static let settings = OnboardingScreenshotAsset(
-        phoneName: "OnboardingPhoneSettings",
-        phoneOriginalSize: CGSize(width: 2796, height: 1290),
-        regularName: "OnboardingRegularSettings",
-        regularOriginalSize: CGSize(width: 2732, height: 2048)
-    )
 }

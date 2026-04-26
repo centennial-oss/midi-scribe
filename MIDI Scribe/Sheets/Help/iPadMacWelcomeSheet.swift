@@ -29,7 +29,7 @@ struct IPadMacWelcomeSheet: View {
                     panes: panes,
                     selection: $selection
                 )
-                .aspectRatio(16 / 10, contentMode: .fit)
+                .aspectRatio(4 / 3, contentMode: .fit)
                 .frame(maxWidth: .infinity)
                 onboardingFooter
             }

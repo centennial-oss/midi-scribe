@@ -97,10 +97,9 @@ struct OnboardingPaneView: View {
         switch pane.content {
         case let .message(kind):
             OnboardingMessagePaneView(kind: kind)
-        case let .screenshot(screenshot, annotations):
+        case let .screenshot(content):
             OnboardingScreenshotPaneView(
-                screenshot: screenshot,
-                annotations: annotations,
+                content: content
             )
         }
     }
@@ -142,13 +141,12 @@ private struct OnboardingMessagePaneView: View {
 }
 
 private struct OnboardingScreenshotPaneView: View {
-    let screenshot: OnboardingScreenshotAsset
-    let annotations: OnboardingAnnotationSet
+    let content: OnboardingScreenshotContent
 
     var body: some View {
         GeometryReader { proxy in
             let containerSize = proxy.size
-            let originalSize = screenshot.originalSize()
+            let originalSize = content.originalSize
             let imageRect = renderedImageRect(
                 containerSize: containerSize,
                 originalSize: originalSize
@@ -156,12 +154,20 @@ private struct OnboardingScreenshotPaneView: View {
 
             ZStack {
                 OnboardingScreenshotImage(
-                    assetName: screenshot.name(),
+                    assetName: content.assetName,
                     originalSize: originalSize
                 )
                 .frame(width: containerSize.width, height: containerSize.height)
 
-                ForEach(annotations.annotations()) { annotation in
+                if !content.undimmedZones.isEmpty {
+                    DimOverlayWithCutouts(
+                        imageRect: imageRect,
+                        originalSize: originalSize,
+                        zones: content.undimmedZones
+                    )
+                }
+
+                ForEach(content.annotations) { annotation in
                     OnboardingTooltipView(
                         label: annotation.label,
                         caretPosition: annotation.caretPosition
@@ -226,6 +232,59 @@ private struct OnboardingScreenshotPaneView: View {
 
     private func tooltipWidth(for containerSize: CGSize) -> CGFloat {
         min(max(containerSize.width * 0.28, 190), 300)
+    }
+}
+
+private struct DimOverlayWithCutouts: View {
+    let imageRect: CGRect
+    let originalSize: CGSize
+    let zones: [OnboardingUndimmedZone]
+
+    var body: some View {
+        Canvas { context, size in
+            var maskPath = Path(CGRect(origin: .zero, size: size))
+            for zone in zones {
+                maskPath.addPath(renderedZonePath(for: zone))
+            }
+            context.fill(
+                maskPath,
+                with: .color(.black.opacity(0.45)),
+                style: FillStyle(eoFill: true)
+            )
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func renderedZonePath(for zone: OnboardingUndimmedZone) -> Path {
+        guard originalSize.width > 0, originalSize.height > 0 else {
+            return Path()
+        }
+        let scaleX = imageRect.width / originalSize.width
+        let scaleY = imageRect.height / originalSize.height
+
+        switch zone {
+        case let .roundedRect(centerX, centerY, width, height, cornerRadius):
+            let rect = CGRect(
+                x: imageRect.minX + (centerX * scaleX) - ((width * scaleX) / 2),
+                y: imageRect.minY + (centerY * scaleY) - ((height * scaleY) / 2),
+                width: width * scaleX,
+                height: height * scaleY
+            )
+            return RoundedRectangle(
+                cornerRadius: cornerRadius * min(scaleX, scaleY),
+                style: .continuous
+            )
+            .path(in: rect)
+        case let .circle(centerX, centerY, diameter):
+            let renderedDiameter = diameter * min(scaleX, scaleY)
+            let rect = CGRect(
+                x: imageRect.minX + (centerX * scaleX) - (renderedDiameter / 2),
+                y: imageRect.minY + (centerY * scaleY) - (renderedDiameter / 2),
+                width: renderedDiameter,
+                height: renderedDiameter
+            )
+            return Path(ellipseIn: rect)
+        }
     }
 }
 
@@ -320,7 +379,7 @@ private struct OnboardingTooltipView: View {
         switch caretPosition {
         case .left, .right:
             return 18
-        case .top, .bottom:
+        case .top, .bottom, .none:
             return 14
         }
     }
@@ -329,7 +388,7 @@ private struct OnboardingTooltipView: View {
         switch caretPosition {
         case .top, .bottom:
             return 18
-        case .left, .right:
+        case .left, .right, .none:
             return 12
         }
     }

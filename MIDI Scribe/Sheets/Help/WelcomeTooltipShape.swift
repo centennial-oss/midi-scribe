@@ -62,6 +62,8 @@ struct OnboardingTooltipShape: InsettableShape {
             return CGRect(x: rect.minX + depth, y: rect.minY, width: rect.width - depth, height: rect.height)
         case .right:
             return CGRect(x: rect.minX, y: rect.minY, width: rect.width - depth, height: rect.height)
+        case .none:
+            return rect
         }
     }
 
