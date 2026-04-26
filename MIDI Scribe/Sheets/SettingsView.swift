@@ -26,179 +26,207 @@ struct SettingsView: View {
         [1, 3, 5] + Array(stride(from: 10, through: 600, by: 10)).map(Double.init)
 
     var body: some View {
+        #if os(iOS)
+        iOSBody
+        #else
+        navigationBody
+        #endif
+    }
+
+    private var navigationBody: some View {
         NavigationStack {
-            Form {
-                Section {
-                    Picker("MIDI Input Channel", selection: $settings.monitoredMIDIChannel) {
-                        Text("All Channels").tag(AppSettings.midiChannelAllValue)
-                        ForEach(1...16, id: \.self) { channel in
-                            Text("Channel \(channel)").tag(channel)
-                        }
-                    }
-
-                    Picker("Playback Instrument", selection: $settings.speakerOutputProgram) {
-                        ForEach(GeneralMIDI.programs) { program in
-                            Text(program.name).tag(program.program)
-                        }
-                    }
-                    HStack {
-                        Text("End Take When Idle for")
-                        Spacer()
-    #if os(macOS)
-                        DiscreteSettingsSlider(
-                            value: newTakeDelaySliderValue,
-                            range: 0...Double(allowedDelayValues.count - 1)
-                        )
-                        .frame(maxWidth: 175)
-    #else
-                        Slider(value: newTakeDelaySliderValue, in: 0...Double(allowedDelayValues.count - 1), step: 1)
-                            .frame(maxWidth: 175)
-    #endif
-                        Text(DurationFormatting.compactWholeSeconds(settings.newTakePauseSeconds))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 58, alignment: .trailing)
-                    }
-
-                    Stepper(value: $settings.recentTakesShownInMenus, in: 1...99) {
-                        HStack {
-                            Text("# Recent Takes to Keep")
-                            Spacer()
-                            Text("\(settings.recentTakesShownInMenus)")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                TakeStartEndControlSection(settings: settings)
-
-                Section {
-                    HStack {
-                        Text("Sample Take Data")
-                        Spacer()
-                        Button {
-                            onLoadSampleTakes()
-                        } label: {
-                            HStack(spacing: 8) {
-                                if appState.isLoadingSampleTakes {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                    Text("Loading…")
-                                } else {
-                                    Text("Load Sample Takes")
-                                }
-                            }
-                        }
-                        .disabled(appState.isLoadingSampleTakes)
-                    }
-                    Text("Adds several public-domain classical songs to your Recent Takes list.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                Section {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Danger Zone")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.red)
-                        HStack {
-                            Button("Reset All Preferences", role: .destructive) {
-                                alertState = .confirmResetPreferences
-                            }
-                            .disabled(isErasing)
-                            Spacer()
-                            Button(role: .destructive) {
-                                alertState = .confirmEraseAllData
-                            } label: {
-                                HStack(spacing: 8) {
-                                    if isErasing {
-                                        ProgressView()
-                                            .controlSize(.small)
-                                        Text("Erasing…")
-                                    } else {
-                                        Text("Erase All Takes + Reset Preferences")
-                                    }
-                                }
-                            }
-                            .disabled(isErasing)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-            .formStyle(.grouped)
+            settingsForm
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     BasicButton(context: BasicButtonContext(action: onClose, label: "Close"))
                 }
             }
-            .alert(item: $alertState) { state in
-                switch state {
-                case .confirmEraseAllData:
-                    return Alert(
-                        title: Text("Erase All Data?"),
-                        message: Text(
-                            "This will permanently delete every recorded Take and all MIDI events, "
-                                + "then clear all saved preferences and restore defaults. "
-                                + "This action cannot be undone."
-                        ),
-                        primaryButton: .destructive(Text("Erase All Data")) {
-                            eraseAllData()
-                        },
-                        secondaryButton: .cancel()
-                    )
-                case .confirmResetPreferences:
-                    return Alert(
-                        title: Text("Reset All Preferences?"),
-                        message: Text("This will clear all saved preferences and restore defaults."),
-                        primaryButton: .destructive(Text("Reset")) {
-                            settings.resetAllPreferences()
-                            alertState = .preferencesReset
-                        },
-                        secondaryButton: .cancel()
-                    )
-                case .sampleTakesLoaded(let count):
-                    return Alert(
-                        title: Text("Sample Takes Loaded"),
-                         message: Text("Added \(count) sample take\(count == 1 ? "" : "s") to Recent Takes."),
-                        dismissButton: .default(Text("OK"))
-                    )
-                case .sampleTakesFailed(let message):
-                    return Alert(
-                        title: Text("Unable to Load Sample Takes"),
-                        message: Text(message),
-                        dismissButton: .default(Text("OK"))
-                    )
-                case .eraseAllSucceeded:
-                    return Alert(
-                        title: Text("Data Erased"),
-                        message: Text("All save data erased. \(AppIdentifier.name) has been reset."),
-                        dismissButton: .default(Text("OK"))
-                    )
-                case .eraseAllFailed(let message):
-                    return Alert(
-                        title: Text("Erase Failed"),
-                        message: Text(message),
-                        dismissButton: .default(Text("OK"))
-                    )
-                case .preferencesReset:
-                    return Alert(
-                        title: Text("Preferences Reset"),
-                        message: Text("All saved preferences were reset to defaults."),
-                        dismissButton: .default(Text("OK"))
-                    )
-                }
-            }
-            .onChange(of: appState.sampleTakeLoadResult) { _, result in
-                guard let result else { return }
-                switch result {
-                case .success(let count):
-                    alertState = .sampleTakesLoaded(count: count)
-                case .failure(let message):
-                    alertState = .sampleTakesFailed(message: message)
-                }
-            }
         }
         .frame(minWidth: 460)
+    }
+
+    #if os(iOS)
+    private let iOSContentWidth: CGFloat = 580
+
+    private var iOSBody: some View {
+        settingsForm
+            .frame(maxWidth: iOSContentWidth)
+            .frame(maxWidth: .infinity)
+        .overlay(alignment: .topTrailing) {
+            FloatingSheetCloseButton(action: onClose)
+                .padding(.trailing, 0)
+                .padding(.top, 10)
+        }
+        .presentationDetents([.large])
+    }
+    #endif
+
+    private var settingsForm: some View {
+        Form {
+            Section {
+                Picker("MIDI Input Channel", selection: $settings.monitoredMIDIChannel) {
+                    Text("All Channels").tag(AppSettings.midiChannelAllValue)
+                    ForEach(1...16, id: \.self) { channel in
+                        Text("Channel \(channel)").tag(channel)
+                    }
+                }
+
+                Picker("Playback Instrument", selection: $settings.speakerOutputProgram) {
+                    ForEach(GeneralMIDI.programs) { program in
+                        Text(program.name).tag(program.program)
+                    }
+                }
+                HStack {
+                    Text("End Take When Idle for")
+                    Spacer()
+    #if os(macOS)
+                    DiscreteSettingsSlider(
+                        value: newTakeDelaySliderValue,
+                        range: 0...Double(allowedDelayValues.count - 1)
+                    )
+                    .frame(maxWidth: 175)
+    #else
+                    Slider(value: newTakeDelaySliderValue, in: 0...Double(allowedDelayValues.count - 1), step: 1)
+                        .frame(maxWidth: 175)
+    #endif
+                    Text(DurationFormatting.compactWholeSeconds(settings.newTakePauseSeconds))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 58, alignment: .trailing)
+                }
+
+                Stepper(value: $settings.recentTakesShownInMenus, in: 1...99) {
+                    HStack {
+                        Text("# Recent Takes to Keep")
+                        Spacer()
+                        Text("\(settings.recentTakesShownInMenus)")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            TakeStartEndControlSection(settings: settings)
+
+            Section {
+                HStack {
+                    Text("Sample Take Data")
+                    Spacer()
+                    Button {
+                        onLoadSampleTakes()
+                    } label: {
+                        HStack(spacing: 8) {
+                            if appState.isLoadingSampleTakes {
+                                ProgressView()
+                                    .controlSize(.small)
+                                Text("Loading…")
+                            } else {
+                                Text("Load Sample Takes")
+                            }
+                        }
+                    }
+                    .disabled(appState.isLoadingSampleTakes)
+                }
+                Text("Adds several public-domain classical songs to your Recent Takes list.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Danger Zone")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.red)
+                    HStack {
+                        Button("Reset All Preferences", role: .destructive) {
+                            alertState = .confirmResetPreferences
+                        }
+                        .disabled(isErasing)
+                        Spacer()
+                        Button(role: .destructive) {
+                            alertState = .confirmEraseAllData
+                        } label: {
+                            HStack(spacing: 8) {
+                                if isErasing {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("Erasing…")
+                                } else {
+                                    Text("Erase All Takes + Reset Preferences")
+                                }
+                            }
+                        }
+                        .disabled(isErasing)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .formStyle(.grouped)
+        .alert(item: $alertState) { state in
+            switch state {
+            case .confirmEraseAllData:
+                return Alert(
+                    title: Text("Erase All Data?"),
+                    message: Text(
+                        "This will permanently delete every recorded Take and all MIDI events, "
+                            + "then clear all saved preferences and restore defaults. "
+                            + "This action cannot be undone."
+                    ),
+                    primaryButton: .destructive(Text("Erase All Data")) {
+                        eraseAllData()
+                    },
+                    secondaryButton: .cancel()
+                )
+            case .confirmResetPreferences:
+                return Alert(
+                    title: Text("Reset All Preferences?"),
+                    message: Text("This will clear all saved preferences and restore defaults."),
+                    primaryButton: .destructive(Text("Reset")) {
+                        settings.resetAllPreferences()
+                        alertState = .preferencesReset
+                    },
+                    secondaryButton: .cancel()
+                )
+            case .sampleTakesLoaded(let count):
+                return Alert(
+                    title: Text("Sample Takes Loaded"),
+                     message: Text("Added \(count) sample take\(count == 1 ? "" : "s") to Recent Takes."),
+                    dismissButton: .default(Text("OK"))
+                )
+            case .sampleTakesFailed(let message):
+                return Alert(
+                    title: Text("Unable to Load Sample Takes"),
+                    message: Text(message),
+                    dismissButton: .default(Text("OK"))
+                )
+            case .eraseAllSucceeded:
+                return Alert(
+                    title: Text("Data Erased"),
+                    message: Text("All save data erased. \(AppIdentifier.name) has been reset."),
+                    dismissButton: .default(Text("OK"))
+                )
+            case .eraseAllFailed(let message):
+                return Alert(
+                    title: Text("Erase Failed"),
+                    message: Text(message),
+                    dismissButton: .default(Text("OK"))
+                )
+            case .preferencesReset:
+                return Alert(
+                    title: Text("Preferences Reset"),
+                    message: Text("All saved preferences were reset to defaults."),
+                    dismissButton: .default(Text("OK"))
+                )
+            }
+        }
+        .onChange(of: appState.sampleTakeLoadResult) { _, result in
+            guard let result else { return }
+            switch result {
+            case .success(let count):
+                alertState = .sampleTakesLoaded(count: count)
+            case .failure(let message):
+                alertState = .sampleTakesFailed(message: message)
+            }
+        }
     }
 
     private func eraseAllData() {

@@ -186,7 +186,10 @@ private struct OnboardingScreenshotPaneView: View {
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .strokeBorder(.primary.opacity(0.08), lineWidth: 1)
+                    .strokeBorder(
+                        Color.accentColor,
+                        style: StrokeStyle(lineWidth: 2, dash: [2, 2])
+                    )
             }
         }
     }

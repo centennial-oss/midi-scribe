@@ -10,6 +10,7 @@ struct HelpView: View {
 
     var body: some View {
         WelcomeSheetFlow(kind: .help, onClose: onClose)
+            .interactiveDismissDisabled()
     }
 }
 

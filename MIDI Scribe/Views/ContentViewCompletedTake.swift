@@ -109,6 +109,8 @@ extension ContentView {
                     isPresentingZoomPopover.toggle()
                 } label: {
                     Image(systemName: "plus.magnifyingglass")
+                        .frame(width: 32, height: 32)
+                        .contentShape(Circle())
                 }
                 .popover(isPresented: $isPresentingZoomPopover) {
                     completedTakeZoomSliderRow()

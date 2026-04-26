@@ -21,86 +21,20 @@ struct AboutView: View {
     @State private var didCopyBuildInfo = false
 
     var body: some View {
+        #if os(iOS)
+        if BuildInfo.isPhone {
+            phoneBody
+        } else {
+            padBody
+        }
+        #else
+        navigationBody
+        #endif
+    }
+
+    private var navigationBody: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    header
-
-                    Label(
-                        "\(AppIdentifier.name) is a utility for automatically capturing and organizing practice " +
-                        "Takes with your MIDI-capable musical instrument.",
-                        systemImage: "music.note.tv"
-                    )
-                        .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(4)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Label(
-                        "External MIDI-capable musical instrument is required.",
-                        systemImage: "exclamationmark.triangle"
-                    )
-                        .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(4)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Label(
-                        "\(AppIdentifier.name) is 100% private. " +
-                            "It does not collect analytics or snoop on your usage. " +
-                            "Nothing ever leaves your device. Period.",
-                        systemImage: "shield"
-                    )
-                        .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(4)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Label("This software is completely free and open source for you to enjoy.",
-                        systemImage: "heart"
-                    )
-                        .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(4)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Link(destination: appStoreReviewURL) {
-                        Label("Rate \(AppIdentifier.name) on the App Store",
-                        systemImage: "star.leadinghalf.filled"
-                    )
-                            .foregroundStyle(linkColor)
-                            .underline(isAppStoreLinkHovered, color: linkColor.opacity(0.8))
-                    }
-                    .font(.system(size: 14))
-                    #if os(macOS)
-                    .onHover { isAppStoreLinkHovered = $0 }
-                    #endif
-
-                    Link(destination: AppIdentifier.repoURL) {
-                        Label("GitHub: \(AppIdentifier.repoPath)",
-                        systemImage: "arrow.up.right.square"
-                    )
-                            .foregroundStyle(linkColor)
-                            .underline(isGitHubLinkHovered, color: linkColor.opacity(0.8))
-                    }
-                    .font(.system(size: 15))
-                    #if os(macOS)
-                    .onHover { isGitHubLinkHovered = $0 }
-                    #endif
-
-                    buildInfoSection
-
-                    Text(
-                        "\(AppIdentifier.name) and the \(AppIdentifier.name) logo are trademarks of " +
-                            "\(AppIdentifier.copyrightHolder)\nAll rights reserved."
-                    )
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(24)
-            }
+            contentScroll(padding: 24)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     BasicButton(
@@ -117,6 +51,42 @@ struct AboutView: View {
         #if os(macOS)
         .background(AboutEscapeKeyHandler(onEscape: onClose))
         #endif
+    }
+
+    #if os(iOS)
+    private var phoneBody: some View {
+        contentScroll(padding: 18)
+            .overlay(alignment: .topTrailing) {
+                FloatingSheetCloseButton(action: onClose)
+                    .padding(.trailing, 0)
+                    .padding(.top, 10)
+            }
+            .presentationDetents([.large])
+    }
+
+    private var padBody: some View {
+        contentScroll(padding: 24)
+            .frame(width: 560)
+            .overlay(alignment: .topTrailing) {
+                FloatingSheetCloseButton(action: onClose)
+                    .padding(.trailing, 0)
+                    .padding(.top, 10)
+            }
+    }
+    #endif
+
+    private func contentScroll(padding: CGFloat) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                header
+                aboutDescription
+                appLinks
+                buildInfoSection
+                trademarkNotice
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(padding)
+        }
     }
 
     private var header: some View {
@@ -140,6 +110,67 @@ struct AboutView: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    private var aboutDescription: some View {
+        Group {
+            descriptionLabel(
+                "\(AppIdentifier.name) is a utility for automatically capturing and organizing practice " +
+                    "Takes with your MIDI-capable musical instrument.",
+                systemImage: "music.note.tv"
+            )
+            descriptionLabel("External MIDI-capable musical instrument is required.",
+                             systemImage: "exclamationmark.triangle")
+            descriptionLabel(
+                "\(AppIdentifier.name) is 100% private. " +
+                    "It does not collect analytics or snoop on your usage. Nothing ever leaves your device. Period.",
+                systemImage: "shield"
+            )
+            descriptionLabel("This software is completely free and open source for you to enjoy.",
+                             systemImage: "heart")
+        }
+    }
+
+    private var appLinks: some View {
+        Group {
+            Link(destination: appStoreReviewURL) {
+                Label("Rate \(AppIdentifier.name) on the App Store", systemImage: "star.leadinghalf.filled")
+                    .foregroundStyle(linkColor)
+                    .underline(isAppStoreLinkHovered, color: linkColor.opacity(0.8))
+            }
+            .font(.system(size: 14))
+            #if os(macOS)
+            .onHover { isAppStoreLinkHovered = $0 }
+            #endif
+
+            Link(destination: AppIdentifier.repoURL) {
+                Label("GitHub: \(AppIdentifier.repoPath)", systemImage: "arrow.up.right.square")
+                    .foregroundStyle(linkColor)
+                    .underline(isGitHubLinkHovered, color: linkColor.opacity(0.8))
+            }
+            .font(.system(size: 15))
+            #if os(macOS)
+            .onHover { isGitHubLinkHovered = $0 }
+            #endif
+        }
+    }
+
+    private var trademarkNotice: some View {
+        Text(
+            "\(AppIdentifier.name) and the \(AppIdentifier.name) logo are trademarks of " +
+                "\(AppIdentifier.copyrightHolder)\nAll rights reserved."
+        )
+        .font(.system(size: 12))
+        .foregroundStyle(.secondary)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func descriptionLabel(_ text: String, systemImage: String) -> some View {
+        Label(text, systemImage: systemImage)
+            .font(.system(size: 14))
+            .foregroundStyle(.secondary)
+            .lineSpacing(4)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var buildInfoSection: some View {

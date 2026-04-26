@@ -33,6 +33,8 @@ extension ContentView {
                     }
                 } label: {
                     Image(systemName: "ellipsis")
+                        .frame(width: 32, height: 32)
+                        .contentShape(Circle())
                 }
                 .accessibilityLabel("More")
                 .help("More")

@@ -206,7 +206,7 @@ extension ContentView {
             Picker("", selection: $viewModel.selectedPlaybackTarget) {
                 Text("Speakers").tag(PlaybackOutputTarget.osSpeakers)
                 ForEach(1...16, id: \.self) { channel in
-                    Text("MIDI Channel \(channel)").tag(PlaybackOutputTarget.midiChannel(channel))
+                    Text("MIDI Ch \(channel)").tag(PlaybackOutputTarget.midiChannel(channel))
                 }
             }
             .labelsHidden()

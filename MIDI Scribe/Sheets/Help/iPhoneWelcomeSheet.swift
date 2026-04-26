@@ -20,46 +20,29 @@ struct PhoneWelcomeSheet: View {
                 selection: $selection
             )
             .padding(.horizontal, 8)
-            .padding(.bottom, -12)
-            .padding(.top, 48)
+            .padding(.bottom, -6)
+            .padding(.top, 44)
         }
         .overlay(alignment: .top) {
-            footer
+            header
                 .padding(.horizontal, 8)
-                .padding(.top, 8)
+                .padding(.top, 12)
         }
         .overlay(alignment: .topTrailing) {
             if shouldShowTopCloseButton {
-                Button {
-                    onClose()
-                } label: {
-                    ZStack {
-                        Circle()
-                            .fill(.clear)
-                            .frame(width: 44, height: 44)
-
-                        Image(systemName: "xmark")
-                            .font(.title2)
-                            .foregroundColor(.primary)
-                            .padding(10)
-                            .glassEffect(.regular.interactive(), in: Circle())
-                    }
-                    .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Close")
-                .padding(.trailing, 20)
-                .padding(.top, 14)
+                FloatingSheetCloseButton(action: onClose)
+                    .padding(.trailing, -22)
+                    .padding(.top, 5)
             }
         }
         .presentationDetents([.large])
     }
 
-    private var footer: some View {
+    private var header: some View {
         ZStack {
             paneTitle
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.bottom, 8)
+                .padding(.bottom, 0)
                 .padding(.leading, 4)
 
             OnboardingPageDots(count: panes.count, selection: selection)
@@ -106,7 +89,6 @@ struct PhoneWelcomeSheet: View {
 
     private var shouldShowTopCloseButton: Bool {
         kind == .help &&
-        selection < panes.count - 1 &&
         !(selectedPane?.hideCloseButton ?? false)
     }
 

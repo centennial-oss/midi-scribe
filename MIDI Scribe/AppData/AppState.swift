@@ -236,11 +236,6 @@ final class AppState: ObservableObject {
             return true
         }
 
-        if event.keyCode == 53 {
-            requestTakeCommand(.cancelCurrentTake)
-            return true
-        }
-
         return false
     }
 

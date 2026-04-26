@@ -44,6 +44,15 @@ struct MIDIScribeApp: App {
                     MenuPlacement.configureMainMenu()
 #endif
                 }
+                #if os(iOS)
+                .modifier(
+                    IOSSettingsPresentationModifier(
+                        appState: appState,
+                        settings: settings,
+                        modelContainer: modelContainer
+                    )
+                )
+                #else
                 .sheet(isPresented: $appState.isShowingSettings) {
                     SettingsView(appState: appState, settings: settings, onClose: {
                         appState.dismissSettings()
@@ -52,6 +61,7 @@ struct MIDIScribeApp: App {
                     })
                     .modelContainer(modelContainer)
                 }
+                #endif
                 .sheet(isPresented: $appState.isShowingAbout) {
                     AboutView {
                         appState.isShowingAbout = false
@@ -238,6 +248,35 @@ struct MIDIScribeApp: App {
 }
 
 #if os(iOS)
+private struct IOSSettingsPresentationModifier: ViewModifier {
+    @ObservedObject var appState: AppState
+    @ObservedObject var settings: AppSettings
+    let modelContainer: ModelContainer
+
+    func body(content: Content) -> some View {
+        if BuildInfo.isPhone {
+            content
+                .sheet(isPresented: $appState.isShowingSettings) {
+                    settingsView
+                }
+        } else {
+            content
+                .fullScreenCover(isPresented: $appState.isShowingSettings) {
+                    settingsView
+                }
+        }
+    }
+
+    private var settingsView: some View {
+        SettingsView(appState: appState, settings: settings, onClose: {
+            appState.dismissSettings()
+        }, onLoadSampleTakes: {
+            appState.requestLoadSampleTakes()
+        })
+        .modelContainer(modelContainer)
+    }
+}
+
 private struct IPadHelpPresentationModifier: ViewModifier {
     @Binding var isShowingHelp: Bool
 
