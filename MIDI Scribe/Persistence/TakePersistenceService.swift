@@ -124,9 +124,9 @@ actor TakePersistenceService {
             beforeEvents.sort { $0.offsetFromTakeStart < $1.offsetFromTakeStart }
             afterEvents.sort { $0.offsetFromTakeStart < $1.offsetFromTakeStart }
 
-            let splitNaming = Self.splitNamingBase(for: original.displayTitle)
+            let splitNaming = Self.suffixedNameBase(for: original.displayTitle)
             let baseTitle = splitNaming.baseTitle
-            let nextSuffixes = try Self.nextSplitSuffixes(
+            let nextSuffixes = try Self.nextNameSuffixes(
                 baseTitle: baseTitle,
                 startingAt: splitNaming.startingSuffix,
                 count: 2,
@@ -297,7 +297,7 @@ actor TakePersistenceService {
 
     // MARK: - Internals
 
-    private static func fetchTake(id takeID: UUID, in context: ModelContext) throws -> StoredTake? {
+    static func fetchTake(id takeID: UUID, in context: ModelContext) throws -> StoredTake? {
         let idString = takeID.uuidString
         let descriptor = FetchDescriptor<StoredTake>(
             predicate: #Predicate<StoredTake> { $0.takeID == idString }
@@ -323,56 +323,5 @@ actor TakePersistenceService {
             let context = ModelContext(container)
             return try block(context)
         }.value
-    }
-}
-
-extension TakePersistenceService {
-    static func splitNamingBase(for displayTitle: String) -> (baseTitle: String, startingSuffix: Int) {
-        let trimmedTitle = displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        let pattern = #/^(.*) \((\d+)\)$/#
-        if let match = try? pattern.wholeMatch(in: trimmedTitle),
-           let suffix = Int(match.output.2) {
-            let base = String(match.output.1).trimmingCharacters(in: .whitespacesAndNewlines)
-            if !base.isEmpty {
-                return (base, suffix)
-            }
-        }
-        return (trimmedTitle, 1)
-    }
-
-    static func nextSplitSuffixes(
-        baseTitle: String,
-        startingAt startingSuffix: Int,
-        count: Int,
-        in context: ModelContext
-    ) throws -> [Int] {
-        let all = try context.fetch(FetchDescriptor<StoredTake>())
-        let pattern = #/^\Q\#(baseTitle)\E \((\d+)\)$/#
-        var usedSuffixes = Set<Int>()
-        for take in all {
-            let candidates = [take.title, take.userTitle ?? ""]
-            for candidate in candidates {
-                if let match = try? pattern.wholeMatch(in: candidate),
-                   let suffixNum = Int(match.output.1) {
-                    usedSuffixes.insert(suffixNum)
-                }
-            }
-        }
-        var result: [Int] = []
-        var candidateSuffix = max(1, startingSuffix)
-        while result.count < count {
-            if !usedSuffixes.contains(candidateSuffix) {
-                result.append(candidateSuffix)
-                usedSuffixes.insert(candidateSuffix)
-            }
-            candidateSuffix += 1
-        }
-        return result
-    }
-
-    func recordedTake(id takeID: UUID) async throws -> RecordedTake? {
-        try await runReturning { context in
-            try Self.fetchTake(id: takeID, in: context)?.recordedTake
-        }
     }
 }

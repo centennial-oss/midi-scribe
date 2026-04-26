@@ -158,6 +158,14 @@ struct MIDIScribeApp: App {
                 .keyboardShortcut("s", modifiers: [])
                 .disabled(!state.canPerformTakeAction)
 
+                Button("Duplicate Take") {
+                    if let takeID {
+                        appState.requestTakeCommand(.duplicate(takeID))
+                    }
+                }
+                .keyboardShortcut("d", modifiers: [.command])
+                .disabled(!state.canPerformTakeAction)
+
                 Button("Rename Take") {
                     if let takeID {
                         appState.requestTakeCommand(.rename(takeID))

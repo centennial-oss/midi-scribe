@@ -234,6 +234,10 @@ final class MIDILiveNoteViewModel: ObservableObject {
         lastBulkResult = .merged(newTakeID: newTakeID, removedIDs: removedIDs)
     }
 
+    func recordDuplicatedBulkResult(newTakeID: UUID) {
+        lastBulkResult = .duplicated(newTakeID: newTakeID)
+    }
+
     func recordDeletedBulkResult(removedIDs: Set<UUID>) {
         lastBulkResult = .deleted(removedIDs: removedIDs)
     }

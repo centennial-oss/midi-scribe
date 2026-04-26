@@ -282,6 +282,8 @@ extension ContentView {
         case .split(let takeID):
             guard viewModel.canSplit(takeID: takeID) else { return }
             beginSplitTakeConfirmation(id: takeID)
+        case .duplicate(let takeID):
+            viewModel.duplicateTakeViaPersistence(id: takeID)
         case .toggleStar(let takeID):
             viewModel.toggleStar(takeID: takeID)
         case .rename(let takeID):

@@ -17,6 +17,7 @@ enum TakeCommandRequest: Equatable {
     case rewindPlayback(UUID)
     case restartPlayback(UUID)
     case split(UUID)
+    case duplicate(UUID)
     case toggleStar(UUID)
     case rename(UUID)
     case export(UUID)
@@ -35,6 +36,7 @@ enum TakeCommandRequest: Equatable {
              .rewindPlayback(let takeID),
              .restartPlayback(let takeID),
              .split(let takeID),
+             .duplicate(let takeID),
              .toggleStar(let takeID),
              .rename(let takeID),
              .export(let takeID),

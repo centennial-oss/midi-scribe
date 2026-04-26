@@ -8,6 +8,7 @@ import Foundation
 enum TakeListPendingOperation: Equatable {
     case importing
     case splitting
+    case duplicating
     case merging
     case renaming
     case starring
@@ -18,6 +19,7 @@ enum TakeListPendingOperation: Equatable {
         switch self {
         case .importing: return "Importing MIDI file…"
         case .splitting: return "Splitting take…"
+        case .duplicating: return "Duplicating take…"
         case .merging: return "Merging takes…"
         case .renaming: return "Renaming take…"
         case .starring: return "Updating star…"
@@ -30,13 +32,14 @@ enum TakeListPendingOperation: Equatable {
         switch self {
         case .starring:
             false
-        case .importing, .splitting, .merging, .renaming, .deleting, .loadingSamples:
+        case .importing, .splitting, .duplicating, .merging, .renaming, .deleting, .loadingSamples:
             true
         }
     }
 }
 
 enum TakeListBulkResult: Equatable {
+    case duplicated(newTakeID: UUID)
     case merged(newTakeID: UUID, removedIDs: Set<UUID>)
     case deleted(removedIDs: Set<UUID>)
     case starred(affectedIDs: Set<UUID>)

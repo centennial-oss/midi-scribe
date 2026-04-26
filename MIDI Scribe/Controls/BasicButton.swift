@@ -53,6 +53,10 @@ struct BasicButtonContext {
 struct BasicButton: View {
     let context: BasicButtonContext
 
+    private var labelFont: Font {
+        .system(size: 15, weight: context.labelWeight)
+    }
+
     private var isDestructive: Bool {
         context.role == .destructive
     }
@@ -73,12 +77,13 @@ struct BasicButton: View {
 
     @ViewBuilder
     private var labelContent: some View {
-        Group {
+        HStack(spacing: 8) {
             if let systemImage = context.systemImage {
-                Label(context.label, systemImage: systemImage)
-            } else {
-                Text(context.label)
+                Image(systemName: systemImage)
+                    .font(labelFont)
             }
+            Text(context.label)
+                .font(labelFont)
         }
         .frame(width: context.contentWidth, height: context.contentHeight)
         .foregroundStyle(labelColor)
@@ -88,19 +93,16 @@ struct BasicButton: View {
     private func chrome<Content: View>(_ button: Content) -> some View {
         if let backgroundColor = context.backgroundColor {
             button
-                .font(.system(size: 15, weight: context.labelWeight))
                 .buttonStyle(.glassProminent)
                 .tint(backgroundColor)
                 .controlSize(context.size)
         } else if isDestructive {
             button
-                .font(.system(size: 15, weight: context.labelWeight))
                 .buttonStyle(.glassProminent)
                 .tint(.red)
                 .controlSize(context.size)
         } else {
             button
-                .font(.system(size: 15, weight: context.labelWeight))
                 .buttonStyle(.glassProminent)
                 .controlSize(context.size)
         }

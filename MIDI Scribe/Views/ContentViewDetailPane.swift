@@ -66,7 +66,7 @@ extension ContentView {
             Text(BulkEditCopy.emptySelectionInstruction)
             .foregroundStyle(.secondary)
 
-            bulkEditActionButtons
+            bulkEditActionButtonsStack
         }
     }
 
@@ -75,7 +75,7 @@ extension ContentView {
             Text("\(viewModel.multiSelection.count) Takes selected.")
                 .font(.body.monospaced())
                 .foregroundStyle(.secondary)
-            bulkEditActionButtons
+            bulkEditActionButtonsStack
         }
     }
 
@@ -137,6 +137,8 @@ extension ContentView {
 
     func resolvedSelectionAfterEdit() -> ContentSidebarItem {
         switch viewModel.lastBulkResult {
+        case .duplicated(let newID):
+            return .recentTake(newID)
         case .merged(let newID, _):
             return .recentTake(newID)
         case .deleted(let removed):

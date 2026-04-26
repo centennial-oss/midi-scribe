@@ -264,7 +264,7 @@ struct ContentView: View {
         .onChange(of: viewModel.lastBulkResult) { _, newValue in
             guard isEditingList, newValue != nil else { return }
             switch newValue {
-            case .merged, .deleted, .starred:
+            case .duplicated, .merged, .deleted, .starred:
                 DispatchQueue.main.async { toggleEditMode() }
             case .none:
                 break

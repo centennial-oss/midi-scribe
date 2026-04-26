@@ -121,6 +121,22 @@ extension MIDILiveNoteViewModel {
         }
     }
 
+    func duplicateSelectedTake() {
+        guard multiSelection.count == 1, let takeID = multiSelection.first else { return }
+        duplicateTakeViaPersistence(id: takeID)
+    }
+
+    func duplicateTakeViaPersistence(id takeID: UUID) {
+        runPersistence(operation: .duplicating) { [weak self] service in
+            let newID = try await service.duplicateTake(id: takeID)
+            await MainActor.run { [weak self] in
+                if let newID {
+                    self?.recordDuplicatedBulkResult(newTakeID: newID)
+                }
+            }
+        }
+    }
+
     func mergeSelectedTakes(silenceBetweenMs: Int) {
         let ids = Array(multiSelection)
         guard ids.count >= 2 else { return }

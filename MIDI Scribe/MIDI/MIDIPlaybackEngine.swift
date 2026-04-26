@@ -303,7 +303,10 @@ extension MIDIPlaybackEngine {
     #endif
     private func resolvedSoundBankURL() throws -> URL { try SoundBankAssets.soundBankURL() }
     private func configureMIDIOutput() {
-        let clientStatus = MIDIClientCreateWithBlock("\(BuildInfo.appName) Playback" as CFString, &outputClient) { _ in }
+        let clientStatus = MIDIClientCreateWithBlock(
+            "\(BuildInfo.appName) Playback" as CFString,
+            &outputClient
+        ) { _ in }
         guard clientStatus == noErr else { return }
         MIDIOutputPortCreate(outputClient, "\(BuildInfo.appName) Playback Port" as CFString, &outputPort)
     }

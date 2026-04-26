@@ -15,7 +15,7 @@ enum BulkEditCopy {
 
 extension ContentView {
     private var iPhoneBulkEditPanelWidth: CGFloat { 340 }
-    private var bulkEditActionButtonWidth: CGFloat { 80 }
+    private var bulkEditActionButtonWidth: CGFloat { 105 }
     private var iPhoneBulkEditPanelLeadingGap: CGFloat { 10 }
     private var iPhoneBulkEditHiddenOffset: CGFloat {
         // Shift far enough left so the full panel starts behind the sidebar.
@@ -28,6 +28,10 @@ extension ContentView {
 
     var canMergeSelectedTakes: Bool {
         viewModel.multiSelection.count >= 2
+    }
+
+    var canDuplicateSelectedTake: Bool {
+        viewModel.multiSelection.count == 1
     }
 
     @ViewBuilder
@@ -47,7 +51,21 @@ extension ContentView {
     @ViewBuilder
     private var bulkEditActionButtonContent: some View {
         if hasBulkEditSelection {
-            if canMergeSelectedTakes {
+            if canDuplicateSelectedTake {
+                bulkEditActionButton(
+                    context: BasicButtonContext(
+                        action: {
+                            viewModel.duplicateSelectedTake()
+                            clearBulkSelection()
+                        },
+                        label: "Duplicate",
+                        systemImage: "plus.square.on.square",
+                        size: .extraLarge,
+                        contentWidth: bulkEditActionButtonWidth
+                    )
+                )
+                .disabled(viewModel.isTakeActionInProgress)
+            } else if canMergeSelectedTakes {
                 bulkEditActionButton(
                     context: BasicButtonContext(
                         action: {
