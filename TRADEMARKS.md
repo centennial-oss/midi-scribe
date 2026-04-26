@@ -1,6 +1,6 @@
 # Trademarks
 
-MIDI Scribe and the MIDI Scribe logo are trademarks of Centennial OSS, Inc.
+MIDI Scribe and the MIDI Scribe logo are trademarks of Centennial OSS Inc.
 
 This repository is licensed under the Apache License 2.0, which allows use,
 modification, and distribution of the code. However, the license does NOT grant

@@ -151,7 +151,7 @@ jobs:
           {
             printf 'MARKETING_VERSION = %s\n' "$VERSION"
             printf 'CURRENT_PROJECT_VERSION = %s\n' "$BUILD_NUMBER"
-            printf 'INFOPLIST_KEY_NSHumanReadableCopyright = Copyright © 2026 Centennial OSS\n'
+            printf 'INFOPLIST_KEY_NSHumanReadableCopyright = Copyright © 2026 Centennial OSS Inc.\n'
           } > "${{ env.SCHEME_NAME }}/Version.xcconfig"
 
       - name: Sanitize project.pbxproj (remove version overrides)

@@ -17,11 +17,6 @@ enum BuildInfo {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "local"
     }
 
-    /// Copyright
-    nonisolated static var copyright: String {
-        Bundle.main.infoDictionary?["NSHumanReadableCopyright"] as? String ?? "Copyright © 2026 Centennial OSS"
-    }
-
     static var commit: String { BuildInfoGenerated.buildCommit }
     static var buildDate: String { BuildInfoGenerated.buildDate }
     static var buildType: String { BuildInfoGenerated.buildConfiguration }

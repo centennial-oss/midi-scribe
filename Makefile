@@ -98,7 +98,7 @@ build-ios:
 build-release-unsigned:
 	mkdir -p dist
 	@if [ -n "$(TAGVER)" ]; then \
-		printf 'MARKETING_VERSION = %s\nINFOPLIST_KEY_NSHumanReadableCopyright = Copyright © 2026 Centennial OSS\n' "$(TAGVER)" > "$(APP_DIR)/Version.xcconfig"; \
+		printf 'MARKETING_VERSION = %s\nINFOPLIST_KEY_NSHumanReadableCopyright = Copyright © 2026 Centennial OSS Inc.\n' "$(TAGVER)" > "$(APP_DIR)/Version.xcconfig"; \
 	fi
 	xcodebuild -scheme "$(XCODE_SCHEME)" -configuration Release -derivedDataPath dist/DerivedData build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
 	cp -R "dist/DerivedData/Build/Products/Release/MIDI Scribe.app" dist/

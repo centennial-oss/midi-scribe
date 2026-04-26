@@ -57,6 +57,6 @@ While we welcome pull requests and other contributions from other humans, includ
 
 ## Trademark Notice
 
-MIDI Scribe and its logo are trademarks of Centennial OSS, Inc.
+MIDI Scribe and its logo are trademarks of Centennial OSS Inc.
 Use of the name and branding is not permitted for modified versions or forks without permission.
 See TRADEMARKS.md for details.

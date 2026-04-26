@@ -4,6 +4,9 @@
 //
 
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 struct AboutView: View {
     let onClose: () -> Void
@@ -22,10 +25,6 @@ struct AboutView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     header
-
-                    Text(BuildInfo.copyright)
-                        .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
 
                     Label(
                         "\(AppIdentifier.name) is a utility for automatically capturing and organizing practice " +
@@ -65,6 +64,18 @@ struct AboutView: View {
                         .lineSpacing(4)
                         .fixedSize(horizontal: false, vertical: true)
 
+                    Link(destination: appStoreReviewURL) {
+                        Label("Rate \(AppIdentifier.name) on the App Store",
+                        systemImage: "star.leadinghalf.filled"
+                    )
+                            .foregroundStyle(linkColor)
+                            .underline(isAppStoreLinkHovered, color: linkColor.opacity(0.8))
+                    }
+                    .font(.system(size: 14))
+                    #if os(macOS)
+                    .onHover { isAppStoreLinkHovered = $0 }
+                    #endif
+
                     Link(destination: AppIdentifier.repoURL) {
                         Label("GitHub: \(AppIdentifier.repoPath)",
                         systemImage: "arrow.up.right.square"
@@ -79,17 +90,13 @@ struct AboutView: View {
 
                     buildInfoSection
 
-                    Link(destination: appStoreReviewURL) {
-                        Label("Rate \(AppIdentifier.name) on the App Store",
-                        systemImage: "star.leadinghalf.filled"
+                    Text(
+                        "\(AppIdentifier.name) and the \(AppIdentifier.name) logo are trademarks of " +
+                            "\(AppIdentifier.copyrightHolder)\nAll rights reserved."
                     )
-                            .foregroundStyle(linkColor)
-                            .underline(isAppStoreLinkHovered, color: linkColor.opacity(0.8))
-                    }
-                    .font(.system(size: 14))
-                    #if os(macOS)
-                    .onHover { isAppStoreLinkHovered = $0 }
-                    #endif
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(24)
@@ -106,12 +113,9 @@ struct AboutView: View {
                 }
             }
         }
-        .frame(width: 540)
+        .frame(width: 560)
         #if os(macOS)
-        .onKeyPress(.escape) {
-            onClose()
-            return .handled
-        }
+        .background(AboutEscapeKeyHandler(onEscape: onClose))
         #endif
     }
 
@@ -121,12 +125,18 @@ struct AboutView: View {
                 .frame(width: 64, height: 64)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-            HStack(alignment: .lastTextBaseline, spacing: 6) {
-                Text(AppIdentifier.name)
-                    .font(.system(size: 30, weight: .semibold))
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .lastTextBaseline, spacing: 6) {
+                    Text(AppIdentifier.nameTM)
+                        .font(.system(size: 30, weight: .semibold))
 
-                Text("v" + BuildInfo.version)
-                    .font(.system(size: 15))
+                    Text("v" + BuildInfo.version)
+                        .font(.system(size: 15))
+                        .foregroundStyle(.secondary)
+                }
+
+                Text(AppIdentifier.copyright)
+                    .font(.system(size: 13))
                     .foregroundStyle(.secondary)
             }
         }
@@ -138,20 +148,24 @@ struct AboutView: View {
                 .font(.system(size: 14))
                 .foregroundStyle(.secondary)
 
-            Text(BuildInfo.copyableBlob)
-                .font(.system(size: 14, design: .monospaced))
-                .textSelection(.enabled)
-                .padding(12)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
-                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-            BasicButton(
-                context: BasicButtonContext(
-                    action: copyBuildInfo,
-                    label: didCopyBuildInfo ? "✓ Copied" : "Copy to Clipboard"
+            HStack(alignment: .top, spacing: 12) {
+                Text(BuildInfo.copyableBlob)
+                    .font(.system(size: 14, design: .monospaced))
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, minHeight: 84, alignment: .leading)
+                Spacer()
+                BasicButton(
+                    context: BasicButtonContext(
+                        action: copyBuildInfo,
+                        label: didCopyBuildInfo ? "✓ Copied" : "Copy",
+                    )
                 )
-            )
+                .padding(.top, 4)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
     }
 
@@ -177,3 +191,49 @@ struct AboutView: View {
 #Preview {
     AboutView {}
 }
+
+#if os(macOS)
+private struct AboutEscapeKeyHandler: NSViewRepresentable {
+    let onEscape: () -> Void
+
+    func makeNSView(context: Context) -> EscapeMonitorView {
+        let view = EscapeMonitorView()
+        view.onEscape = onEscape
+        view.startMonitoring()
+        return view
+    }
+
+    func updateNSView(_ nsView: EscapeMonitorView, context: Context) {
+        nsView.onEscape = onEscape
+    }
+
+    static func dismantleNSView(_ nsView: EscapeMonitorView, coordinator: ()) {
+        nsView.stopMonitoring()
+    }
+}
+
+private final class EscapeMonitorView: NSView {
+    var onEscape: (() -> Void)?
+    private var monitor: Any?
+
+    func startMonitoring() {
+        guard monitor == nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard event.keyCode == 53 else { return event }
+            self?.onEscape?()
+            return nil
+        }
+    }
+
+    func stopMonitoring() {
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+            self.monitor = nil
+        }
+    }
+
+    deinit {
+        stopMonitoring()
+    }
+}
+#endif

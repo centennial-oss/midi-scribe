@@ -10,6 +10,8 @@ enum AppIdentifier {
     nonisolated static let trademarkClassification = "™"
     nonisolated static let nameTM = name + trademarkClassification
     nonisolated static let nameSlug = name.lowercased().replacingOccurrences(of: " ", with: "-")
+    nonisolated static let copyrightHolder = "Centennial OSS Inc."
+    nonisolated static let copyright = "Copyright © 2026 \(copyrightHolder)"
 
     nonisolated static let bundleID = Bundle.main.bundleIdentifier!
 
