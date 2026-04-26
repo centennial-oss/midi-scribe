@@ -68,7 +68,7 @@ final class CoreMIDIMonitor: MIDIListening {
     func start() throws {
         guard !isStarted else { return }
 
-        let clientStatus = MIDIClientCreateWithBlock("MIDI Scribe Input" as CFString, &client) { [weak self] _ in
+        let clientStatus = MIDIClientCreateWithBlock("\(BuildInfo.appName) Input" as CFString, &client) { [weak self] _ in
             self?.handleMIDINotification()
         }
         guard clientStatus == noErr else {
@@ -77,7 +77,7 @@ final class CoreMIDIMonitor: MIDIListening {
 
         let inputStatus = MIDIInputPortCreateWithBlock(
             client,
-            "MIDI Scribe Listener" as CFString,
+            "\(BuildInfo.appName) Listener" as CFString,
             &inputPort
         ) { [weak self] packetList, _ in
             self?.handlePacketList(packetList)

@@ -200,7 +200,7 @@ struct MIDIScribeApp: App {
                 Button {
                     appState.requestModalPresentation(.help)
                 } label: {
-                    Label("MIDI Scribe Help", systemImage: "lightbulb")
+                    Label("\(BuildInfo.appName) Help", systemImage: "lightbulb")
                 }
             }
 
@@ -214,13 +214,13 @@ struct MIDIScribeApp: App {
             }
 
             CommandGroup(replacing: .appInfo) {
-                Button("About MIDI Scribe") {
+                Button("About \(BuildInfo.appName)") {
                     appState.requestModalPresentation(.about)
                 }
             }
 #else
             CommandGroup(replacing: .appInfo) {
-                Button("About MIDI Scribe") {
+                Button("About \(BuildInfo.appName)") {
                     appState.requestModalPresentation(.about)
                 }
             }
