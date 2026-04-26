@@ -12,14 +12,6 @@ import UIKit
 #endif
 
 enum BuildInfo {
-    /// App display name (single source of truth for UI text).
-    nonisolated static var appName: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
-            ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
-            ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleExecutable") as? String
-            ?? Bundle.main.bundleURL.deletingPathExtension().lastPathComponent
-    }
-
     /// Semantic version (from Info.plist / MARKETING_VERSION). Use TAGVER at build to override.
     nonisolated static var version: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "local"

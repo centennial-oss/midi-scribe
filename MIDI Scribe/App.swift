@@ -208,7 +208,7 @@ struct MIDIScribeApp: App {
                 Button {
                     appState.requestModalPresentation(.help)
                 } label: {
-                    Label("\(BuildInfo.appName) Help", systemImage: "lightbulb")
+                    Label("\(AppIdentifier.name) Help", systemImage: "lightbulb")
                 }
             }
 
@@ -222,13 +222,13 @@ struct MIDIScribeApp: App {
             }
 
             CommandGroup(replacing: .appInfo) {
-                Button("About \(BuildInfo.appName)") {
+                Button("About \(AppIdentifier.name)") {
                     appState.requestModalPresentation(.about)
                 }
             }
 #else
             CommandGroup(replacing: .appInfo) {
-                Button("About \(BuildInfo.appName)") {
+                Button("About \(AppIdentifier.name)") {
                     appState.requestModalPresentation(.about)
                 }
             }

@@ -268,7 +268,6 @@ extension ContentView {
             return false
         }
     }
-
     func performSavedTakeCommand(_ request: TakeCommandRequest) {
         if performPlaybackCommand(request) {
             return
@@ -287,9 +286,7 @@ extension ContentView {
         case .toggleStar(let takeID):
             viewModel.toggleStar(takeID: takeID)
         case .rename(let takeID):
-            guard !viewModel.isPlaying(takeID: takeID),
-                  let take = viewModel.recentTake(id: takeID) else { return }
-            beginRename(take)
+            beginRenameIfPossible(takeID: takeID)
         case .export(let takeID):
             exportTake(id: takeID)
         case .delete(let takeID):
@@ -297,6 +294,11 @@ extension ContentView {
         default:
             break
         }
+    }
+    func beginRenameIfPossible(takeID: UUID) {
+        guard !viewModel.isPlaying(takeID: takeID),
+              let take = viewModel.recentTake(id: takeID) else { return }
+        beginRename(take)
     }
 
     func performPlaybackCommand(_ request: TakeCommandRequest) -> Bool {
@@ -310,7 +312,6 @@ extension ContentView {
         default:
             return false
         }
-
         return true
     }
 
@@ -325,7 +326,6 @@ extension ContentView {
         default:
             return false
         }
-
         return true
     }
 
@@ -341,7 +341,6 @@ extension ContentView {
     func resetPianoRollZoom() {
         pianoRollZoomLevel = 0.0
     }
-
     func updateTakeCommandState() {
         if viewModel.selectedSidebarItem == .currentTake {
             updateTakeCommandStateIfChanged(TakeCommandState(
@@ -382,7 +381,6 @@ extension ContentView {
         guard appState.takeCommandState != state else { return }
         appState.takeCommandState = state
     }
-
     var selectedSavedTakeID: UUID? {
         switch viewModel.selectedSidebarItem {
         case .recentTake(let id), .starredTake(let id):

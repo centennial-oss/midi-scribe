@@ -155,7 +155,7 @@ let macOSOnboardingPaneCollection = OnboardingPaneCollection(
                             id: "mac-settings",
                             sourceX: 2060,
                             sourceY: 420,
-                            label: "Use Settings to tune recording triggers and MIDI Scribe behavior.",
+                            label: "Use Settings to tune recording triggers and \(AppIdentifier.name) behavior.",
                             caretPosition: .top
                         )
                     ]

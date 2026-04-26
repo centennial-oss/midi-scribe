@@ -8,10 +8,9 @@ import SwiftUI
 struct AboutView: View {
     let onClose: () -> Void
 
-    private let githubURL = URL(string: "https://github.com/centennial-oss/midi-scribe")!
     private let appStoreReviewURL = URL(
-        string: "https://apps.apple.com/us/app/\(BuildInfo.appName.lowercased())/" +
-            "id\(AppIdentifier.appStoreID)?action=write-review"
+        string: "https://apps.apple.com/us/app/\(AppIdentifier.nameSlug)/" +
+            "id\(AppIdentifier.appleStoreID)?action=write-review"
     )!
 
     @State private var isGitHubLinkHovered = false
@@ -29,7 +28,7 @@ struct AboutView: View {
                         .foregroundStyle(.secondary)
 
                     Label(
-                        "\(BuildInfo.appName) is a utility for automatically capturing and organizing practice " +
+                        "\(AppIdentifier.name) is a utility for automatically capturing and organizing practice " +
                         "Takes with your MIDI-capable musical instrument.",
                         systemImage: "music.note.tv"
                     )
@@ -48,7 +47,8 @@ struct AboutView: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                     Label(
-                        "\(BuildInfo.appName) is 100% private. It does not collect analytics or snoop on your usage. " +
+                        "\(AppIdentifier.name) is 100% private. " +
+                            "It does not collect analytics or snoop on your usage. " +
                             "Nothing ever leaves your device. Period.",
                         systemImage: "shield"
                     )
@@ -65,8 +65,8 @@ struct AboutView: View {
                         .lineSpacing(4)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    Link(destination: githubURL) {
-                        Label("GitHub: centennial-oss/midi-scribe",
+                    Link(destination: AppIdentifier.repoURL) {
+                        Label("GitHub: \(AppIdentifier.repoPath)",
                         systemImage: "arrow.up.right.square"
                     )
                             .foregroundStyle(linkColor)
@@ -80,7 +80,7 @@ struct AboutView: View {
                     buildInfoSection
 
                     Link(destination: appStoreReviewURL) {
-                        Label("Rate \(BuildInfo.appName) on the App Store",
+                        Label("Rate \(AppIdentifier.name) on the App Store",
                         systemImage: "star.leadinghalf.filled"
                     )
                             .foregroundStyle(linkColor)
@@ -122,7 +122,7 @@ struct AboutView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
             HStack(alignment: .lastTextBaseline, spacing: 6) {
-                Text(BuildInfo.appName)
+                Text(AppIdentifier.name)
                     .font(.system(size: 30, weight: .semibold))
 
                 Text("v" + BuildInfo.version)

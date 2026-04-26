@@ -36,7 +36,7 @@ enum OnboardingMessageKind: Hashable {
     var header: String {
         switch self {
         case .welcome:
-            return "Welcome to \(BuildInfo.appName)!"
+            return "Welcome to \(AppIdentifier.name)!"
         case .happyScribing:
             return "Happy Scribing!"
         }

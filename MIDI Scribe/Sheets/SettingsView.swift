@@ -171,7 +171,7 @@ struct SettingsView: View {
                 case .eraseAllSucceeded:
                     return Alert(
                         title: Text("Data Erased"),
-                        message: Text("All save data erased. \(BuildInfo.appName) has been reset."),
+                        message: Text("All save data erased. \(AppIdentifier.name) has been reset."),
                         dismissButton: .default(Text("OK"))
                     )
                 case .eraseAllFailed(let message):
