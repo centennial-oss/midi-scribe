@@ -306,6 +306,7 @@ extension PianoRollView {
         // Preserve the user-selected zoom window; do not auto-center
         // when selection already includes the playhead.
         shouldCenterPlayheadAfterDragZoom = false
+        isZoomCentering = false
         logDragZoomOutcomeCommit(
             selection: selection,
             snappedSelection: effectiveSelection,

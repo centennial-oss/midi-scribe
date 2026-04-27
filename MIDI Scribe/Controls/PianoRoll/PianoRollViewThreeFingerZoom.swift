@@ -27,13 +27,13 @@ extension PianoRollView {
         zoomLevel = nextZoom
     }
 
-    private func sliderValue(forZoomLevel zoomLevel: CGFloat) -> CGFloat {
+    func sliderValue(forZoomLevel zoomLevel: CGFloat) -> CGFloat {
         let clampedZoom = max(0.0, min(1.0, zoomLevel))
         let base = Self.zoomSliderCurveBase
         return log(1.0 + (base - 1.0) * clampedZoom) / log(base)
     }
 
-    private func zoomLevel(forSliderValue sliderValue: CGFloat) -> CGFloat {
+    func zoomLevel(forSliderValue sliderValue: CGFloat) -> CGFloat {
         let clampedSliderValue = max(0.0, min(1.0, sliderValue))
         let base = Self.zoomSliderCurveBase
         return (pow(base, clampedSliderValue) - 1.0) / (base - 1.0)

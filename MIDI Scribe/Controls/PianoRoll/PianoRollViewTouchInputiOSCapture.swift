@@ -7,9 +7,17 @@ struct PianoRollTwoFingerDragCaptureView: UIViewRepresentable {
     let onActiveChanged: (Bool) -> Void
     let onChanged: (CGPoint, CGPoint) -> Void
     let onEnded: (CGPoint, CGPoint) -> Void
+    let onPinchChanged: (CGFloat) -> Void
+    let onPinchEnded: () -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onActiveChanged: onActiveChanged, onChanged: onChanged, onEnded: onEnded)
+        Coordinator(
+            onActiveChanged: onActiveChanged,
+            onChanged: onChanged,
+            onEnded: onEnded,
+            onPinchChanged: onPinchChanged,
+            onPinchEnded: onPinchEnded
+        )
     }
 
     func makeUIView(context: Context) -> UIView {
@@ -25,15 +33,27 @@ struct PianoRollTwoFingerDragCaptureView: UIViewRepresentable {
         context.coordinator.updateHandlers(
             onActiveChanged: onActiveChanged,
             onChanged: onChanged,
-            onEnded: onEnded
+            onEnded: onEnded,
+            onPinchChanged: onPinchChanged,
+            onPinchEnded: onPinchEnded
         )
         context.coordinator.attachRecognizerIfNeeded()
     }
 
     final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        private enum GestureMode {
+            case undecided
+            case recting
+            case zooming
+        }
+
         var onActiveChanged: (Bool) -> Void
         var onChanged: (CGPoint, CGPoint) -> Void
         var onEnded: (CGPoint, CGPoint) -> Void
+        var onPinchChanged: (CGFloat) -> Void
+        var onPinchEnded: () -> Void
+
+        private var mode: GestureMode = .undecided
         private var startPoint: CGPoint?
         private var lastTwoTouchLocation: CGPoint?
         weak var hostView: UIView?
@@ -52,24 +72,38 @@ struct PianoRollTwoFingerDragCaptureView: UIViewRepresentable {
             return pan
         }()
 
+        private lazy var pinchRecognizer: UIPinchGestureRecognizer = {
+            let pinch = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch(_:)))
+            pinch.delegate = self
+            return pinch
+        }()
+
         init(
             onActiveChanged: @escaping (Bool) -> Void,
             onChanged: @escaping (CGPoint, CGPoint) -> Void,
-            onEnded: @escaping (CGPoint, CGPoint) -> Void
+            onEnded: @escaping (CGPoint, CGPoint) -> Void,
+            onPinchChanged: @escaping (CGFloat) -> Void,
+            onPinchEnded: @escaping () -> Void
         ) {
             self.onActiveChanged = onActiveChanged
             self.onChanged = onChanged
             self.onEnded = onEnded
+            self.onPinchChanged = onPinchChanged
+            self.onPinchEnded = onPinchEnded
         }
 
         func updateHandlers(
             onActiveChanged: @escaping (Bool) -> Void,
             onChanged: @escaping (CGPoint, CGPoint) -> Void,
-            onEnded: @escaping (CGPoint, CGPoint) -> Void
+            onEnded: @escaping (CGPoint, CGPoint) -> Void,
+            onPinchChanged: @escaping (CGFloat) -> Void,
+            onPinchEnded: @escaping () -> Void
         ) {
             self.onActiveChanged = onActiveChanged
             self.onChanged = onChanged
             self.onEnded = onEnded
+            self.onPinchChanged = onPinchChanged
+            self.onPinchEnded = onPinchEnded
         }
 
         func attachRecognizerIfNeeded() {
@@ -86,6 +120,7 @@ struct PianoRollTwoFingerDragCaptureView: UIViewRepresentable {
             attachRetryWorkItem = nil
             attachRetryCount = 0
             targetView.addGestureRecognizer(panRecognizer)
+            targetView.addGestureRecognizer(pinchRecognizer)
             installedOnView = targetView
             #if DEBUG
             NSLog(
@@ -127,54 +162,83 @@ struct PianoRollTwoFingerDragCaptureView: UIViewRepresentable {
             guard let hostView else { return }
             let location = recognizer.location(in: hostView)
             let touchCount = recognizer.numberOfTouches
-            #if DEBUG
-            let translation = recognizer.translation(in: hostView)
-            NSLog(
-                "[PianoRollTwoFingerPan] state=%ld touches=%ld x=%.2f y=%.2f tx=%.2f ty=%.2f",
-                recognizer.state.rawValue,
-                touchCount,
-                location.x,
-                location.y,
-                translation.x,
-                translation.y
-            )
-            #endif
+
             switch recognizer.state {
             case .began:
-                handleBegan(location: location, touchCount: touchCount)
+                onActiveChanged(true)
+                startPoint = location
             case .changed:
-                handleChanged(location: location, touchCount: touchCount)
+                guard touchCount == 2 else { return }
+                if mode == .undecided {
+                    let translation = recognizer.translation(in: hostView)
+                    let distance = sqrt(translation.x * translation.x + translation.y * translation.y)
+                    if distance > 15 {
+                        mode = .recting
+                        #if DEBUG
+                        NSLog("[PianoRollTwoFingerPan] locked into mode=recting (dist=%.2f)", distance)
+                        #endif
+                    }
+                }
+
+                if mode == .recting {
+                    lastTwoTouchLocation = location
+                    if let startPoint {
+                        onChanged(startPoint, location)
+                    }
+                }
             case .ended, .cancelled, .failed:
-                handleEndedOrCancelled(location: location)
+                if mode == .recting {
+                    let commitLocation = lastTwoTouchLocation ?? location
+                    if let startPoint {
+                        onEnded(startPoint, commitLocation)
+                    }
+                }
+                checkAllGesturesEnded()
             default:
                 break
             }
         }
 
-        private func handleBegan(location: CGPoint, touchCount: Int) {
-            onActiveChanged(true)
-            startPoint = location
-            guard touchCount == 2 else { return }
-            lastTwoTouchLocation = location
-            onChanged(location, location)
-        }
+        @objc
+        func handlePinch(_ recognizer: UIPinchGestureRecognizer) {
+            switch recognizer.state {
+            case .began:
+                onActiveChanged(true)
+            case .changed:
+                if mode == .undecided {
+                    let scaleChange = abs(recognizer.scale - 1.0)
+                    if scaleChange > 0.05 {
+                        mode = .zooming
+                        #if DEBUG
+                        NSLog("[PianoRollTwoFingerPan] locked into mode=zooming (scale=%.4f)", recognizer.scale)
+                        #endif
+                    }
+                }
 
-        private func handleChanged(location: CGPoint, touchCount: Int) {
-            guard touchCount == 2 else { return }
-            lastTwoTouchLocation = location
-            if let startPoint {
-                onChanged(startPoint, location)
+                if mode == .zooming {
+                    let delta = recognizer.scale - 1.0
+                    onPinchChanged(delta)
+                    recognizer.scale = 1.0
+                }
+            case .ended, .cancelled, .failed:
+                if mode == .zooming {
+                    onPinchEnded()
+                }
+                checkAllGesturesEnded()
+            default:
+                break
             }
         }
 
-        private func handleEndedOrCancelled(location: CGPoint) {
-            let commitLocation = lastTwoTouchLocation ?? location
-            if let startPoint {
-                onEnded(startPoint, commitLocation)
+        private func checkAllGesturesEnded() {
+            let panActive = panRecognizer.state == .began || panRecognizer.state == .changed
+            let pinchActive = pinchRecognizer.state == .began || pinchRecognizer.state == .changed
+            if !panActive && !pinchActive {
+                onActiveChanged(false)
+                mode = .undecided
+                startPoint = nil
+                lastTwoTouchLocation = nil
             }
-            onActiveChanged(false)
-            startPoint = nil
-            lastTwoTouchLocation = nil
         }
 
         func gestureRecognizer(

@@ -219,6 +219,11 @@ extension PianoRollView {
                             viewportFrameInGlobal: geo.frame(in: .global),
                             onActivated: handleThreeFingerZoomActivationChange
                         ))
+                        .modifier(ThreeFingerZoomActivationAnchorModifier(
+                            isActive: isTwoFingerZoomDragActive,
+                            viewportFrameInGlobal: geo.frame(in: .global),
+                            onActivated: handleTwoFingerZoomActivationChange
+                        ))
                         .modifier(
                             DragZoomGestureModifier(
                                 isEnabled: dragZoomShouldHandleInput,
@@ -326,17 +331,49 @@ extension PianoRollView {
             ),
             isTwoFingerZoomDragActive: $isTwoFingerZoomDragActive,
             isIndirectPointerDragActive: $isIndirectPointerDragActive,
-            isThreeFingerZoomSwipeActive: $isThreeFingerZoomSwipeActive
+            isThreeFingerZoomSwipeActive: $isThreeFingerZoomSwipeActive,
+            onPinchChanged: handlePinchZoom(delta:),
+            onPinchEnded: handlePinchEnded
         )
     }
 
+    func handlePinchZoom(delta: CGFloat) {
+        guard !isLive else { return }
+        let sensitivity: CGFloat = 1.2
+        let sliderDelta = delta * sensitivity
+        let currentSliderValue = sliderValue(forZoomLevel: zoomLevel)
+        let nextSliderValue = max(0.0, min(1.0, currentSliderValue + sliderDelta))
+        let nextZoom = zoomLevel(forSliderValue: nextSliderValue)
+        guard nextZoom != zoomLevel else { return }
+        zoomLevel = nextZoom
+    }
+
+    func handlePinchEnded() {
+        // Any cleanup if needed
+    }
+
     func handleThreeFingerZoomActivationChange(_ isActive: Bool, viewportFrameInGlobal: CGRect) {
-        guard isActive else { return }
-        beginPausedZoomCentering(
-            debounce: false,
-            viewportFrameInGlobal: viewportFrameInGlobal,
-            playheadGlobalX: playheadGlobalX
-        )
+        if isActive {
+            beginPausedZoomCentering(
+                debounce: false,
+                viewportFrameInGlobal: viewportFrameInGlobal,
+                playheadGlobalX: playheadGlobalX
+            )
+        } else if zoomCenteringTask == nil {
+            isZoomCentering = false
+        }
+    }
+
+    func handleTwoFingerZoomActivationChange(_ isActive: Bool, viewportFrameInGlobal: CGRect) {
+        if isActive {
+            beginPausedZoomCentering(
+                debounce: false,
+                viewportFrameInGlobal: viewportFrameInGlobal,
+                playheadGlobalX: playheadGlobalX
+            )
+        } else if zoomCenteringTask == nil {
+            isZoomCentering = false
+        }
     }
 
     /// Lime note bars on the roll when not under the playhead.

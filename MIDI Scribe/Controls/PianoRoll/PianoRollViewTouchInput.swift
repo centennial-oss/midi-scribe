@@ -19,7 +19,9 @@ extension PianoRollView {
         context: PianoRollTouchInputContext,
         isTwoFingerZoomDragActive: Binding<Bool>,
         isIndirectPointerDragActive: Binding<Bool>,
-        isThreeFingerZoomSwipeActive: Binding<Bool>
+        isThreeFingerZoomSwipeActive: Binding<Bool>,
+        onPinchChanged: @escaping (CGFloat) -> Void,
+        onPinchEnded: @escaping () -> Void
     ) -> PianoRollTouchInputModifier {
         PianoRollTouchInputModifier(
             isEnabled: !isLive,
@@ -30,6 +32,8 @@ extension PianoRollView {
             onTap: handleTouchInputTap,
             onTwoFingerDragChanged: handleTouchInputDragChanged,
             onTwoFingerDragEnded: handleTouchInputDragEnded,
+            onPinchChanged: onPinchChanged,
+            onPinchEnded: onPinchEnded,
             shouldBeginIndirectPointerDragAt: shouldBeginIndirectPointerDrag,
             onIndirectPointerDragChanged: makeIndirectPointerDragChangedHandler(
                 isIndirectPointerDragActive: isIndirectPointerDragActive
@@ -113,6 +117,8 @@ struct PianoRollTouchInputModifier: ViewModifier {
     let onTap: (CGPoint, CGFloat, CGFloat, TimeInterval) -> Void
     let onTwoFingerDragChanged: (CGPoint, CGPoint, CGFloat, CGFloat, TimeInterval) -> Void
     let onTwoFingerDragEnded: (CGPoint, CGPoint, PianoRollDragZoomReleaseContext) -> Void
+    let onPinchChanged: (CGFloat) -> Void
+    let onPinchEnded: () -> Void
     let shouldBeginIndirectPointerDragAt: (CGPoint, CGFloat, TimeInterval) -> Bool
     let onIndirectPointerDragChanged: (CGPoint, CGPoint, CGFloat, CGFloat, TimeInterval) -> Void
     let onThreeFingerSwipeChanged: (CGFloat) -> Void
@@ -158,7 +164,9 @@ struct PianoRollTouchInputModifier: ViewModifier {
                         end,
                         releaseContext
                     )
-                }
+                },
+                onPinchChanged: onPinchChanged,
+                onPinchEnded: onPinchEnded
             )
             PianoRollThreeFingerSwipeCaptureView(
                 onActiveChanged: { isActive in
@@ -220,7 +228,9 @@ extension PianoRollView {
         context: PianoRollTouchInputContext,
         isTwoFingerZoomDragActive _: Binding<Bool>,
         isIndirectPointerDragActive _: Binding<Bool>,
-        isThreeFingerZoomSwipeActive: Binding<Bool>
+        isThreeFingerZoomSwipeActive: Binding<Bool>,
+        onPinchChanged _: @escaping (CGFloat) -> Void,
+        onPinchEnded _: @escaping () -> Void
     ) -> PianoRollTouchInputModifier {
         PianoRollTouchInputModifier(
             isEnabled: !isLive,
@@ -231,6 +241,8 @@ extension PianoRollView {
             onTap: { _, _, _, _ in },
             onTwoFingerDragChanged: { _, _, _, _, _ in },
             onTwoFingerDragEnded: { _, _, _ in },
+            onPinchChanged: { _ in },
+            onPinchEnded: { },
             shouldBeginIndirectPointerDragAt: { _, _, _ in false },
             onIndirectPointerDragChanged: { _, _, _, _, _ in },
             onThreeFingerSwipeChanged: { deltaX in
@@ -249,6 +261,8 @@ struct PianoRollTouchInputModifier: ViewModifier {
     let onTap: (CGPoint, CGFloat, CGFloat, TimeInterval) -> Void
     let onTwoFingerDragChanged: (CGPoint, CGPoint, CGFloat, CGFloat, TimeInterval) -> Void
     let onTwoFingerDragEnded: (CGPoint, CGPoint, PianoRollDragZoomReleaseContext) -> Void
+    let onPinchChanged: (CGFloat) -> Void
+    let onPinchEnded: () -> Void
     let shouldBeginIndirectPointerDragAt: (CGPoint, CGFloat, TimeInterval) -> Bool
     let onIndirectPointerDragChanged: (CGPoint, CGPoint, CGFloat, CGFloat, TimeInterval) -> Void
     let onThreeFingerSwipeChanged: (CGFloat) -> Void
@@ -280,7 +294,9 @@ extension PianoRollView {
         context: PianoRollTouchInputContext,
         isTwoFingerZoomDragActive _: Binding<Bool>,
         isIndirectPointerDragActive _: Binding<Bool>,
-        isThreeFingerZoomSwipeActive _: Binding<Bool>
+        isThreeFingerZoomSwipeActive _: Binding<Bool>,
+        onPinchChanged _: @escaping (CGFloat) -> Void,
+        onPinchEnded _: @escaping () -> Void
     ) -> PianoRollTouchInputModifier {
         PianoRollTouchInputModifier(
             isEnabled: !isLive,
@@ -291,6 +307,8 @@ extension PianoRollView {
             onTap: { _, _, _, _ in },
             onTwoFingerDragChanged: { _, _, _, _, _ in },
             onTwoFingerDragEnded: { _, _, _, _, _, _, _ in },
+            onPinchChanged: { _ in },
+            onPinchEnded: { },
             shouldBeginIndirectPointerDragAt: { _, _, _ in false },
             onIndirectPointerDragChanged: { _, _, _, _, _ in },
             onThreeFingerSwipeChanged: { _ in }
@@ -307,6 +325,8 @@ struct PianoRollTouchInputModifier: ViewModifier {
     let onTap: (CGPoint, CGFloat, CGFloat, TimeInterval) -> Void
     let onTwoFingerDragChanged: (CGPoint, CGPoint, CGFloat, CGFloat, TimeInterval) -> Void
     let onTwoFingerDragEnded: (CGPoint, CGPoint, CGFloat, CGFloat, CGFloat, CGFloat, TimeInterval) -> Void
+    let onPinchChanged: (CGFloat) -> Void
+    let onPinchEnded: () -> Void
     let shouldBeginIndirectPointerDragAt: (CGPoint, CGFloat, TimeInterval) -> Bool
     let onIndirectPointerDragChanged: (CGPoint, CGPoint, CGFloat, CGFloat, TimeInterval) -> Void
     let onThreeFingerSwipeChanged: (CGFloat) -> Void
