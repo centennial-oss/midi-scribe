@@ -5,7 +5,7 @@
 
 import SwiftUI
 
-private let iPhoneScreenshotSize = CGSize(width: 2796, height: 1290)
+private let iPhoneScreenshotSize = CGSize(width: 2622, height: 1206)
 
 let iPhoneOnboardingPaneCollection = OnboardingPaneCollection(
     device: .iPhone,
@@ -17,159 +17,148 @@ let iPhoneOnboardingPaneCollection = OnboardingPaneCollection(
         ),
         OnboardingPane(
             id: 1,
-            title: "Live Capture",
-            content: .screenshot(
-                OnboardingScreenshotContent(
-                    assetName: "Help/ScreenShots/iPhone/OnboardingPhoneLiveTake",
-                    originalSize: iPhoneScreenshotSize,
-                    annotations: [
-                        OnboardingAnnotation(
-                            id: "phone-live-start",
-                            sourceX: 520,
-                            sourceY: 1080,
-                            label: "Start a Take from here. When recording begins, this becomes the live capture view.",
-                            caretPosition: .bottom
-                        ),
-                        OnboardingAnnotation(
-                            id: "phone-live-roll",
-                            sourceX: 1760,
-                            sourceY: 420,
-                            label: "The piano roll fills in as you play. Live capture is read-only.",
-                            caretPosition: .top
-                        )
-                    ]
-                )
+            title: "",
+            content: screenshotContent(
+                assetName: "Help/ScreenShots/iPhone/iPhone-01-start",
+                originalSize: iPhoneScreenshotSize,
+                annotations: [
+                    stubAnnotation(
+                        1311,
+                        1100,
+                        "This tour of \(AppIdentifier.name) presents screen shots and is not interactive.",
+                        .none,
+                        avoidsLineWrapping: true
+                    ),
+                    stubAnnotation(
+                        1042,
+                        466,
+                        "Scribe a Take by playing your instrument or pressing the button",
+                        .right
+                    )
+                ],
+                undimmedZones: [
+                    .roundedRect(centerX: 1311, centerY: 468, width: 570, height: 148, cornerRadius: 75)
+                ]
             )
         ),
         OnboardingPane(
             id: 2,
-            title: "Ending a Take",
-            content: .screenshot(
-                OnboardingScreenshotContent(
-                    assetName: "Help/ScreenShots/iPhone/OnboardingPhoneLiveTake",
-                    originalSize: iPhoneScreenshotSize,
-                    annotations: [
-                        OnboardingAnnotation(
-                            id: "phone-live-stop",
-                            sourceX: 1420,
-                            sourceY: 1095,
-                            label: "Stop saves the Take. Trash cancels the recording without keeping it.",
-                            caretPosition: .bottom
-                        )
-                    ]
-                )
+            title: "",
+            content: screenshotContent(
+                assetName: "Help/ScreenShots/iPhone/iPhone-02-capturing",
+                originalSize: iPhoneScreenshotSize,
+                annotations: [
+                    stubAnnotation(
+                        670,
+                        686,
+                        "The Piano Roll fills in while you play",
+                        .bottom
+                    ),
+                    stubAnnotation(
+                        1840,
+                        198,
+                        "Takes auto-end after a configurable timeout. Manually end or discard them here",
+                        .top
+                    )
+                ],
+                undimmedZones: [
+                    .roundedRect(centerX: 1310, centerY: 765, width: 2100, height: 165, cornerRadius: 36),
+                    .roundedRect(centerX: 1840, centerY: 138, width: 270, height: 118, cornerRadius: 60)
+                ]
             )
         ),
         OnboardingPane(
             id: 3,
-            title: "Playback Controls",
-            content: .screenshot(
-                OnboardingScreenshotContent(
-                    assetName: "Help/ScreenShots/iPhone/OnboardingPhonePlayback",
-                    originalSize: iPhoneScreenshotSize,
-                    annotations: [
-                        OnboardingAnnotation(
-                            id: "phone-playback-controls",
-                            sourceX: 1360,
-                            sourceY: 1080,
-                            label: "Use rewind, play or pause, and restart to review a saved Take.",
-                            caretPosition: .bottom
-                        ),
-                        OnboardingAnnotation(
-                            id: "phone-playback-playhead",
-                            sourceX: 1780,
-                            sourceY: 350,
-                            label: "Tap in the roll to move the playhead. Drag its handle to scrub while paused.",
-                            caretPosition: .top
-                        )
-                    ]
-                )
-            )
+            title: "",
+            content: screenshotContent(
+                assetName: "Help/ScreenShots/iPhone/iPhone-03-completed-zooming",
+                originalSize: iPhoneScreenshotSize,
+                annotations: [
+                    stubAnnotation(
+                        245,
+                        355,
+                        "Playback starts at the Playhead position",
+                        .left
+                    ),
+                    stubAnnotation(
+                        1855,
+                        535,
+                        "Swipe 2 fingers over\nthe Piano Roll to\nselect and zoom",
+                        .left
+                    ),
+                    stubAnnotation(
+                        832,
+                        1025,
+                        "Pinch the Piano Roll to zoom freely",
+                        .none,
+                        avoidsLineWrapping: true
+                    )
+                ],
+                undimmedZones: [
+                    .roundedRect(centerX: 1297, centerY: 711, width: 2255, height: 790, cornerRadius: 28)
+                ]
+            ) // 2254x787@1301,712
         ),
         OnboardingPane(
             id: 4,
-            title: "Zooming the Piano Roll",
-            content: .screenshot(
-                OnboardingScreenshotContent(
-                    assetName: "Help/ScreenShots/iPhone/OnboardingPhonePlayback",
-                    originalSize: iPhoneScreenshotSize,
-                    annotations: [
-                        OnboardingAnnotation(
-                            id: "phone-playback-zoom",
-                            sourceX: 2060,
-                            sourceY: 575,
-                            label: "Drag a rectangle across the piano roll to zoom into that region.",
-                            caretPosition: .right
-                        )
-                    ]
-                )
+            title: "",
+            content: screenshotContent(
+                assetName: "Help/ScreenShots/iPhone/iPhone-04-drag-star",
+                originalSize: iPhoneScreenshotSize,
+                annotations: [
+                    stubAnnotation(
+                        1197,
+                        365,
+                        "Drag the Playhead handle to adjust the playback position",
+                        .right
+                    ),
+                    stubAnnotation(1936, 198, "Star notable Takes\nto keep long-term", .top),
+                    stubAnnotation(250, 132, "Open the Sidebar to switch Takes", .left, avoidsLineWrapping: true)
+                ],
+                undimmedZones: [
+                    .roundedRect(centerX: 1233, centerY: 714, width: 100, height: 794, cornerRadius: 50),
+                    .roundedRect(centerX: 1936, centerY: 138, width: 118, height: 118, cornerRadius: 60),
+                    .roundedRect(centerX: 180, centerY: 139, width: 128, height: 128, cornerRadius: 65)
+                ]
             )
         ),
         OnboardingPane(
             id: 5,
-            title: "Take Actions",
-            content: .screenshot(
-                OnboardingScreenshotContent(
-                    assetName: "Help/ScreenShots/iPhone/OnboardingPhoneEditing",
-                    originalSize: iPhoneScreenshotSize,
-                    annotations: [
-                        OnboardingAnnotation(
-                            id: "phone-edit-actions",
-                            sourceX: 2360,
-                            sourceY: 250,
-                            label: "Rename, split at the playhead, star, or export the selected Take.",
-                            caretPosition: .right
-                        )
-                    ]
-                )
-            )
-        ),
-        OnboardingPane(
-            id: 6,
-            title: "Bulk Edit",
-            content: .screenshot(
-                OnboardingScreenshotContent(
-                    assetName: "Help/ScreenShots/iPhone/OnboardingPhoneBulkEdit",
-                    originalSize: iPhoneScreenshotSize,
-                    annotations: [
-                        OnboardingAnnotation(
-                            id: "phone-bulk-actions",
-                            sourceX: 1390,
-                            sourceY: 1090,
-                            label: """
-                            Bulk edit lets you select multiple Takes.
-                            Merge appears after two or more are selected.
-                            """,
-                            caretPosition: .bottom
-                        )
-                    ]
-                )
+            title: "",
+            content: screenshotContent(
+                assetName: "Help/ScreenShots/iPhone/iPhone-05-sidebar",
+                originalSize: iPhoneScreenshotSize,
+                annotations: [
+                    stubAnnotation(
+                        1166,
+                        782,
+                        "On the Sidebar, use multi-select to operate on several Takes at once",
+                        .left
+                    )
+                ],
+                undimmedZones: [
+                    .roundedRect(centerX: 700, centerY: 612, width: 1012, height: 1170, cornerRadius: 60)
+                ]
             )
         ),
         OnboardingPane(
             id: 7,
-            title: "Settings",
-            content: .screenshot(
-                OnboardingScreenshotContent(
-                    assetName: "Help/ScreenShots/iPhone/OnboardingPhoneSettings",
-                    originalSize: iPhoneScreenshotSize,
-                    annotations: [
-                        OnboardingAnnotation(
-                            id: "phone-settings",
-                            sourceX: 2230,
-                            sourceY: 210,
-                            label: "Settings controls recording triggers and app behavior.",
-                            caretPosition: .top
-                        )
-                    ],
-                    undimmedZones: [
-                        .circle(centerX: 2230, centerY: 210, diameter: 250)
-                    ]
-                )
+            title: "",
+            content: screenshotContent(
+                assetName: "Help/ScreenShots/iPhone/iPhone-07-settings",
+                originalSize: iPhoneScreenshotSize,
+                annotations: [
+                    stubAnnotation(1425, 303, "In Settings, tune when\nto auto-end live Takes", .bottom),
+                    stubAnnotation(555, 695, "Use pedals to\nmanually start\nand end Takes", .right),
+                    stubAnnotation(1826, 996, "Load sample Takes to try out \(AppIdentifier.name) features", .bottom)
+                ],
+                undimmedZones: [
+                    .roundedRect(centerX: 1312, centerY: 690, width: 1622, height: 815, cornerRadius: 36)
+                ]
             )
         ),
         OnboardingPane(
-            id: 8,
+            id: 7,
             content: .message(.happyScribing)
         )
     ]

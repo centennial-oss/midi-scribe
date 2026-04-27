@@ -64,7 +64,7 @@ struct PhoneWelcomeSheet: View {
     @ViewBuilder
     private var paneTitle: some View {
         HStack {
-            Text("Help")
+            Text("\(AppIdentifier.name) Tour")
                 .font(.title2.weight(.semibold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
