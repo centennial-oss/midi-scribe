@@ -8,7 +8,7 @@ on:
 jobs:
   build-and-test-release:
     if: github.repository_owner == 'centennial-oss'
-    runs-on: macos-15
+    runs-on: macos-26
     env:
       APP_NAME: MIDI Scribe
       SCHEME_NAME: MIDIScribe

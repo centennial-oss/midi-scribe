@@ -87,16 +87,24 @@ extension ContentView {
         #endif
         if shouldShowCompletedTakeZoomToolbar(for: take) {
             completedTakeZoomToolbar()
-            ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
+            if #available(iOS 26.0, macOS 26.0, *) {
+                ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
+            }
         }
         completedTakePlaybackToolbar(for: take)
         #if os(iOS)
-        ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
+        if #available(iOS 26.0, *) {
+            ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
+        }
         completedTakeActionsToolbar(for: take)
-        ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
+        if #available(iOS 26.0, *) {
+            ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
+        }
         completedTakeAppActionsToolbar()
         #else
-        ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
+        if #available(macOS 26.0, *) {
+            ToolbarSpacer(.fixed, placement: completedTakeToolbarPlacement)
+        }
         completedTakeActionsToolbar(for: take)
         #endif
     }

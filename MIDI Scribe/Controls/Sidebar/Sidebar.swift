@@ -223,11 +223,19 @@ struct Sidebar<SidebarContent: View, DetailContent: View, UnderlayContent: View>
                 Button {
                     toggleSidebar()
                 } label: {
-                    Image(systemName: "sidebar.left")
-                        .font(.title2)
-                        .foregroundColor(.primary)
-                        .padding(10)
-                        .glassEffect(.regular.interactive(), in: Circle())
+                    if #available(iOS 26.0, macOS 26.0, *) {
+                        Image(systemName: "sidebar.left")
+                            .font(.title2)
+                            .foregroundColor(.primary)
+                            .padding(10)
+                            .glassEffect(.regular.interactive(), in: Circle())
+                    } else {
+                        Image(systemName: "sidebar.left")
+                            .font(.title2)
+                            .foregroundColor(.primary)
+                            .padding(10)
+                            .background(.ultraThinMaterial, in: Circle())
+                    }
                 }
                 .padding(.leading, -30)
                 .padding(.top, 24)

@@ -18,11 +18,19 @@ struct FloatingSheetCloseButton: View {
                     .fill(.clear)
                     .frame(width: 44, height: 44)
 
-                Image(systemName: "xmark")
-                    .font(.title2)
-                    .foregroundColor(.primary)
-                    .padding(10)
-                    .glassEffect(.regular.interactive(), in: Circle())
+                if #available(iOS 26.0, macOS 26.0, *) {
+                    Image(systemName: "xmark")
+                        .font(.title2)
+                        .foregroundColor(.primary)
+                        .padding(10)
+                        .glassEffect(.regular.interactive(), in: Circle())
+                } else {
+                    Image(systemName: "xmark")
+                        .font(.title2)
+                        .foregroundColor(.primary)
+                        .padding(10)
+                        .background(.ultraThinMaterial, in: Circle())
+                }
             }
             .contentShape(Circle())
         }

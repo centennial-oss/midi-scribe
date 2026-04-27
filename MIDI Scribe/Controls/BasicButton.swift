@@ -52,7 +52,6 @@ struct BasicButtonContext {
 
 struct BasicButton: View {
     let context: BasicButtonContext
-
     private var labelFont: Font {
         .system(size: 15, weight: context.labelWeight)
     }
@@ -92,19 +91,53 @@ struct BasicButton: View {
     @ViewBuilder
     private func chrome<Content: View>(_ button: Content) -> some View {
         if let backgroundColor = context.backgroundColor {
-            button
-                .buttonStyle(.glassProminent)
-                .tint(backgroundColor)
-                .controlSize(context.size)
+            if #available(iOS 26.0, macOS 26.0, *) {
+                button
+                    .buttonStyle(.glassProminent)
+                    .tint(backgroundColor)
+                    .controlSize(context.size)
+            } else {
+                button
+                    .padding(8)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(.white.opacity(0.3), lineWidth: 1)
+                    )
+                    .tint(backgroundColor).controlSize(context.size)
+            }
         } else if isDestructive {
-            button
-                .buttonStyle(.glassProminent)
-                .tint(.red)
-                .controlSize(context.size)
+            if #available(iOS 26.0, macOS 26.0, *) {
+                button
+                    .buttonStyle(.glassProminent)
+                    .tint(.red)
+                    .controlSize(context.size)
+            } else {
+                button
+                    .padding(8)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(.white.opacity(0.3), lineWidth: 1)
+                    )
+                    .tint(.red)
+                    .controlSize(context.size)
+            }
         } else {
-            button
-                .buttonStyle(.glassProminent)
-                .controlSize(context.size)
+            if #available(iOS 26.0, macOS 26.0, *) {
+                button
+                    .buttonStyle(.glassProminent)
+                    .controlSize(context.size)
+            } else {
+                button
+                    .padding(8)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(.white.opacity(0.3), lineWidth: 1)
+                    )
+                    .controlSize(context.size)
+            }
         }
     }
 

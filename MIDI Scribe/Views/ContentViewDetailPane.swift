@@ -179,9 +179,13 @@ extension ContentView {
             currentTakeActionsToolbar()
             if !viewModel.isTakeInProgress {
                 iOSImportToolbar()
-                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                if #available(iOS 26.0, *) {
+                    ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                }
             } else {
-                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                if #available(iOS 26.0, *) {
+                    ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                }
             }
             iOSAppActionsToolbar()
             #else

@@ -55,11 +55,19 @@ struct SidebarButton: View {
 
     @ViewBuilder
     private var labelContent: some View {
-        Image(systemName: context.systemImage)
-            .foregroundStyle(labelColor)
-            .padding(10)
-            .contentShape(.interaction, Circle())
-            .glassEffect(.regular.interactive(), in: Circle())
+        if #available(iOS 26.0, macOS 26.0, *) {
+            Image(systemName: context.systemImage)
+                .foregroundStyle(labelColor)
+                .padding(10)
+                .contentShape(.interaction, Circle())
+                .glassEffect(.regular.interactive(), in: Circle())
+        } else {
+            Image(systemName: context.systemImage)
+                .foregroundStyle(labelColor)
+                .padding(10)
+                .contentShape(.interaction, Circle())
+                .background(.ultraThinMaterial, in: Circle())
+        }
     }
 
     @ViewBuilder
