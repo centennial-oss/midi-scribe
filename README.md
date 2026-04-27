@@ -17,13 +17,15 @@ MIDI Scribe is completely free and open source for you to enjoy.
 <img src="assets/screenshots/midi-scribe-1.0-macos.png" alt="MIDI Scribe 1.0 for macOS" width="800" /><br />
 <img src="assets/screenshots/midi-scribe-1.0-iphone.png" alt="MIDI Scribe 1.0 for iPhone" width="800" />
 
+## Supported MIDI Devices
+
+Any General MIDI device that can connect to your Mac, iPad, or iPhone and be recognized by the operating system is compatible with MIDI Scribe.
+
 ## Privacy
 
 MIDI Scribe does not collect, send, or share usage data. Digital instrument captures stay local and never leave your device. The app is open source, contains no ads, trackers or analytics, and makes no network calls.
 
-## Supported MIDI Devices
-
-Any General MIDI device that can connect to your Mac, iPad, or iPhone and be recognized by the operating system is compatible with MIDI Scribe.
+Read the full [Privacy Policy](./PRIVACY.md) for more info.
 
 ## Requirements
 
