@@ -17,7 +17,7 @@ let macOSOnboardingPaneCollection = OnboardingPaneCollection(
         ),
         OnboardingPane(
             id: 1,
-            title: "Start a New Take",
+            title: "",
             content: screenshotContent(
                 assetName: "Help/ScreenShots/macOS/macOS-01-start",
                 originalSize: macOSScreenshotSize,
@@ -43,7 +43,7 @@ let macOSOnboardingPaneCollection = OnboardingPaneCollection(
         ),
         OnboardingPane(
             id: 2,
-            title: "Take in Progress",
+            title: "",
             content: screenshotContent(
                 assetName: "Help/ScreenShots/macOS/macOS-02-capturing",
                 originalSize: macOSScreenshotSize,
@@ -69,7 +69,7 @@ let macOSOnboardingPaneCollection = OnboardingPaneCollection(
         ),
         OnboardingPane(
             id: 3,
-            title: "Completed Take",
+            title: "",
             content: screenshotContent(
                 assetName: "Help/ScreenShots/macOS/macOS-03-completed-zooming",
                 originalSize: macOSScreenshotSize,
@@ -94,7 +94,7 @@ let macOSOnboardingPaneCollection = OnboardingPaneCollection(
         ),
         OnboardingPane(
             id: 4,
-            title: "Completed Take",
+            title: "",
             content: screenshotContent(
                 assetName: "Help/ScreenShots/macOS/macOS-04-drag-star",
                 originalSize: macOSScreenshotSize,
@@ -116,7 +116,7 @@ let macOSOnboardingPaneCollection = OnboardingPaneCollection(
         ),
         OnboardingPane(
             id: 5,
-            title: "Bulk Editing",
+            title: "",
             content: screenshotContent(
                 assetName: "Help/ScreenShots/macOS/macOS-05-bulk",
                 originalSize: macOSScreenshotSize,
@@ -135,7 +135,7 @@ let macOSOnboardingPaneCollection = OnboardingPaneCollection(
         ),
         OnboardingPane(
             id: 6,
-            title: "Settings",
+            title: "",
             content: screenshotContent(
                 assetName: "Help/ScreenShots/macOS/macOS-06-settings",
                 originalSize: macOSScreenshotSize,

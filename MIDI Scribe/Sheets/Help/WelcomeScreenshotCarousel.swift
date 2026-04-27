@@ -141,7 +141,13 @@ private struct OnboardingMessagePaneView: View {
 }
 
 private struct OnboardingScreenshotPaneView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     let content: OnboardingScreenshotContent
+
+    #if DEBUG
+    @State private var isShowingDebugUndimmedZones = false
+    #endif
 
     var body: some View {
         GeometryReader { proxy in
@@ -182,6 +188,16 @@ private struct OnboardingScreenshotPaneView: View {
                         )
                     )
                 }
+
+                #if DEBUG
+                if isShowingDebugUndimmedZones {
+                    DebugUndimmedZoneOverlay(
+                        imageRect: imageRect,
+                        originalSize: originalSize,
+                        zones: content.undimmedZones
+                    )
+                }
+                #endif
             }
             .frame(width: containerSize.width, height: containerSize.height)
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -192,6 +208,20 @@ private struct OnboardingScreenshotPaneView: View {
                         style: StrokeStyle(lineWidth: 1, dash: [2, 2])
                     )
             }
+            #if DEBUG
+            .modifier(
+                OnboardingImageClickLogger(
+                    assetName: content.assetName,
+                    imageRect: imageRect,
+                    originalSize: originalSize
+                )
+            )
+            #endif
+            #if DEBUG
+            .overlay {
+                DebugUndimmedZoneGestureOverlay(isActive: $isShowingDebugUndimmedZones)
+            }
+            #endif
         }
     }
 
@@ -239,6 +269,313 @@ private struct OnboardingScreenshotPaneView: View {
     }
 }
 
+#if DEBUG
+private struct DebugUndimmedZoneOverlay: View {
+    let imageRect: CGRect
+    let originalSize: CGSize
+    let zones: [OnboardingUndimmedZone]
+
+    var body: some View {
+        Canvas { context, _ in
+            for zone in zones {
+                context.fill(renderedZonePath(for: zone), with: .color(.red.opacity(0.5)))
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func renderedZonePath(for zone: OnboardingUndimmedZone) -> Path {
+        guard originalSize.width > 0, originalSize.height > 0 else {
+            return Path()
+        }
+        let scaleX = imageRect.width / originalSize.width
+        let scaleY = imageRect.height / originalSize.height
+
+        switch zone {
+        case let .roundedRect(centerX, centerY, width, height, cornerRadius):
+            let rect = CGRect(
+                x: imageRect.minX + (centerX * scaleX) - ((width * scaleX) / 2),
+                y: imageRect.minY + (centerY * scaleY) - ((height * scaleY) / 2),
+                width: width * scaleX,
+                height: height * scaleY
+            )
+            return RoundedRectangle(
+                cornerRadius: cornerRadius * min(scaleX, scaleY),
+                style: .continuous
+            )
+            .path(in: rect)
+        case let .circle(centerX, centerY, diameter):
+            let renderedDiameter = diameter * min(scaleX, scaleY)
+            let rect = CGRect(
+                x: imageRect.minX + (centerX * scaleX) - (renderedDiameter / 2),
+                y: imageRect.minY + (centerY * scaleY) - (renderedDiameter / 2),
+                width: renderedDiameter,
+                height: renderedDiameter
+            )
+            return Path(ellipseIn: rect)
+        }
+    }
+}
+
+private struct OnboardingImageClickLogger: ViewModifier {
+    let assetName: String
+    let imageRect: CGRect
+    let originalSize: CGSize
+
+    @State private var previousSourcePoint: CGPoint?
+
+    func body(content: Content) -> some View {
+        content
+            .contentShape(Rectangle())
+            .simultaneousGesture(
+                SpatialTapGesture()
+                    .onEnded { value in
+                        logClick(at: value.location)
+                    }
+            )
+    }
+
+    private func logClick(at hitPoint: CGPoint) {
+        guard originalSize.width > 0,
+              originalSize.height > 0,
+              imageRect.width > 0,
+              imageRect.height > 0 else {
+            NSLog(
+                "[OnboardingImageClick] asset=%@ raw=(x: %.1f, y: %.1f) source unavailable",
+                assetName,
+                hitPoint.x,
+                hitPoint.y
+            )
+            return
+        }
+
+        let sourcePoint = CGPoint(
+            x: ((hitPoint.x - imageRect.minX) / imageRect.width) * originalSize.width,
+            y: ((hitPoint.y - imageRect.minY) / imageRect.height) * originalSize.height
+        )
+
+        if let previousSourcePoint {
+            let minX = min(previousSourcePoint.x, sourcePoint.x)
+            let minY = min(previousSourcePoint.y, sourcePoint.y)
+            let width = abs(sourcePoint.x - previousSourcePoint.x)
+            let height = abs(sourcePoint.y - previousSourcePoint.y)
+            let centerX = minX + (width / 2)
+            let centerY = minY + (height / 2)
+
+            NSLog(
+                "[OnboardingImageClick] asset=%@ raw=(x: %.1f, y: %.1f) source=(x: %.1f, y: %.1f) sourceRounded=(x: %.0f, y: %.0f) sourceRect=%.0fx%.0f@%.0f,%.0f",
+                assetName,
+                hitPoint.x,
+                hitPoint.y,
+                sourcePoint.x,
+                sourcePoint.y,
+                sourcePoint.x,
+                sourcePoint.y,
+                floor(width),
+                floor(height),
+                floor(centerX),
+                floor(centerY)
+            )
+        } else {
+            NSLog(
+                "[OnboardingImageClick] asset=%@ raw=(x: %.1f, y: %.1f) source=(x: %.1f, y: %.1f) sourceRounded=(x: %.0f, y: %.0f)",
+                assetName,
+                hitPoint.x,
+                hitPoint.y,
+                sourcePoint.x,
+                sourcePoint.y,
+                sourcePoint.x,
+                sourcePoint.y
+            )
+        }
+
+        previousSourcePoint = sourcePoint
+    }
+}
+
+private struct DebugUndimmedZoneGestureOverlay: View {
+    @Binding var isActive: Bool
+
+    var body: some View {
+        PlatformDebugUndimmedZoneGestureOverlay(isActive: $isActive)
+    }
+}
+
+#if os(macOS)
+private struct PlatformDebugUndimmedZoneGestureOverlay: NSViewRepresentable {
+    @Binding var isActive: Bool
+
+    func makeNSView(context: Context) -> DebugUndimmedZoneMouseView {
+        let view = DebugUndimmedZoneMouseView()
+        view.onActiveChanged = { isActive in
+            context.coordinator.isActive = isActive
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: DebugUndimmedZoneMouseView, context: Context) {
+        nsView.onActiveChanged = { isActive in
+            context.coordinator.isActive = isActive
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(isActive: $isActive)
+    }
+
+    final class Coordinator {
+        @Binding var isActive: Bool
+
+        init(isActive: Binding<Bool>) {
+            _isActive = isActive
+        }
+    }
+}
+#else
+private struct PlatformDebugUndimmedZoneGestureOverlay: UIViewRepresentable {
+    @Binding var isActive: Bool
+
+    func makeUIView(context: Context) -> DebugUndimmedZoneTouchView {
+        let view = DebugUndimmedZoneTouchView()
+        view.backgroundColor = .clear
+        view.isUserInteractionEnabled = false
+        view.onActiveChanged = { isActive in
+            context.coordinator.isActive = isActive
+        }
+        return view
+    }
+
+    func updateUIView(_ uiView: DebugUndimmedZoneTouchView, context: Context) {
+        uiView.onActiveChanged = { isActive in
+            context.coordinator.isActive = isActive
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(isActive: $isActive)
+    }
+
+    final class Coordinator {
+        @Binding var isActive: Bool
+
+        init(isActive: Binding<Bool>) {
+            _isActive = isActive
+        }
+    }
+}
+#endif
+
+#if os(macOS)
+private final class DebugUndimmedZoneMouseView: NSView {
+    var onActiveChanged: ((Bool) -> Void)?
+    private var monitor: Any?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window == nil {
+            stopMonitoring()
+        } else {
+            startMonitoring()
+        }
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
+    }
+
+    private func startMonitoring() {
+        guard monitor == nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.rightMouseDown, .rightMouseUp]) { [weak self] event in
+            guard let self else { return event }
+
+            switch event.type {
+            case .rightMouseDown:
+                if contains(event) {
+                    onActiveChanged?(true)
+                }
+            case .rightMouseUp:
+                onActiveChanged?(false)
+            default:
+                break
+            }
+            return event
+        }
+    }
+
+    private func stopMonitoring() {
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+            self.monitor = nil
+        }
+        onActiveChanged?(false)
+    }
+
+    private func contains(_ event: NSEvent) -> Bool {
+        guard event.window === window else { return false }
+        let windowPoint = event.locationInWindow
+        let localPoint = convert(windowPoint, from: nil)
+        return bounds.contains(localPoint)
+    }
+
+    deinit {
+        stopMonitoring()
+    }
+}
+#else
+private final class DebugUndimmedZoneTouchView: UIView {
+    var onActiveChanged: ((Bool) -> Void)?
+    private weak var gestureHostView: UIView?
+    private var twoFingerPressRecognizer: UILongPressGestureRecognizer?
+
+    override func didMoveToSuperview() {
+        super.didMoveToSuperview()
+        installRecognizerIfNeeded()
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        installRecognizerIfNeeded()
+    }
+
+    private func installRecognizerIfNeeded() {
+        guard let superview, gestureHostView !== superview else { return }
+        if let twoFingerPressRecognizer, let gestureHostView {
+            gestureHostView.removeGestureRecognizer(twoFingerPressRecognizer)
+        }
+
+        let recognizer = UILongPressGestureRecognizer(target: self, action: #selector(handleTwoFingerPress(_:)))
+        recognizer.minimumPressDuration = 0
+        recognizer.numberOfTouchesRequired = 2
+        recognizer.cancelsTouchesInView = false
+        recognizer.delaysTouchesBegan = false
+        recognizer.delaysTouchesEnded = false
+        superview.addGestureRecognizer(recognizer)
+
+        twoFingerPressRecognizer = recognizer
+        gestureHostView = superview
+    }
+
+    @objc private func handleTwoFingerPress(_ recognizer: UILongPressGestureRecognizer) {
+        switch recognizer.state {
+        case .began, .changed:
+            let location = recognizer.location(in: self)
+            onActiveChanged?(bounds.contains(location))
+        case .ended, .cancelled, .failed:
+            onActiveChanged?(false)
+        default:
+            break
+        }
+    }
+
+    deinit {
+        if let twoFingerPressRecognizer, let gestureHostView {
+            gestureHostView.removeGestureRecognizer(twoFingerPressRecognizer)
+        }
+    }
+}
+#endif
+#endif
+
 private struct DimOverlayWithCutouts: View {
     let imageRect: CGRect
     let originalSize: CGSize
@@ -252,7 +589,7 @@ private struct DimOverlayWithCutouts: View {
             }
             context.fill(
                 maskPath,
-                with: .color(.black.opacity(0.45)),
+                with: .color(.black.opacity(0.55)),
                 style: FillStyle(eoFill: true)
             )
         }

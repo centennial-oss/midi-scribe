@@ -68,7 +68,7 @@ struct PhoneWelcomeSheet: View {
                 .font(.title2.weight(.semibold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
-            if let title = selectedPane?.title {
+            if let title = selectedPane?.title, selectedPane?.title != "" {
                 Text("/")
                     .font(.title2)
                     .foregroundStyle(.secondary)

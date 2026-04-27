@@ -5,7 +5,7 @@
 
 import SwiftUI
 
-private let iPadScreenshotSize = CGSize(width: 2732, height: 2048)
+private let iPadScreenshotSize = CGSize(width: 2000, height: 1504)
 
 let iPadOnboardingPaneCollection = OnboardingPaneCollection(
     device: .iPad,
@@ -17,160 +17,147 @@ let iPadOnboardingPaneCollection = OnboardingPaneCollection(
         ),
         OnboardingPane(
             id: 1,
-            title: "Live Capture",
-            content: .screenshot(
-                OnboardingScreenshotContent(
-                    assetName: "Help/ScreenShots/iPad/start-take-idle-sidebar",
-                    originalSize: iPadScreenshotSize,
-                    annotations: [
-                        OnboardingAnnotation(
-                            id: "ipad-live-start",
-                            sourceX: 620,
-                            sourceY: 1740,
-                            label: "Start a Take here, from the Take menu, or with your configured shortcut.",
-                            caretPosition: .bottom
-                        ),
-                        OnboardingAnnotation(
-                            id: "ipad-live-roll",
-                            sourceX: 1850,
-                            sourceY: 760,
-                            label: "The piano roll fills in live as MIDI arrives.",
-                            caretPosition: .top
-                        )
-                    ],
-                    undimmedZones: [
-                        .roundedRect(centerX: 1360, centerY: 1030, width: 2200, height: 1400, cornerRadius: 36),
-                        .roundedRect(centerX: 620, centerY: 1740, width: 560, height: 220, cornerRadius: 24)
-                    ]
-                )
+            title: "",
+            content: screenshotContent(
+                assetName: "Help/ScreenShots/iPad/iPad-01-start",
+                originalSize: iPadScreenshotSize,
+                annotations: [
+                    stubAnnotation(
+                        1250,
+                        180,
+                        "This tour of \(AppIdentifier.name) presents screen shots and is not interactive.",
+                        .none,
+                        avoidsLineWrapping: true
+                    ),
+                    stubAnnotation(
+                        810,
+                        670,
+                        "Scribe your first Take by\nplaying your instrument\nor pressing the button",
+                        .right
+                    )
+                ],
+                undimmedZones: [
+                    .roundedRect(centerX: 1265, centerY: 670, width: 400, height: 90, cornerRadius: 36)
+                ]
             )
         ),
         OnboardingPane(
             id: 2,
-            title: "Ending a Take",
-            content: .screenshot(
-                OnboardingScreenshotContent(
-                    assetName: "Help/ScreenShots/iPad/start-take-idle-sidebar",
-                    originalSize: iPadScreenshotSize,
-                    annotations: [
-                        OnboardingAnnotation(
-                            id: "ipad-live-stop",
-                            sourceX: 1320,
-                            sourceY: 1780,
-                            label: "Stop ends and saves the Take. Trash cancels the recording.",
-                            caretPosition: .bottom
-                        )
-                    ]
-                )
+            title: "",
+            content: screenshotContent(
+                assetName: "Help/ScreenShots/iPad/iPad-02-capturing",
+                originalSize: iPadScreenshotSize,
+                annotations: [
+                    stubAnnotation(
+                        1120,
+                        710,
+                        "The Piano Roll fills\nin while you play",
+                        .bottom
+                    ),
+                    stubAnnotation(
+                        1680,
+                        240,
+                        "Takes auto-end after a\nconfigurable timeout.\nManually end or discard\nan in-progress Take here",
+                        .top
+                    )
+                ],
+                undimmedZones: [
+                    .roundedRect(centerX: 1265, centerY: 900, width: 1370, height: 400, cornerRadius: 36),
+                    .roundedRect(centerX: 1690, centerY: 60, width: 155, height: 70, cornerRadius: 50)
+                ]
             )
         ),
         OnboardingPane(
             id: 3,
-            title: "Playback Controls",
-            content: .screenshot(
-                OnboardingScreenshotContent(
-                    assetName: "Help/ScreenShots/iPad/saved-take",
-                    originalSize: iPadScreenshotSize,
-                    annotations: [
-                        OnboardingAnnotation(
-                            id: "ipad-playback-controls",
-                            sourceX: 1500,
-                            sourceY: 1760,
-                            label: "Playback controls let you rewind, play or pause, and restart.",
-                            caretPosition: .bottom
-                        ),
-                        OnboardingAnnotation(
-                            id: "ipad-playback-playhead",
-                            sourceX: 1900,
-                            sourceY: 650,
-                            label: "Click the roll to move the playhead. Drag the handle to scrub.",
-                            caretPosition: .top
-                        )
-                    ]
-                )
+            title: "",
+            content: screenshotContent(
+                assetName: "Help/ScreenShots/iPad/iPad-03-completed-zooming",
+                originalSize: iPadScreenshotSize,
+                annotations: [
+                    stubAnnotation(
+                        325,
+                        200,
+                        "Playback starts at the\nPlayhead position",
+                        .right
+                    ),
+                    stubAnnotation(
+                        1620,
+                        430,
+                        "Drag 2 fingers on the\nPiano Roll to zoom to\nthe selected area",
+                        .left
+                    ),
+                    stubAnnotation(
+                        1600,
+                        1300,
+                        "Drag 3 fingers to zoom freely",
+                        .none,
+                        avoidsLineWrapping: true
+                    )
+                ],
+                undimmedZones: [
+                    .roundedRect(centerX: 1265, centerY: 823, width: 1370, height: 1295, cornerRadius: 18)
+                ]
             )
         ),
         OnboardingPane(
             id: 4,
-            title: "Zooming the Piano Roll",
-            content: .screenshot(
-                OnboardingScreenshotContent(
-                    assetName: "Help/ScreenShots/iPad/saved-take",
-                    originalSize: iPadScreenshotSize,
-                    annotations: [
-                        OnboardingAnnotation(
-                            id: "ipad-playback-zoom",
-                            sourceX: 2100,
-                            sourceY: 820,
-                            label: "Drag across the piano roll to zoom into a selected region.",
-                            caretPosition: .right
-                        )
-                    ]
-                )
+            title: "",
+            content: screenshotContent(
+                assetName: "Help/ScreenShots/iPad/iPad-04-drag-star",
+                originalSize: iPadScreenshotSize,
+                annotations: [
+                    stubAnnotation(
+                        1100,
+                        210,
+                        "Drag the Playhead\nhandle to adjust the\nplayback position",
+                        .right
+                    ),
+                    stubAnnotation(1790, 200, "Star notable Takes\nto keep long-term", .top)
+                ],
+                undimmedZones: [
+                    .roundedRect(centerX: 1375, centerY: 823, width: 200, height: 1295, cornerRadius: 36),
+                    .roundedRect(centerX: 1797, centerY: 60, width: 70, height: 70, cornerRadius: 50),
+                    .roundedRect(centerX: 205, centerY: 600, width: 370, height: 180, cornerRadius: 24)
+                ]
             )
         ),
         OnboardingPane(
             id: 5,
-            title: "Take Actions",
-            content: .screenshot(
-                OnboardingScreenshotContent(
-                    assetName: "Help/ScreenShots/iPad/saved-take-sidebar",
-                    originalSize: iPadScreenshotSize,
-                    annotations: [
-                        OnboardingAnnotation(
-                            id: "ipad-edit-actions",
-                            sourceX: 480,
-                            sourceY: 620,
-                            label: "Per-Take actions include rename, split at the playhead, star, and export.",
-                            caretPosition: .left
-                        )
-                    ]
-                )
+            title: "",
+            content: screenshotContent(
+                assetName: "Help/ScreenShots/iPad/iPad-05-bulk",
+                originalSize: iPadScreenshotSize,
+                annotations: [
+                    stubAnnotation(
+                        465,
+                        385,
+                        "Use multi-select to\noperate on several\nTakes at once",
+                        .bottom
+                    )
+                ],
+                undimmedZones: [
+                    .roundedRect(centerX: 270, centerY: 775, width: 500, height: 540, cornerRadius: 24)
+                ]
             )
         ),
         OnboardingPane(
             id: 6,
-            title: "Bulk Edit",
-            content: .screenshot(
-                OnboardingScreenshotContent(
-                    assetName: "Help/ScreenShots/iPad/OnboardingRegularBulkEdit",
-                    originalSize: iPadScreenshotSize,
-                    annotations: [
-                        OnboardingAnnotation(
-                            id: "ipad-bulk-actions",
-                            sourceX: 560,
-                            sourceY: 1640,
-                            label: "Select multiple Takes to star, delete, or merge them together.",
-                            caretPosition: .bottom
-                        )
-                    ]
-                )
+            title: "",
+            content: screenshotContent(
+                assetName: "Help/ScreenShots/iPad/iPad-06-settings",
+                originalSize: iPadScreenshotSize,
+                annotations: [
+                    stubAnnotation(1660, 365, "Customize when to\nauto-end live Takes", .left),
+                    stubAnnotation(302, 695, "Use pedals to manually\nstart and end Takes", .right),
+                    stubAnnotation(1690, 905, "Load sample Takes to\ntry out \(AppIdentifier.name)\nfeatures", .left)
+                ],
+                undimmedZones: [
+                    .roundedRect(centerX: 1000, centerY: 752, width: 940, height: 1240, cornerRadius: 50)
+                ]
             )
         ),
         OnboardingPane(
             id: 7,
-            title: "Settings",
-            content: .screenshot(
-                OnboardingScreenshotContent(
-                    assetName: "Help/ScreenShots/iPad/OnboardingRegularSettings",
-                    originalSize: iPadScreenshotSize,
-                    annotations: [
-                        OnboardingAnnotation(
-                            id: "ipad-settings",
-                            sourceX: 2060,
-                            sourceY: 420,
-                            label: "Use Settings to tune recording triggers and \(AppIdentifier.name) behavior.",
-                            caretPosition: .none
-                        )
-                    ],
-                    undimmedZones: [
-                        .circle(centerX: 2060, centerY: 420, diameter: 280)
-                    ]
-                )
-            )
-        ),
-        OnboardingPane(
-            id: 8,
             content: .message(.happyScribing)
         )
     ]

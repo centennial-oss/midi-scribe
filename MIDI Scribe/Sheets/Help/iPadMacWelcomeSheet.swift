@@ -68,7 +68,7 @@ struct IPadMacWelcomeSheet: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             Text(kind.title)
                 .font(.title.weight(.semibold))
-            if let title = selectedPane?.title {
+            if let title = selectedPane?.title, selectedPane?.title != "" {
                 Text("/")
                 .font(.title)
                 .foregroundStyle(.secondary)
