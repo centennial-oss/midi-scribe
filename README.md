@@ -1,6 +1,6 @@
 # <img src="assets/app-icon.png" alt="MIDI Scribe" height="48" /> MIDI Scribe [<img align="right" src="assets/download-app-store.svg" />](https://apps.apple.com/us/app/midi-scribe/id6760952962)
 
-A practice take auto-capture utility for MIDI-capable instruments supporting macOS and iOS.
+A practice take auto-capture utility for MIDI-capable instruments supporting macOS, iPad and iOS.
 
 MIDI Scribe is [available in the App Store](https://apps.apple.com/us/app/midi-scribe/id6760952962), while macOS builds can be downloaded directly from [this project's releases](https://github.com/centennial-oss/midi-scribe/releases).
 
@@ -58,10 +58,14 @@ While we welcome pull requests and other contributions from other humans, includ
 
 ## Acknowledgements
 
+### GeneralUser GS SoundFont Bank / S. Christian Collins
+
 We gratefully make use of the [GeneralUser GS](https://github.com/mrbumpy409/GeneralUser-GS/) v2.0.3 sound bank, which was created and has been maintained by the amazing [S. Christian Collins](https://www.schristiancollins.com/) for over 30 years. Without Chris's lifelong dedication to curating free synthesizer sounds for anyone who needs them, MIDI Scribe would not be able to produce realistic instrument sounds on iPhone and iPad. Please [buy Chris a coffee](https://buymeacoffee.com/schristiancollins).
+
+### Sample Take Files / Alexander Peppe
+
+We provide three classical music sample take files, which can be reviewed in the [testdata](./testdata/) directory and loaded into MIDI Scribe directly from Settings in a single click. These files come from a vast catalog of public domain MIDI works generously curated by [Alexander Peppe](https://alexanderpeppe.com/). If you live in Maine, Alex should be tuning your piano. If you are into ham radio, his 4-digit callsign (WS1Q) should tell you a lot about his cool factor.
 
 ## Trademark Notice
 
-MIDI Scribe and its logo are trademarks of Centennial OSS Inc.
-Use of the name and branding is not permitted for modified versions or forks without permission.
-See TRADEMARKS.md for details.
+MIDI Scribe and its logo are trademarks of Centennial OSS Inc. Use of the name and branding is not permitted for modified versions or forks without permission. See TRADEMARKS.md for details.
