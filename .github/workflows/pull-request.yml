@@ -9,10 +9,6 @@ jobs:
   build-and-test:
     if: github.repository_owner == 'centennial-oss'
     runs-on: macos-26
-    env:
-      APP_NAME: MIDI Scribe
-      SCHEME_NAME: MIDI Scribe
-      PROJECT_PATH: MIDI Scribe.xcodeproj
     steps:
       - name: Checkout
         uses: actions/checkout@v4

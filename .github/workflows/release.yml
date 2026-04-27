@@ -197,7 +197,7 @@ jobs:
 
       - name: Build ${{ env.APP_NAME }} for direct distribution (GitHub release)
         run: |
-          xcodebuild -scheme ${{ env.SCHEME_NAME }} \
+          xcodebuild -scheme "${{ env.SCHEME_NAME }}" \
             -configuration Release \
             -derivedDataPath build \
             -destination 'generic/platform=macOS' \
@@ -270,9 +270,9 @@ jobs:
           # Manual signing with pre-installed provisioning profile (required for TestFlight).
           # Profile is installed in "Install Mac App Store provisioning profile" step.
           xcodebuild archive \
-            -scheme ${{ env.SCHEME_NAME }} \
+            -scheme "${{ env.SCHEME_NAME }}" \
             -configuration Release \
-            -archivePath ${{ env.MAC_ARCHIVE_PATH }} \
+            -archivePath "${{ env.MAC_ARCHIVE_PATH }}" \
             -destination 'generic/platform=macOS' \
             ARCHS="arm64 x86_64" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
@@ -301,8 +301,8 @@ jobs:
           # -allowProvisioningUpdates not needed here: the archive already has the profile embedded.
           # The API key flags authenticate the upload-to-App-Store-Connect portion only.
           xcodebuild -exportArchive \
-            -archivePath ${{ env.MAC_ARCHIVE_PATH }} \
-            -exportPath ${{ env.MAC_EXPORT_PATH }} \
+            -archivePath "${{ env.MAC_ARCHIVE_PATH }}" \
+            -exportPath "${{ env.MAC_EXPORT_PATH }}" \
             -exportOptionsPlist /tmp/ExportOptions-Mac-CI.plist \
             -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
             -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
@@ -314,9 +314,9 @@ jobs:
         run: |
           # The app target is iOS-only via TARGETED_DEVICE_FAMILY=2.
           xcodebuild archive \
-            -scheme ${{ env.SCHEME_NAME }} \
+            -scheme "${{ env.SCHEME_NAME }}" \
             -configuration Release \
-            -archivePath ${{ env.IOS_ARCHIVE_PATH }} \
+            -archivePath "${{ env.IOS_ARCHIVE_PATH }}" \
             -destination 'generic/platform=iOS' \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             PROVISIONING_PROFILE="$IOS_APP_STORE_PROFILE_UUID" \
@@ -339,8 +339,8 @@ jobs:
             -c "Add :teamID string $APPLE_TEAM_ID" \
             /tmp/ExportOptions-iOS-CI.plist
           xcodebuild -exportArchive \
-            -archivePath ${{ env.IOS_ARCHIVE_PATH }} \
-            -exportPath ${{ env.IOS_EXPORT_PATH }} \
+            -archivePath "${{ env.IOS_ARCHIVE_PATH }}" \
+            -exportPath "${{ env.IOS_EXPORT_PATH }}" \
             -exportOptionsPlist /tmp/ExportOptions-iOS-CI.plist \
             -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
             -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
@@ -350,8 +350,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            ${{ env.SCHEME_NAME }}-*-macOS-universal.zip
-            ${{ env.SCHEME_NAME }}-*-macOS-universal.dmg
+            "${{ env.SCHEME_NAME }}-*-macOS-universal.zip"
+            "${{ env.SCHEME_NAME }}-*-macOS-universal.dmg"
           generate_release_notes: true
           draft: true
         env:

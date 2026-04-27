@@ -8,7 +8,6 @@ jobs:
     if: github.repository_owner == 'centennial-oss' && github.ref_name == 'main'
     runs-on: macos-26
     env:
-      APP_NAME: MIDI Scribe
       SCHEME_NAME: MIDI Scribe
       PROJECT_PATH: MIDI Scribe.xcodeproj
       MAC_ARCHIVE_PATH: "${{ github.workspace }}/build/MIDI Scribe-macOS-preflight.xcarchive"
@@ -230,9 +229,9 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           xcodebuild archive \
-            -scheme ${{ env.SCHEME_NAME }} \
+            -scheme "${{ env.SCHEME_NAME }}" \
             -configuration Release \
-            -archivePath ${{ env.MAC_ARCHIVE_PATH }} \
+            -archivePath "${{ env.MAC_ARCHIVE_PATH }}" \
             -destination 'generic/platform=macOS' \
             ARCHS="arm64 x86_64" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
@@ -255,8 +254,8 @@ jobs:
             -c "Add :teamID string $APPLE_TEAM_ID" \
             /tmp/ExportOptions-Mac-preflight.plist
           xcodebuild -exportArchive \
-            -archivePath ${{ env.MAC_ARCHIVE_PATH }} \
-            -exportPath ${{ env.MAC_EXPORT_PATH }} \
+            -archivePath "${{ env.MAC_ARCHIVE_PATH }}" \
+            -exportPath "${{ env.MAC_EXPORT_PATH }}" \
             -exportOptionsPlist /tmp/ExportOptions-Mac-preflight.plist
 
       - name: Verify exported Mac package exists and is signed
@@ -278,9 +277,9 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           xcodebuild archive \
-            -scheme ${{ env.SCHEME_NAME }} \
+            -scheme "${{ env.SCHEME_NAME }}" \
             -configuration Release \
-            -archivePath ${{ env.IOS_ARCHIVE_PATH }} \
+            -archivePath "${{ env.IOS_ARCHIVE_PATH }}" \
             -destination 'generic/platform=iOS' \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             PROVISIONING_PROFILE="$IOS_APP_STORE_PROFILE_UUID" \
@@ -301,8 +300,8 @@ jobs:
             -c "Add :teamID string $APPLE_TEAM_ID" \
             /tmp/ExportOptions-iOS-preflight.plist
           xcodebuild -exportArchive \
-            -archivePath ${{ env.IOS_ARCHIVE_PATH }} \
-            -exportPath ${{ env.IOS_EXPORT_PATH }} \
+            -archivePath "${{ env.IOS_ARCHIVE_PATH }}" \
+            -exportPath "${{ env.IOS_EXPORT_PATH }}" \
             -exportOptionsPlist /tmp/ExportOptions-iOS-preflight.plist
 
       - name: Verify exported iOS app exists
