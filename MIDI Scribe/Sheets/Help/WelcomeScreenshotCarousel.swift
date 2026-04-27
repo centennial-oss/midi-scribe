@@ -355,6 +355,8 @@ private struct OnboardingScreenshotImage: View {
 }
 
 private struct OnboardingTooltipView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     let label: String
     let caretPosition: OnboardingCaretPosition
 
@@ -369,7 +371,7 @@ private struct OnboardingTooltipView: View {
             .padding(.vertical, verticalPadding)
             .background {
                 OnboardingTooltipShape(caretPosition: caretPosition)
-                    .fill(.regularMaterial)
+                    .fill(tooltipFill)
                     .shadow(color: .black.opacity(0.18), radius: 14, x: 0, y: 8)
             }
             .overlay {
@@ -394,5 +396,9 @@ private struct OnboardingTooltipView: View {
         case .left, .right, .none:
             return 12
         }
+    }
+
+    private var tooltipFill: AnyShapeStyle {
+        colorScheme == .light ? AnyShapeStyle(Color.white) : AnyShapeStyle(.regularMaterial)
     }
 }

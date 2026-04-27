@@ -83,7 +83,7 @@ let macOSOnboardingPaneCollection = OnboardingPaneCollection(
                     )
                 ],
                 undimmedZones: [
-                    .roundedRect(centerX: 1265, centerY: 825, width: 1370, height: 1290, cornerRadius: 18)
+                    .roundedRect(centerX: 1265, centerY: 823, width: 1370, height: 1295, cornerRadius: 18)
                 ]
             )
         ),
@@ -103,7 +103,7 @@ let macOSOnboardingPaneCollection = OnboardingPaneCollection(
                     stubAnnotation("mac-drag-actions", 1795, 200, "Star notable Takes\nto keep long-term", .top)
                 ],
                 undimmedZones: [
-                    .roundedRect(centerX: 1375, centerY: 825, width: 200, height: 1290, cornerRadius: 36),
+                    .roundedRect(centerX: 1375, centerY: 823, width: 200, height: 1295, cornerRadius: 36),
                     .roundedRect(centerX: 1797, centerY: 60, width: 70, height: 70, cornerRadius: 50),
                     .roundedRect(centerX: 205, centerY: 600, width: 370, height: 180, cornerRadius: 24)
                 ]
