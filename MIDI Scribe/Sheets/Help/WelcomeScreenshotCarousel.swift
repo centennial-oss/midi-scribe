@@ -11,145 +11,8 @@ import AppKit
 import UIKit
 #endif
 
-// Carries measured tooltip sizes keyed by annotation ID, so the parent can
-// compute the correct center-from-caret-tip offset after the first layout pass.
-private struct TooltipSizePreferenceKey: PreferenceKey {
-    static let defaultValue: [String: CGSize] = [:]
-    static func reduce(value: inout [String: CGSize], nextValue: () -> [String: CGSize]) {
-        value.merge(nextValue()) { _, new in new }
-    }
-}
+struct OnboardingScreenshotPaneView: View {
 
-struct OnboardingSwipeCarouselView: View {
-    let panes: [OnboardingPane]
-    @Binding var selection: Int
-
-    var body: some View {
-        ZStack {
-            if panes.indices.contains(selection) {
-                OnboardingPaneView(
-                    pane: panes[selection],
-                )
-                .id(selection)
-                .transition(.opacity)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .contentShape(Rectangle())
-        .gesture(
-            DragGesture(minimumDistance: 36)
-                .onEnded { value in
-                    handleSwipe(width: value.translation.width)
-                }
-        )
-        .accessibilityAdjustableAction { direction in
-            switch direction {
-            case .increment:
-                advance()
-            case .decrement:
-                goBack()
-            @unknown default:
-                break
-            }
-        }
-        .animation(.easeInOut(duration: 0.22), value: selection)
-    }
-
-    private func handleSwipe(width: CGFloat) {
-        guard abs(width) >= 52 else { return }
-        if width < 0 {
-            advance()
-        } else {
-            goBack()
-        }
-    }
-
-    private func advance() {
-        guard selection < panes.count - 1 else { return }
-        selection += 1
-    }
-
-    private func goBack() {
-        guard selection > 0 else { return }
-        selection -= 1
-    }
-}
-
-struct OnboardingPageDots: View {
-    let count: Int
-    let selection: Int
-
-    var body: some View {
-        HStack(spacing: 8) {
-            ForEach(0..<count, id: \.self) { index in
-                Circle()
-                    .fill(dotColor(for: index))
-                    .frame(width: 8, height: 8)
-            }
-        }
-        .accessibilityLabel("Page \(selection + 1) of \(count)")
-    }
-
-    private func dotColor(for index: Int) -> Color {
-        if index == selection {
-            return Color.accentColor
-        } else {
-            return Color.primary.opacity(0.22)
-        }
-    }
-}
-
-struct OnboardingPaneView: View {
-    let pane: OnboardingPane
-
-    var body: some View {
-        switch pane.content {
-        case let .message(kind):
-            OnboardingMessagePaneView(kind: kind)
-        case let .screenshot(content):
-            OnboardingScreenshotPaneView(
-                content: content
-            )
-        }
-    }
-}
-
-private struct OnboardingMessagePaneView: View {
-    let kind: OnboardingMessageKind
-
-    var body: some View {
-        VStack(spacing: 24) {
-            HStack(spacing: 18) {
-                AppIconImage()
-                    .frame(width: 72, height: 72)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-
-                Text(kind.header)
-                    .font(.title.weight(.semibold))
-                    .multilineTextAlignment(.leading)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.78)
-            }
-
-            if let body = kind.body {
-                Text(body)
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-        }
-        .padding(28)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .strokeBorder(.primary.opacity(0.08), lineWidth: 1)
-        }
-    }
-}
-
-private struct OnboardingScreenshotPaneView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     let content: OnboardingScreenshotContent
@@ -194,7 +57,10 @@ private struct OnboardingScreenshotPaneView: View {
                         caretPosition: annotation.caretPosition,
                         avoidsLineWrapping: annotation.avoidsLineWrapping
                     )
-                    .frame(maxWidth: annotation.avoidsLineWrapping ? nil : tooltipWidth(for: containerSize))
+                    .frame(
+                        maxWidth: annotation.avoidsLineWrapping ? nil : tooltipWidth(for: containerSize),
+                        alignment: tooltipFrameAlignment(for: annotation.caretPosition)
+                    )
                     // Measure the rendered tooltip size on the first (invisible) pass.
                     .background(
                         GeometryReader { geo in
@@ -205,11 +71,6 @@ private struct OnboardingScreenshotPaneView: View {
                                 )
                         }
                     )
-                    .onPreferenceChange(TooltipSizePreferenceKey.self) { sizes in
-                        for (id, size) in sizes where tooltipSizes[id] != size {
-                            tooltipSizes[id] = size
-                        }
-                    }
                     // Stay invisible until we have a real measurement so there
                     // is no flash of a mis-positioned tooltip.
                     .opacity(knownSize != nil ? 1 : 0)
@@ -223,7 +84,6 @@ private struct OnboardingScreenshotPaneView: View {
                         )
                     )
                 }
-
                 #if DEBUG
                 if isShowingDebugUndimmedZones {
                     DebugUndimmedZoneOverlay(
@@ -233,6 +93,11 @@ private struct OnboardingScreenshotPaneView: View {
                     )
                 }
                 #endif
+            }
+            .onPreferenceChange(TooltipSizePreferenceKey.self) { sizes in
+                for (id, size) in sizes where tooltipSizes[id] != size {
+                    tooltipSizes[id] = size
+                }
             }
             .frame(width: containerSize.width, height: containerSize.height)
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -251,8 +116,6 @@ private struct OnboardingScreenshotPaneView: View {
                     originalSize: originalSize
                 )
             )
-            #endif
-            #if DEBUG
             .overlay {
                 DebugUndimmedZoneGestureOverlay(isActive: $isShowingDebugUndimmedZones)
             }
@@ -300,9 +163,11 @@ private struct OnboardingScreenshotPaneView: View {
 
         // .position() sets the *center* of the view, so offset from the tip
         // to the center based on which edge the caret is on.
-        // .none is treated the same as .top (caret at top-center).
         switch annotation.caretPosition {
-        case .top, .none:
+        case .none:
+            // Centered on the tip.
+            return CGPoint(x: tipX, y: tipY)
+        case .top:
             // Tip is at top-center; bubble body hangs below.
             return CGPoint(x: tipX, y: tipY + tooltipSize.height / 2)
         case .bottom:
@@ -317,12 +182,20 @@ private struct OnboardingScreenshotPaneView: View {
         }
     }
 
+    private func tooltipFrameAlignment(for caretPosition: OnboardingCaretPosition) -> Alignment {
+        switch caretPosition {
+        case .left: return .leading
+        case .right: return .trailing
+        case .top, .bottom, .none: return .center
+        }
+    }
+
     private func tooltipWidth(for containerSize: CGSize) -> CGFloat {
         min(max(containerSize.width * 0.28, 190), 300)
     }
 }
 
-private struct DimOverlayWithCutouts: View {
+struct DimOverlayWithCutouts: View {
     let imageRect: CGRect
     let originalSize: CGSize
     let zones: [OnboardingUndimmedZone]
@@ -375,7 +248,7 @@ private struct DimOverlayWithCutouts: View {
     }
 }
 
-private struct OnboardingScreenshotImage: View {
+struct OnboardingScreenshotImage: View {
     let assetName: String
     let originalSize: CGSize
 

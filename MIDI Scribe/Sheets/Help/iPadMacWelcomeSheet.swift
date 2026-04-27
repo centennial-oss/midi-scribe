@@ -14,7 +14,8 @@ struct IPadMacWelcomeSheet: View {
     var body: some View {
         #if os(macOS)
         sheetContent()
-            .frame(width: 750, height: 720)
+            .frame(width: 750)
+            .padding(.vertical, 20)
         #else
         sheetContent()
             .frame(maxWidth: .infinity, maxHeight: .infinity)

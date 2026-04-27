@@ -32,7 +32,7 @@ let iPadOnboardingPaneCollection = OnboardingPaneCollection(
                     stubAnnotation(
                         1075,
                         670,
-                        "Scribe your first Take by\nplaying your instrument\nor pressing the button",
+                        "Scribe your first Take by playing your instrument or pressing the button",
                         .right
                     )
                 ],
@@ -51,19 +51,20 @@ let iPadOnboardingPaneCollection = OnboardingPaneCollection(
                     stubAnnotation(
                         1120,
                         825,
-                        "The Piano Roll fills\nin while you play",
+                        "The Piano Roll fills in while you play",
                         .bottom
                     ),
                     stubAnnotation(
                         1685,
                         100,
-                        "Takes auto-end after a\nconfigurable timeout.\n" +
-                            "Manually end or discard\nan in-progress Take here",
+                        "Takes auto-end after a configurable timeout. " +
+                            "Manually end or discard an in-progress Take here",
                         .top
                     )
                 ],
                 undimmedZones: [
                     .roundedRect(centerX: 1265, centerY: 900, width: 1370, height: 400, cornerRadius: 36),
+                    .roundedRect(centerX: 272, centerY: 435, width: 465, height: 80, cornerRadius: 12),
                     .roundedRect(centerX: 1690, centerY: 60, width: 155, height: 70, cornerRadius: 50)
                 ]
             )
@@ -76,21 +77,21 @@ let iPadOnboardingPaneCollection = OnboardingPaneCollection(
                 originalSize: iPadScreenshotSize,
                 annotations: [
                     stubAnnotation(
-                        615,
+                        580,
                         204,
-                        "Playback starts at the\nPlayhead position",
+                        "Playback starts at the Playhead position",
                         .right
                     ),
                     stubAnnotation(
                         1395,
                         430,
-                        "Swipe 2 fingers over\nthe Piano Roll to\nselect and zoom",
+                        "Swipe 2 fingers over the Piano Roll to select and zoom",
                         .left
                     ),
                     stubAnnotation(
                         1600,
                         1300,
-                        "Pinch or swipe with 3 fingers to zoom freely",
+                        "Pinch the Roll to zoom freely",
                         .none,
                         avoidsLineWrapping: true
                     )
@@ -108,12 +109,12 @@ let iPadOnboardingPaneCollection = OnboardingPaneCollection(
                 originalSize: iPadScreenshotSize,
                 annotations: [
                     stubAnnotation(
-                        1360,
+                        1350,
                         205,
-                        "Drag the Playhead\nhandle to adjust the\nplayback position",
+                        "Drag the Playhead handle to adjust the playback position",
                         .right
                     ),
-                    stubAnnotation(1790, 100, "Star notable Takes\nto keep long-term", .top)
+                    stubAnnotation(1785, 100, "Star notable Takes\nto keep long-term", .top)
                 ],
                 undimmedZones: [
                     .roundedRect(centerX: 1375, centerY: 823, width: 200, height: 1295, cornerRadius: 36),
@@ -132,7 +133,7 @@ let iPadOnboardingPaneCollection = OnboardingPaneCollection(
                     stubAnnotation(
                         465,
                         510,
-                        "Use multi-select to\noperate on several\nTakes at once",
+                        "Use multi-select to operate on several Takes at once",
                         .bottom
                     )
                 ],
@@ -148,9 +149,9 @@ let iPadOnboardingPaneCollection = OnboardingPaneCollection(
                 assetName: "Help/ScreenShots/iPad/iPad-06-settings",
                 originalSize: iPadScreenshotSize,
                 annotations: [
-                    stubAnnotation(1380, 365, "Customize when to\nauto-end live Takes", .left),
-                    stubAnnotation(585, 695, "Use pedals to manually\nstart and end Takes", .right),
-                    stubAnnotation(1430, 905, "Load sample Takes to\ntry out \(AppIdentifier.name)\nfeatures", .left)
+                    stubAnnotation(1430, 365, "Customize when to auto-end live Takes", .left),
+                    stubAnnotation(585, 695, "Use pedals to manually start and end Takes", .right),
+                    stubAnnotation(1430, 905, "Load sample Takes to try out \(AppIdentifier.name) features", .left)
                 ],
                 undimmedZones: [
                     .roundedRect(centerX: 1000, centerY: 752, width: 940, height: 1240, cornerRadius: 50)

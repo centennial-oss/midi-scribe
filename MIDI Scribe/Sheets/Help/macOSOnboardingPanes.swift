@@ -51,7 +51,7 @@ let macOSOnboardingPaneCollection = OnboardingPaneCollection(
                     stubAnnotation(
                         1120,
                         825,
-                        "The Piano Roll will fill in while you play",
+                        "The Piano Roll fills in while you play",
                         .bottom
                     ),
                     stubAnnotation(
@@ -75,7 +75,7 @@ let macOSOnboardingPaneCollection = OnboardingPaneCollection(
                 originalSize: macOSScreenshotSize,
                 annotations: [
                     stubAnnotation(
-                        615,
+                        580,
                         204,
                         "Playback starts at the Playhead position",
                         .right
@@ -100,7 +100,7 @@ let macOSOnboardingPaneCollection = OnboardingPaneCollection(
                 originalSize: macOSScreenshotSize,
                 annotations: [
                     stubAnnotation(
-                        1360,
+                        1350,
                         205,
                         "Click and Drag the Playhead handle to adjust the playback position",
                         .right
@@ -140,7 +140,7 @@ let macOSOnboardingPaneCollection = OnboardingPaneCollection(
                 assetName: "Help/ScreenShots/macOS/macOS-06-settings",
                 originalSize: macOSScreenshotSize,
                 annotations: [
-                    stubAnnotation(1380, 365, "Customize when to\nauto-end live Takes", .left),
+                    stubAnnotation(1430, 365, "Customize when to\nauto-end live Takes", .left),
                     stubAnnotation(585, 695, "Use pedals to manually start and end Takes", .right),
                     stubAnnotation(1430, 905, "Load sample Takes to try out \(AppIdentifier.name) features", .left)
                 ],
