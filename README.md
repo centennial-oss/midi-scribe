@@ -1,12 +1,12 @@
 # <img src="assets/app-icon.png" alt="MIDI Scribe" height="48" /> MIDI Scribe [<img align="right" src="assets/download-app-store.svg" />](https://apps.apple.com/us/app/midi-scribe/id6760952962)
 
-A practice take auto-capture utility for MIDI-capable instruments supporting macOS, iPad and iOS.
+A practice take auto-capture utility for MIDI-capable instruments supporting macOS, iPad and iPhone.
 
 MIDI Scribe is [available in the App Store](https://apps.apple.com/us/app/midi-scribe/id6760952962), while macOS builds also can be downloaded directly from [this project's releases](https://github.com/centennial-oss/midi-scribe/releases).
 
 ## About
 
-MIDI Scribe is a free plug-and-play app for automatically capturing and organizing practice takes from your MIDI-capable musical instrument. Run it in the background while you practice, and it will automatically start new takes after every session break, with a configurable auto-take idle time, as well as support for specific MIDI commands (such as a middle or left piano pedal press) to manually start and end takes. A piano roll is provided to review and scrub individual takes. Star the takes that you want to keep indefinitely, while unstarred takes are garbage-collected over time based on a configurable retention policy. All takes can be exported as MIDI files for use in other programs like GarageBand or Logic Pro.
+MIDI Scribe is a free plug-and-play productivity app for automatically capturing and organizing practice takes from your MIDI-capable musical instrument. Run it in the background while you practice, and it will automatically start new takes after every session break, with a configurable auto-take idle time, as well as support for specific MIDI commands (such as a middle or left piano pedal press) to manually start and end takes. A piano roll is provided to review and scrub individual takes. Star the takes that you want to keep indefinitely, while unstarred takes are garbage-collected over time based on a configurable retention policy. All takes can be exported as MIDI files for use in other programs like GarageBand or Logic Pro.
 
 The app is completely private. Connect your instrument, capture your takes, and keep everything on your device for personal review. No ads, no analytics, no snooping on your usage, and nothing ever leaves your device.
 
@@ -64,7 +64,7 @@ We gratefully make use of the [GeneralUser GS](https://github.com/mrbumpy409/Gen
 
 ### Sample Take Files / Alexander Peppe
 
-We provide three classical music sample take files, which can be reviewed in the [testdata](./testdata/) directory and loaded into MIDI Scribe directly from Settings in a single click. These files come from a vast catalog of public domain MIDI works generously curated by [Alexander Peppe](https://alexanderpeppe.com/). If you live in Maine, Alex should be tuning your piano. If you are into ham radio, his 4-digit callsign (WS1Q) should tell you a lot about his cool factor.
+We have baked three classical music sample take files into the app. They can be reviewed in the [testdata](./testdata/) directory and loaded into MIDI Scribe directly from Settings in a single click. These files come from a vast catalog of public domain MIDI works that is generously and meticulously curated by [Alexander Peppe](https://alexanderpeppe.com/). If you live in Maine, Alex should be tuning your piano. And if you are into ham radio, his 4-digit callsign (WS1Q) should tell you a lot about his cool factor.
 
 ## Trademark Notice
 
