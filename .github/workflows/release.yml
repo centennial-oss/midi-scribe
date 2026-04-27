@@ -261,21 +261,42 @@ jobs:
             CODE_SIGN_IDENTITY="-" \
             clean build
 
-      - name: Code sign app (Developer ID - for GitHub release)
+      - name: Code sign app + share extension (Developer ID - for GitHub release)
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
           APP_PATH="build/Build/Products/Release/${{ env.APP_NAME }}.app"
-          XCENT="build/Build/Intermediates.noindex/${{ env.SCHEME_NAME }}.build/Release/${{ env.SCHEME_NAME }}.build/${{ env.APP_NAME }}.app.xcent"
-          ENTITLEMENTS="build/Release.entitlements"
-          cp "$XCENT" "$ENTITLEMENTS"
+          APP_XCENT="build/Build/Intermediates.noindex/${{ env.SCHEME_NAME }}.build/Release/${{ env.SCHEME_NAME }}.build/${{ env.APP_NAME }}.app.xcent"
+          APP_ENTITLEMENTS="build/Release.entitlements"
+          EXT_NAME="MIDI Scribe Share Extension"
+          EXT_APP_PATH="$APP_PATH/Contents/PlugIns/$EXT_NAME.appex"
+          EXT_BIN_PATH="$EXT_APP_PATH/Contents/MacOS/$EXT_NAME"
+          EXT_XCENT="build/Build/Intermediates.noindex/${{ env.SCHEME_NAME }}.build/Release/$EXT_NAME.build/$EXT_NAME.appex.xcent"
+          EXT_ENTITLEMENTS="build/Release-ShareExtension.entitlements"
+
+          cp "$APP_XCENT" "$APP_ENTITLEMENTS"
+          cp "$EXT_XCENT" "$EXT_ENTITLEMENTS"
           # get-task-allow is for debugging only; must be false for notarization
-          /usr/libexec/PlistBuddy -c "Set :com.apple.security.get-task-allow false" "$ENTITLEMENTS"
+          /usr/libexec/PlistBuddy -c "Set :com.apple.security.get-task-allow false" "$APP_ENTITLEMENTS"
+          /usr/libexec/PlistBuddy -c "Set :com.apple.security.get-task-allow false" "$EXT_ENTITLEMENTS"
+
+          # Sign extension payload first, then extension bundle, then containing app.
           codesign --force --sign "$APPLE_SIGNING_IDENTITY" \
+            --timestamp \
             --options runtime \
-            --entitlements "$ENTITLEMENTS" \
+            --entitlements "$EXT_ENTITLEMENTS" \
+            "$EXT_BIN_PATH"
+          codesign --force --sign "$APPLE_SIGNING_IDENTITY" \
+            --timestamp \
+            --options runtime \
+            --entitlements "$EXT_ENTITLEMENTS" \
+            "$EXT_APP_PATH"
+          codesign --force --sign "$APPLE_SIGNING_IDENTITY" \
+            --timestamp \
+            --options runtime \
+            --entitlements "$APP_ENTITLEMENTS" \
             "$APP_PATH"
-          codesign --verify --verbose "$APP_PATH"
+          codesign --verify --verbose --deep --strict "$APP_PATH"
 
       - name: Notarize app (GitHub release)
         env:
