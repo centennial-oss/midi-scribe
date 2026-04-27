@@ -17,8 +17,10 @@ jobs:
       APP_NAME: MIDI Scribe
       SCHEME_NAME: MIDIScribe
       PROJECT_PATH: MIDIScribe.xcodeproj
-      ARCHIVE_PATH: ${{ github.workspace }}/build/MIDIScribe.xcarchive
-      EXPORT_PATH: ${{ github.workspace }}/build/AppStoreExport
+      MAC_ARCHIVE_PATH: "${{ github.workspace }}/build/MIDI Scribe-macOS-preflight.xcarchive"
+      MAC_EXPORT_PATH: "${{ github.workspace }}/build/MacAppStoreExport-preflight"
+      IOS_ARCHIVE_PATH: "${{ github.workspace }}/build/MIDI Scribe-iOS-preflight.xcarchive"
+      IOS_EXPORT_PATH: "${{ github.workspace }}/build/iOSAppStoreExport-preflight"
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -43,6 +45,7 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
           MAC_APP_STORE_PROVISIONING_PROFILE_BASE64: ${{ secrets.MAC_APP_STORE_PROVISIONING_PROFILE_BASE64 }}
+          IOS_APP_STORE_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_APP_STORE_PROVISIONING_PROFILE_BASE64 }}
         run: |
           set -euo pipefail
           REQUIRED_VARS=(
@@ -57,6 +60,7 @@ jobs:
             APP_STORE_CONNECT_ISSUER_ID
             APP_STORE_CONNECT_API_KEY
             MAC_APP_STORE_PROVISIONING_PROFILE_BASE64
+            IOS_APP_STORE_PROVISIONING_PROFILE_BASE64
           )
           for var in "${REQUIRED_VARS[@]}"; do
             if [ -z "${!var:-}" ]; then
@@ -110,12 +114,24 @@ jobs:
             exit 1
           fi
           # Cert names are always prefixed with these strings (e.g. "3rd Party Mac Developer Application: Name (TEAM)")
-          if ! grep -F "3rd Party Mac Developer Application" codesign-identities.txt > /dev/null; then
-            echo "::error::No 3rd Party Mac Developer Application identity found in imported certificates."
+          if grep -F "Apple Distribution" codesign-identities.txt > /dev/null; then
+            echo "MAC_APP_STORE_SIGNING_CERTIFICATE=Apple Distribution" >> "$GITHUB_ENV"
+          elif grep -F "3rd Party Mac Developer Application" codesign-identities.txt > /dev/null; then
+            echo "MAC_APP_STORE_SIGNING_CERTIFICATE=3rd Party Mac Developer Application" >> "$GITHUB_ENV"
+          else
+            echo "::error::No Apple Distribution or 3rd Party Mac Developer Application identity found in imported certificates."
             exit 1
           fi
           if ! grep -F "3rd Party Mac Developer Installer" all-identities.txt > /dev/null; then
             echo "::error::No 3rd Party Mac Developer Installer identity found in imported certificates."
+            exit 1
+          fi
+          if grep -F "Apple Distribution" codesign-identities.txt > /dev/null; then
+            echo "IOS_APP_STORE_SIGNING_CERTIFICATE=Apple Distribution" >> "$GITHUB_ENV"
+          elif grep -F "iPhone Distribution" codesign-identities.txt > /dev/null; then
+            echo "IOS_APP_STORE_SIGNING_CERTIFICATE=iPhone Distribution" >> "$GITHUB_ENV"
+          else
+            echo "::error::No Apple Distribution/iPhone Distribution identity found in imported certificates."
             exit 1
           fi
 
@@ -141,6 +157,19 @@ jobs:
           echo "Installed provisioning profile: $UUID"
           echo "MAC_APP_STORE_PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
 
+      - name: Install iOS App Store provisioning profile
+        env:
+          IOS_APP_STORE_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_APP_STORE_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          echo "$IOS_APP_STORE_PROVISIONING_PROFILE_BASE64" | base64 --decode > /tmp/ios-profile.mobileprovision
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILE_DIR"
+          UUID=$(security cms -D -i /tmp/ios-profile.mobileprovision 2>/dev/null | plutil -extract UUID raw - 2>/dev/null || echo "ios-app-store")
+          cp /tmp/ios-profile.mobileprovision "$PROFILE_DIR/${UUID}.mobileprovision"
+          echo "Installed iOS provisioning profile: $UUID"
+          echo "IOS_APP_STORE_PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
+
       - name: Set version from tag
         id: version
         run: |
@@ -151,7 +180,7 @@ jobs:
           {
             printf 'MARKETING_VERSION = %s\n' "$VERSION"
             printf 'CURRENT_PROJECT_VERSION = %s\n' "$BUILD_NUMBER"
-            printf 'INFOPLIST_KEY_NSHumanReadableCopyright = Copyright © 2026 Centennial OSS Inc.\n'
+            printf 'INFOPLIST_KEY_NSHumanReadableCopyright = Copyright © 2026 Centennial OSS\n'
           } > "${{ env.SCHEME_NAME }}/Version.xcconfig"
 
       - name: Sanitize project.pbxproj (remove version overrides)
@@ -243,15 +272,15 @@ jobs:
           xcodebuild archive \
             -scheme ${{ env.SCHEME_NAME }} \
             -configuration Release \
-            -archivePath ${{ env.ARCHIVE_PATH }} \
+            -archivePath ${{ env.MAC_ARCHIVE_PATH }} \
             -destination 'generic/platform=macOS' \
             ARCHS="arm64 x86_64" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             PROVISIONING_PROFILE="$MAC_APP_STORE_PROFILE_UUID" \
             CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="3rd Party Mac Developer Application"
+            CODE_SIGN_IDENTITY="$MAC_APP_STORE_SIGNING_CERTIFICATE"
 
-      - name: Export and upload to App Store Connect
+      - name: Export and upload Mac App Store package to App Store Connect
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
@@ -259,23 +288,60 @@ jobs:
         run: |
           # signingStyle=manual: sign locally with the certs imported into the keychain,
           # not via cloud signing (which requires elevated API key permissions).
-          # Prefix matches cert names like "3rd Party Mac Developer Application: Name (TEAM)"
           /usr/libexec/PlistBuddy \
             -c "Add :method string app-store-connect" \
             -c "Add :destination string upload" \
             -c "Add :signingStyle string manual" \
-            -c "Add :signingCertificate string 3rd Party Mac Developer Application" \
+            -c "Add :signingCertificate string $MAC_APP_STORE_SIGNING_CERTIFICATE" \
             -c "Add :installerSigningCertificate string 3rd Party Mac Developer Installer" \
             -c "Add :provisioningProfiles dict" \
             -c "Add :provisioningProfiles:org.centennialoss.midiscribe string $MAC_APP_STORE_PROFILE_UUID" \
             -c "Add :teamID string $APPLE_TEAM_ID" \
-            /tmp/ExportOptions-CI.plist
+            /tmp/ExportOptions-Mac-CI.plist
           # -allowProvisioningUpdates not needed here: the archive already has the profile embedded.
           # The API key flags authenticate the upload-to-App-Store-Connect portion only.
           xcodebuild -exportArchive \
-            -archivePath ${{ env.ARCHIVE_PATH }} \
-            -exportPath ${{ env.EXPORT_PATH }} \
-            -exportOptionsPlist /tmp/ExportOptions-CI.plist \
+            -archivePath ${{ env.MAC_ARCHIVE_PATH }} \
+            -exportPath ${{ env.MAC_EXPORT_PATH }} \
+            -exportOptionsPlist /tmp/ExportOptions-Mac-CI.plist \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
+            -authenticationKeyPath ~/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
+
+      - name: Archive iOS app for App Store
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # The app target is iOS-only via TARGETED_DEVICE_FAMILY=2.
+          xcodebuild archive \
+            -scheme ${{ env.SCHEME_NAME }} \
+            -configuration Release \
+            -archivePath ${{ env.IOS_ARCHIVE_PATH }} \
+            -destination 'generic/platform=iOS' \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            PROVISIONING_PROFILE="$IOS_APP_STORE_PROFILE_UUID" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="$IOS_APP_STORE_SIGNING_CERTIFICATE"
+
+      - name: Export and upload iOS app to App Store Connect
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          /usr/libexec/PlistBuddy \
+            -c "Add :method string app-store-connect" \
+            -c "Add :destination string upload" \
+            -c "Add :signingStyle string manual" \
+            -c "Add :signingCertificate string $IOS_APP_STORE_SIGNING_CERTIFICATE" \
+            -c "Add :provisioningProfiles dict" \
+            -c "Add :provisioningProfiles:org.centennialoss.midiscribe string $IOS_APP_STORE_PROFILE_UUID" \
+            -c "Add :teamID string $APPLE_TEAM_ID" \
+            /tmp/ExportOptions-iOS-CI.plist
+          xcodebuild -exportArchive \
+            -archivePath ${{ env.IOS_ARCHIVE_PATH }} \
+            -exportPath ${{ env.IOS_EXPORT_PATH }} \
+            -exportOptionsPlist /tmp/ExportOptions-iOS-CI.plist \
             -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
             -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
             -authenticationKeyPath ~/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8

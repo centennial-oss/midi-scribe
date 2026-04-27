@@ -11,8 +11,10 @@ jobs:
       APP_NAME: MIDI Scribe
       SCHEME_NAME: MIDIScribe
       PROJECT_PATH: MIDIScribe.xcodeproj
-      ARCHIVE_PATH: ${{ github.workspace }}/build/MIDIScribe-preflight.xcarchive
-      EXPORT_PATH: ${{ github.workspace }}/build/AppStoreExport-preflight
+      MAC_ARCHIVE_PATH: "${{ github.workspace }}/build/MIDI Scribe-macOS-preflight.xcarchive"
+      MAC_EXPORT_PATH: "${{ github.workspace }}/build/MacAppStoreExport-preflight"
+      IOS_ARCHIVE_PATH: "${{ github.workspace }}/build/MIDI Scribe-iOS-preflight.xcarchive"
+      IOS_EXPORT_PATH: "${{ github.workspace }}/build/iOSAppStoreExport-preflight"
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -37,6 +39,7 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
           MAC_APP_STORE_PROVISIONING_PROFILE_BASE64: ${{ secrets.MAC_APP_STORE_PROVISIONING_PROFILE_BASE64 }}
+          IOS_APP_STORE_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_APP_STORE_PROVISIONING_PROFILE_BASE64 }}
         run: |
           set -euo pipefail
           REQUIRED_VARS=(
@@ -51,6 +54,7 @@ jobs:
             APP_STORE_CONNECT_ISSUER_ID
             APP_STORE_CONNECT_API_KEY
             MAC_APP_STORE_PROVISIONING_PROFILE_BASE64
+            IOS_APP_STORE_PROVISIONING_PROFILE_BASE64
           )
           for var in "${REQUIRED_VARS[@]}"; do
             if [ -z "${!var:-}" ]; then
@@ -87,29 +91,43 @@ jobs:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
           set -euo pipefail
-          # Code-signing identities (Developer ID, Apple/3rd-party distribution app certs)
           security find-identity -v -p codesigning build.keychain | tee codesign-identities.txt
-          # All identities including installer/package certs (not returned by -p codesigning)
           security find-identity -v build.keychain | tee all-identities.txt
           echo "--- codesigning identities ---"
           cat codesign-identities.txt
           echo "--- all identities ---"
           cat all-identities.txt
+
           if ! grep -F "$APPLE_SIGNING_IDENTITY" codesign-identities.txt > /dev/null; then
             echo "::error::APPLE_SIGNING_IDENTITY not found in build.keychain: $APPLE_SIGNING_IDENTITY"
             exit 1
           fi
-          if ! grep -E "Developer ID Application" codesign-identities.txt > /dev/null; then
+
+          if ! grep -F "Developer ID Application" codesign-identities.txt > /dev/null; then
             echo "::error::No Developer ID Application identity found in imported certificates."
             exit 1
           fi
-          # Cert names are always prefixed with these strings (e.g. "3rd Party Mac Developer Application: Name (TEAM)")
-          if ! grep -F "3rd Party Mac Developer Application" codesign-identities.txt > /dev/null; then
-            echo "::error::No 3rd Party Mac Developer Application identity found in imported certificates."
+
+          if grep -F "Apple Distribution" codesign-identities.txt > /dev/null; then
+            echo "MAC_APP_STORE_SIGNING_CERTIFICATE=Apple Distribution" >> "$GITHUB_ENV"
+          elif grep -F "3rd Party Mac Developer Application" codesign-identities.txt > /dev/null; then
+            echo "MAC_APP_STORE_SIGNING_CERTIFICATE=3rd Party Mac Developer Application" >> "$GITHUB_ENV"
+          else
+            echo "::error::No Apple Distribution or 3rd Party Mac Developer Application identity found in imported certificates."
             exit 1
           fi
+
           if ! grep -F "3rd Party Mac Developer Installer" all-identities.txt > /dev/null; then
             echo "::error::No 3rd Party Mac Developer Installer identity found in imported certificates."
+            exit 1
+          fi
+
+          if grep -F "Apple Distribution" codesign-identities.txt > /dev/null; then
+            echo "IOS_APP_STORE_SIGNING_CERTIFICATE=Apple Distribution" >> "$GITHUB_ENV"
+          elif grep -F "iPhone Distribution" codesign-identities.txt > /dev/null; then
+            echo "IOS_APP_STORE_SIGNING_CERTIFICATE=iPhone Distribution" >> "$GITHUB_ENV"
+          else
+            echo "::error::No Apple Distribution/iPhone Distribution identity found in imported certificates."
             exit 1
           fi
 
@@ -118,9 +136,46 @@ jobs:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
         run: |
+          set -euo pipefail
           mkdir -p ~/private_keys
-          echo "$APP_STORE_CONNECT_API_KEY" | base64 --decode \
+          printf '%s' "$APP_STORE_CONNECT_API_KEY" | base64 --decode \
             > ~/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
+
+      - name: Validate App Store Connect API key file
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+        run: |
+          set -euo pipefail
+          KEY_PATH="$HOME/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+
+          test -s "$KEY_PATH" || { echo "::error::Decoded API key file is empty."; exit 1; }
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import sys
+          import re
+
+          key_dir = Path.home() / "private_keys"
+          files = list(key_dir.glob("AuthKey_*.p8"))
+          if len(files) != 1:
+              print("::error::Expected exactly one AuthKey_*.p8 file.")
+              sys.exit(1)
+
+          data = files[0].read_bytes()
+
+          checks = [
+              (data.startswith(b"-----BEGIN PRIVATE KEY-----\n") or data.startswith(b"-----BEGIN PRIVATE KEY-----\r\n"), "missing PEM header"),
+              (data.rstrip().endswith(b"-----END PRIVATE KEY-----"), "missing PEM footer"),
+              (b"\x00" not in data, "contains NUL byte(s)"),
+              (len(data) > 100, "unexpectedly short PEM file"),
+          ]
+          for ok, msg in checks:
+              if not ok:
+                  print(f"::error::Decoded API key file invalid: {msg}")
+                  sys.exit(1)
+
+          print("API key file passed non-secret structural validation.")
+          PY
 
       - name: Install Mac App Store provisioning profile
         env:
@@ -135,6 +190,19 @@ jobs:
           echo "Installed provisioning profile: $UUID"
           echo "MAC_APP_STORE_PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
 
+      - name: Install iOS App Store provisioning profile
+        env:
+          IOS_APP_STORE_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_APP_STORE_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          echo "$IOS_APP_STORE_PROVISIONING_PROFILE_BASE64" | base64 --decode > /tmp/ios-profile.mobileprovision
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILE_DIR"
+          UUID=$(security cms -D -i /tmp/ios-profile.mobileprovision 2>/dev/null | plutil -extract UUID raw - 2>/dev/null || echo "ios-app-store")
+          cp /tmp/ios-profile.mobileprovision "$PROFILE_DIR/${UUID}.mobileprovision"
+          echo "Installed iOS provisioning profile: $UUID"
+          echo "IOS_APP_STORE_PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
+
       - name: Set synthetic version/build for preflight
         run: |
           VERSION="0.0.0-preflight"
@@ -142,7 +210,7 @@ jobs:
           {
             printf 'MARKETING_VERSION = %s\n' "$VERSION"
             printf 'CURRENT_PROJECT_VERSION = %s\n' "$BUILD_NUMBER"
-            printf 'INFOPLIST_KEY_NSHumanReadableCopyright = Copyright © 2026 Centennial OSS Inc.\n'
+            printf 'INFOPLIST_KEY_NSHumanReadableCopyright = Copyright © 2026 Centennial OSS\n'
           } > "${{ env.SCHEME_NAME }}/Version.xcconfig"
 
       - name: Sanitize project.pbxproj (remove version overrides)
@@ -157,56 +225,94 @@ jobs:
           ARCH="arm64" \
           make generate-build-info
 
-      - name: Archive for App Store preflight
+      - name: Archive for Mac App Store preflight
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          # Manual signing with pre-installed provisioning profile (required for TestFlight).
-          # Profile is installed in "Install Mac App Store provisioning profile" step.
           xcodebuild archive \
             -scheme ${{ env.SCHEME_NAME }} \
             -configuration Release \
-            -archivePath ${{ env.ARCHIVE_PATH }} \
+            -archivePath ${{ env.MAC_ARCHIVE_PATH }} \
             -destination 'generic/platform=macOS' \
             ARCHS="arm64 x86_64" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             PROVISIONING_PROFILE="$MAC_APP_STORE_PROFILE_UUID" \
             CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="3rd Party Mac Developer Application"
+            CODE_SIGN_IDENTITY="$MAC_APP_STORE_SIGNING_CERTIFICATE"
 
       - name: Export Mac App Store package preflight (no upload)
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          # signingStyle=manual: sign locally with the certs imported into the keychain,
-          # not via cloud signing (which requires elevated API key permissions).
-          # Prefix matches cert names like "3rd Party Mac Developer Application: Name (TEAM)"
           /usr/libexec/PlistBuddy \
             -c "Add :method string app-store-connect" \
             -c "Add :destination string export" \
             -c "Add :signingStyle string manual" \
-            -c "Add :signingCertificate string 3rd Party Mac Developer Application" \
+            -c "Add :signingCertificate string $MAC_APP_STORE_SIGNING_CERTIFICATE" \
             -c "Add :installerSigningCertificate string 3rd Party Mac Developer Installer" \
             -c "Add :provisioningProfiles dict" \
             -c "Add :provisioningProfiles:org.centennialoss.midiscribe string $MAC_APP_STORE_PROFILE_UUID" \
             -c "Add :teamID string $APPLE_TEAM_ID" \
-            /tmp/ExportOptions-preflight.plist
-          # -allowProvisioningUpdates not needed: the archive already has the profile embedded.
+            /tmp/ExportOptions-Mac-preflight.plist
           xcodebuild -exportArchive \
-            -archivePath ${{ env.ARCHIVE_PATH }} \
-            -exportPath ${{ env.EXPORT_PATH }} \
-            -exportOptionsPlist /tmp/ExportOptions-preflight.plist
+            -archivePath ${{ env.MAC_ARCHIVE_PATH }} \
+            -exportPath ${{ env.MAC_EXPORT_PATH }} \
+            -exportOptionsPlist /tmp/ExportOptions-Mac-preflight.plist
 
-      - name: Verify exported package exists and is signed
+      - name: Verify exported Mac package exists and is signed
         run: |
           set -euo pipefail
           shopt -s nullglob
-          PKGS=("$EXPORT_PATH"/*.pkg)
+          PKGS=("$MAC_EXPORT_PATH"/*.pkg)
           if [ ${#PKGS[@]} -eq 0 ]; then
-            echo "::error::No .pkg found in $EXPORT_PATH after export step."
-            ls -la "$EXPORT_PATH" || true
+            echo "::error::No .pkg found in $MAC_EXPORT_PATH after export step."
+            ls -la "$MAC_EXPORT_PATH" || true
             exit 1
           fi
           PKG_PATH="${PKGS[0]}"
           echo "Preflight package: $PKG_PATH"
           pkgutil --check-signature "$PKG_PATH"
+
+      - name: Archive iOS app for App Store preflight
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          xcodebuild archive \
+            -scheme ${{ env.SCHEME_NAME }} \
+            -configuration Release \
+            -archivePath ${{ env.IOS_ARCHIVE_PATH }} \
+            -destination 'generic/platform=iOS' \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            PROVISIONING_PROFILE="$IOS_APP_STORE_PROFILE_UUID" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="$IOS_APP_STORE_SIGNING_CERTIFICATE"
+
+      - name: Export iOS app preflight (no upload)
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          /usr/libexec/PlistBuddy \
+            -c "Add :method string app-store-connect" \
+            -c "Add :destination string export" \
+            -c "Add :signingStyle string manual" \
+            -c "Add :signingCertificate string $IOS_APP_STORE_SIGNING_CERTIFICATE" \
+            -c "Add :provisioningProfiles dict" \
+            -c "Add :provisioningProfiles:org.centennialoss.midiscribe string $IOS_APP_STORE_PROFILE_UUID" \
+            -c "Add :teamID string $APPLE_TEAM_ID" \
+            /tmp/ExportOptions-iOS-preflight.plist
+          xcodebuild -exportArchive \
+            -archivePath ${{ env.IOS_ARCHIVE_PATH }} \
+            -exportPath ${{ env.IOS_EXPORT_PATH }} \
+            -exportOptionsPlist /tmp/ExportOptions-iOS-preflight.plist
+
+      - name: Verify exported iOS app exists
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          IPAS=("$IOS_EXPORT_PATH"/*.ipa)
+          if [ ${#IPAS[@]} -eq 0 ]; then
+            echo "::error::No .ipa found in $IOS_EXPORT_PATH after export step."
+            ls -la "$IOS_EXPORT_PATH" || true
+            exit 1
+          fi
+          echo "Preflight IPA: ${IPAS[0]}"
