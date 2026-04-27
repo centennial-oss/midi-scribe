@@ -2,7 +2,7 @@
 //  BuildInfo.swift
 //  MIDI Scribe
 //
-//  Version and build metadata. BuildInfo.generated.swift is produced by the
+//  Version and build metadata. BuildInfoGenerated.swift is produced by the
 //  "Generate Build Info" Run Script phase and supplies commit, date, and arch.
 //
 
