@@ -433,12 +433,31 @@ jobs:
             -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
             -authenticationKeyPath ~/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
 
+      - name: Verify release assets exist
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          ZIP_FILE="${{ env.SCHEME_NAME }}-${VERSION}-macOS-universal.zip"
+          DMG_FILE="${{ env.SCHEME_NAME }}-${VERSION}-macOS-universal.dmg"
+
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "::error::Missing release asset: $ZIP_FILE"
+            exit 1
+          fi
+          if [ ! -f "$DMG_FILE" ]; then
+            echo "::error::Missing release asset: $DMG_FILE"
+            exit 1
+          fi
+
+          ls -lh "$ZIP_FILE" "$DMG_FILE"
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_name }}
           files: |
-            "${{ env.SCHEME_NAME }}-*-macOS-universal.zip"
-            "${{ env.SCHEME_NAME }}-*-macOS-universal.dmg"
+            ${{ env.SCHEME_NAME }}-*-macOS-universal.zip
+            ${{ env.SCHEME_NAME }}-*-macOS-universal.dmg
           generate_release_notes: true
           draft: true
         env:
