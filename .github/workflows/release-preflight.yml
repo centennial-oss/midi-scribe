@@ -232,6 +232,31 @@ jobs:
           echo "Installed iOS extension provisioning profile: $UUID"
           echo "IOS_APP_STORE_EXTENSION_PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
 
+      - name: Verify installed provisioning profiles
+        run: |
+          set -euo pipefail
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          for uuid in \
+            "$MAC_APP_STORE_PROFILE_UUID" \
+            "$MAC_APP_STORE_EXTENSION_PROFILE_UUID" \
+            "$IOS_APP_STORE_PROFILE_UUID" \
+            "$IOS_APP_STORE_EXTENSION_PROFILE_UUID"; do
+            file=""
+            if [ -f "$PROFILE_DIR/${uuid}.provisionprofile" ]; then
+              file="$PROFILE_DIR/${uuid}.provisionprofile"
+            elif [ -f "$PROFILE_DIR/${uuid}.mobileprovision" ]; then
+              file="$PROFILE_DIR/${uuid}.mobileprovision"
+            else
+              echo "::error::Provisioning profile file not found for UUID: $uuid"
+              exit 1
+            fi
+            echo "--- Profile $uuid ---"
+            security cms -D -i "$file" > /tmp/profile.plist
+            /usr/libexec/PlistBuddy -c "Print :Name" /tmp/profile.plist || true
+            /usr/libexec/PlistBuddy -c "Print :Entitlements:application-identifier" /tmp/profile.plist || true
+            /usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.security.application-groups" /tmp/profile.plist || true
+          done
+
       - name: Set synthetic version/build for preflight
         run: |
           VERSION="0.0.0-preflight"
@@ -265,8 +290,7 @@ jobs:
             -destination 'generic/platform=macOS' \
             ARCHS="arm64 x86_64" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="$MAC_APP_STORE_SIGNING_CERTIFICATE"
+            CODE_SIGN_STYLE=Automatic
 
       - name: Export Mac App Store package preflight (no upload)
         env:
@@ -312,8 +336,7 @@ jobs:
             -archivePath "${{ env.IOS_ARCHIVE_PATH }}" \
             -destination 'generic/platform=iOS' \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="$IOS_APP_STORE_SIGNING_CERTIFICATE"
+            CODE_SIGN_STYLE=Automatic
 
       - name: Export iOS app preflight (no upload)
         env:
