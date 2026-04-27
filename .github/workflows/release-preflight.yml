@@ -254,6 +254,7 @@ jobs:
             security cms -D -i "$file" > /tmp/profile.plist
             /usr/libexec/PlistBuddy -c "Print :Name" /tmp/profile.plist || true
             /usr/libexec/PlistBuddy -c "Print :Entitlements:application-identifier" /tmp/profile.plist || true
+            /usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.application-identifier" /tmp/profile.plist || true
             /usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.security.application-groups" /tmp/profile.plist || true
           done
 
@@ -290,7 +291,8 @@ jobs:
             -destination 'generic/platform=macOS' \
             ARCHS="arm64 x86_64" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            CODE_SIGN_STYLE=Automatic
+            CODE_SIGN_STYLE=Automatic \
+            -allowProvisioningUpdates
 
       - name: Export Mac App Store package preflight (no upload)
         env:
@@ -336,7 +338,8 @@ jobs:
             -archivePath "${{ env.IOS_ARCHIVE_PATH }}" \
             -destination 'generic/platform=iOS' \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            CODE_SIGN_STYLE=Automatic
+            CODE_SIGN_STYLE=Automatic \
+            -allowProvisioningUpdates
 
       - name: Export iOS app preflight (no upload)
         env:
