@@ -14,7 +14,8 @@ MIDI Scribe is completely free and open source for you to enjoy.
 
 ## Screenshots
 
-Coming soon
+<img src="assets/screenshots/midi-scribe-1.0-macos.png" alt="MIDI Scribe 1.0 for macOS" width="800" /><br />
+<img src="assets/screenshots/midi-scribe-1.0-ios.png" alt="MIDI Scribe 1.0 for iPhone" width="800" />
 
 ## Privacy
 
