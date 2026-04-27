@@ -11,6 +11,15 @@ import AppKit
 import UIKit
 #endif
 
+// Carries measured tooltip sizes keyed by annotation ID, so the parent can
+// compute the correct center-from-caret-tip offset after the first layout pass.
+private struct TooltipSizePreferenceKey: PreferenceKey {
+    static let defaultValue: [String: CGSize] = [:]
+    static func reduce(value: inout [String: CGSize], nextValue: () -> [String: CGSize]) {
+        value.merge(nextValue()) { _, new in new }
+    }
+}
+
 struct OnboardingSwipeCarouselView: View {
     let panes: [OnboardingPane]
     @Binding var selection: Int
@@ -145,6 +154,11 @@ private struct OnboardingScreenshotPaneView: View {
 
     let content: OnboardingScreenshotContent
 
+    // Measured rendered sizes for each annotation, keyed by annotation ID.
+    // Starts empty so tooltips are initially invisible; populated after the
+    // first layout pass and used to compute caret-tip → center offsets.
+    @State private var tooltipSizes: [String: CGSize] = [:]
+
     #if DEBUG
     @State private var isShowingDebugUndimmedZones = false
     #endif
@@ -174,15 +188,36 @@ private struct OnboardingScreenshotPaneView: View {
                 }
 
                 ForEach(content.annotations) { annotation in
+                    let knownSize = tooltipSizes[annotation.id]
                     OnboardingTooltipView(
                         label: annotation.label,
                         caretPosition: annotation.caretPosition,
                         avoidsLineWrapping: annotation.avoidsLineWrapping
                     )
                     .frame(maxWidth: annotation.avoidsLineWrapping ? nil : tooltipWidth(for: containerSize))
+                    // Measure the rendered tooltip size on the first (invisible) pass.
+                    .background(
+                        GeometryReader { geo in
+                            Color.clear
+                                .preference(
+                                    key: TooltipSizePreferenceKey.self,
+                                    value: [annotation.id: geo.size]
+                                )
+                        }
+                    )
+                    .onPreferenceChange(TooltipSizePreferenceKey.self) { sizes in
+                        for (id, size) in sizes where tooltipSizes[id] != size {
+                            tooltipSizes[id] = size
+                        }
+                    }
+                    // Stay invisible until we have a real measurement so there
+                    // is no flash of a mis-positioned tooltip.
+                    .opacity(knownSize != nil ? 1 : 0)
+                    .animation(.easeIn(duration: 0.12), value: knownSize != nil)
                     .position(
                         annotationPosition(
                             annotation,
+                            tooltipSize: knownSize ?? .zero,
                             imageRect: imageRect,
                             originalSize: originalSize
                         )
@@ -251,6 +286,7 @@ private struct OnboardingScreenshotPaneView: View {
 
     private func annotationPosition(
         _ annotation: OnboardingAnnotation,
+        tooltipSize: CGSize,
         imageRect: CGRect,
         originalSize: CGSize
     ) -> CGPoint {
@@ -258,10 +294,27 @@ private struct OnboardingScreenshotPaneView: View {
             return CGPoint(x: imageRect.midX, y: imageRect.midY)
         }
 
-        return CGPoint(
-            x: imageRect.minX + (annotation.sourceX / originalSize.width) * imageRect.width,
-            y: imageRect.minY + (annotation.sourceY / originalSize.height) * imageRect.height
-        )
+        // Convert the caret-tip coordinate from image-space to container-space.
+        let tipX = imageRect.minX + (annotation.sourceX / originalSize.width) * imageRect.width
+        let tipY = imageRect.minY + (annotation.sourceY / originalSize.height) * imageRect.height
+
+        // .position() sets the *center* of the view, so offset from the tip
+        // to the center based on which edge the caret is on.
+        // .none is treated the same as .top (caret at top-center).
+        switch annotation.caretPosition {
+        case .top, .none:
+            // Tip is at top-center; bubble body hangs below.
+            return CGPoint(x: tipX, y: tipY + tooltipSize.height / 2)
+        case .bottom:
+            // Tip is at bottom-center; bubble body sits above.
+            return CGPoint(x: tipX, y: tipY - tooltipSize.height / 2)
+        case .left:
+            // Tip is at left-midY; bubble body extends to the right.
+            return CGPoint(x: tipX + tooltipSize.width / 2, y: tipY)
+        case .right:
+            // Tip is at right-midY; bubble body extends to the left.
+            return CGPoint(x: tipX - tooltipSize.width / 2, y: tipY)
+        }
     }
 
     private func tooltipWidth(for containerSize: CGSize) -> CGFloat {

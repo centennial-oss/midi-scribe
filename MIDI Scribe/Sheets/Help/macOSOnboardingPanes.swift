@@ -30,7 +30,7 @@ let macOSOnboardingPaneCollection = OnboardingPaneCollection(
                         avoidsLineWrapping: true
                     ),
                     stubAnnotation(
-                        810,
+                        1075,
                         670,
                         "Scribe your first Take by playing your instrument or pressing the green button",
                         .right
@@ -50,13 +50,13 @@ let macOSOnboardingPaneCollection = OnboardingPaneCollection(
                 annotations: [
                     stubAnnotation(
                         1120,
-                        710,
+                        825,
                         "The Piano Roll will fill in while you play",
                         .bottom
                     ),
                     stubAnnotation(
-                        1680,
-                        240,
+                        1685,
+                        100,
                         "Takes auto-end after a configurable timeout. Manually end or discard an in-progress Take here",
                         .top
                     )
@@ -75,13 +75,13 @@ let macOSOnboardingPaneCollection = OnboardingPaneCollection(
                 originalSize: macOSScreenshotSize,
                 annotations: [
                     stubAnnotation(
-                        325,
-                        200,
+                        615,
+                        204,
                         "Playback starts at the Playhead position",
                         .right
                     ),
                     stubAnnotation(
-                        1620,
+                        1395,
                         430,
                         "Click and drag on the\nPiano Roll to zoom to the selected area",
                         .left
@@ -100,12 +100,12 @@ let macOSOnboardingPaneCollection = OnboardingPaneCollection(
                 originalSize: macOSScreenshotSize,
                 annotations: [
                     stubAnnotation(
-                        1080,
-                        210,
+                        1360,
+                        205,
                         "Click and Drag the Playhead handle to adjust the playback position",
                         .right
                     ),
-                    stubAnnotation(1795, 200, "Star notable Takes\nto keep long-term", .top)
+                    stubAnnotation(1795, 100, "Star notable Takes\nto keep long-term", .top)
                 ],
                 undimmedZones: [
                     .roundedRect(centerX: 1375, centerY: 823, width: 200, height: 1295, cornerRadius: 36),
@@ -123,7 +123,7 @@ let macOSOnboardingPaneCollection = OnboardingPaneCollection(
                 annotations: [
                     stubAnnotation(
                         465,
-                        415,
+                        510,
                         "Use multi-select to operate on several Takes at once",
                         .bottom
                     )
@@ -140,9 +140,9 @@ let macOSOnboardingPaneCollection = OnboardingPaneCollection(
                 assetName: "Help/ScreenShots/macOS/macOS-06-settings",
                 originalSize: macOSScreenshotSize,
                 annotations: [
-                    stubAnnotation(1660, 365, "Customize when to\nauto-end live Takes", .left),
-                    stubAnnotation(302, 695, "Use pedals to manually start and end Takes", .right),
-                    stubAnnotation(1709, 905, "Load sample Takes to try out \(AppIdentifier.name) features", .left)
+                    stubAnnotation(1380, 365, "Customize when to\nauto-end live Takes", .left),
+                    stubAnnotation(585, 695, "Use pedals to manually start and end Takes", .right),
+                    stubAnnotation(1430, 905, "Load sample Takes to try out \(AppIdentifier.name) features", .left)
                 ],
                 undimmedZones: [
                     .roundedRect(centerX: 1000, centerY: 752, width: 940, height: 1240, cornerRadius: 50)
