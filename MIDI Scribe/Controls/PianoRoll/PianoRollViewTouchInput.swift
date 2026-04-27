@@ -13,6 +13,11 @@ struct PianoRollTouchInputContext {
     let playOffset: TimeInterval
 }
 
+struct PianoRollPinchCallbacks {
+    let onChanged: (CGFloat) -> Void
+    let onEnded: () -> Void
+}
+
 #if os(iOS)
 extension PianoRollView {
     func makeTouchInputModifier(
@@ -20,8 +25,7 @@ extension PianoRollView {
         isTwoFingerZoomDragActive: Binding<Bool>,
         isIndirectPointerDragActive: Binding<Bool>,
         isThreeFingerZoomSwipeActive: Binding<Bool>,
-        onPinchChanged: @escaping (CGFloat) -> Void,
-        onPinchEnded: @escaping () -> Void
+        pinchCallbacks: PianoRollPinchCallbacks
     ) -> PianoRollTouchInputModifier {
         PianoRollTouchInputModifier(
             isEnabled: !isLive,
@@ -32,8 +36,8 @@ extension PianoRollView {
             onTap: handleTouchInputTap,
             onTwoFingerDragChanged: handleTouchInputDragChanged,
             onTwoFingerDragEnded: handleTouchInputDragEnded,
-            onPinchChanged: onPinchChanged,
-            onPinchEnded: onPinchEnded,
+            onPinchChanged: pinchCallbacks.onChanged,
+            onPinchEnded: pinchCallbacks.onEnded,
             shouldBeginIndirectPointerDragAt: shouldBeginIndirectPointerDrag,
             onIndirectPointerDragChanged: makeIndirectPointerDragChangedHandler(
                 isIndirectPointerDragActive: isIndirectPointerDragActive
@@ -229,8 +233,7 @@ extension PianoRollView {
         isTwoFingerZoomDragActive _: Binding<Bool>,
         isIndirectPointerDragActive _: Binding<Bool>,
         isThreeFingerZoomSwipeActive: Binding<Bool>,
-        onPinchChanged _: @escaping (CGFloat) -> Void,
-        onPinchEnded _: @escaping () -> Void
+        pinchCallbacks _: PianoRollPinchCallbacks
     ) -> PianoRollTouchInputModifier {
         PianoRollTouchInputModifier(
             isEnabled: !isLive,
@@ -295,8 +298,7 @@ extension PianoRollView {
         isTwoFingerZoomDragActive _: Binding<Bool>,
         isIndirectPointerDragActive _: Binding<Bool>,
         isThreeFingerZoomSwipeActive _: Binding<Bool>,
-        onPinchChanged _: @escaping (CGFloat) -> Void,
-        onPinchEnded _: @escaping () -> Void
+        pinchCallbacks _: PianoRollPinchCallbacks
     ) -> PianoRollTouchInputModifier {
         PianoRollTouchInputModifier(
             isEnabled: !isLive,

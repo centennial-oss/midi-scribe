@@ -82,3 +82,34 @@ extension PianoRollView {
         }
     }
 }
+
+extension PianoRollView {
+    /// Lime note bars on the roll when not under the playhead.
+    var noteBarIdleColor: Color {
+        // dark: 153, 255, 51,  light: 26, 128, 13
+        colorScheme == .dark ? Color(red: 0.6, green: 1.0, blue: 0.2) : Color(red: 0.1, green: 0.5, blue: 0.05)
+    }
+
+    /// Pink / fuchsia note bars while the playhead is over the note.
+    var noteBarPlayingColor: Color {
+        colorScheme == .dark ? Color(red: 1.0, green: 0.2, blue: 0.8) : Color(red: 0.9, green: 0.1, blue: 0.7)
+    }
+
+    var rollBackground: Color {
+        colorScheme == .dark ? Color.black : Color(white: 0.975)
+    }
+
+    /// Playhead line + scrub handle: orange in both modes.
+    var playheadChrome: Color {
+        Color.orange
+    }
+
+    /// Stroke around the clipped roll (`rollCornerRadius`).
+    var rollBorderColor: Color {
+        colorScheme == .dark ? Color.black : Color(red: 0.6, green: 0.6, blue: 0.6)
+    }
+
+    var dragZoomShouldHandleInput: Bool {
+        BuildInfo.isMac
+    }
+}
