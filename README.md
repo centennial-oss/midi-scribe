@@ -2,7 +2,7 @@
 
 A practice take auto-capture utility for MIDI-capable instruments supporting macOS, iPad and iOS.
 
-MIDI Scribe is [available in the App Store](https://apps.apple.com/us/app/midi-scribe/id6760952962), while macOS builds can be downloaded directly from [this project's releases](https://github.com/centennial-oss/midi-scribe/releases).
+MIDI Scribe is [available in the App Store](https://apps.apple.com/us/app/midi-scribe/id6760952962), while macOS builds also can be downloaded directly from [this project's releases](https://github.com/centennial-oss/midi-scribe/releases).
 
 ## About
 
