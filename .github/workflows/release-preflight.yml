@@ -38,7 +38,9 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
           MAC_APP_STORE_PROVISIONING_PROFILE_BASE64: ${{ secrets.MAC_APP_STORE_PROVISIONING_PROFILE_BASE64 }}
+          MAC_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64: ${{ secrets.MAC_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64 }}
           IOS_APP_STORE_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_APP_STORE_PROVISIONING_PROFILE_BASE64 }}
+          IOS_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64 }}
         run: |
           set -euo pipefail
           REQUIRED_VARS=(
@@ -53,7 +55,9 @@ jobs:
             APP_STORE_CONNECT_ISSUER_ID
             APP_STORE_CONNECT_API_KEY
             MAC_APP_STORE_PROVISIONING_PROFILE_BASE64
+            MAC_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64
             IOS_APP_STORE_PROVISIONING_PROFILE_BASE64
+            IOS_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64
           )
           for var in "${REQUIRED_VARS[@]}"; do
             if [ -z "${!var:-}" ]; then
@@ -189,6 +193,19 @@ jobs:
           echo "Installed provisioning profile: $UUID"
           echo "MAC_APP_STORE_PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
 
+      - name: Install Mac App Store extension provisioning profile
+        env:
+          MAC_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64: ${{ secrets.MAC_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          echo "$MAC_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64" | base64 --decode > /tmp/profile-extension.provisionprofile
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILE_DIR"
+          UUID=$(security cms -D -i /tmp/profile-extension.provisionprofile 2>/dev/null | plutil -extract UUID raw - 2>/dev/null || echo "mac-app-store-extension")
+          cp /tmp/profile-extension.provisionprofile "$PROFILE_DIR/${UUID}.provisionprofile"
+          echo "Installed extension provisioning profile: $UUID"
+          echo "MAC_APP_STORE_EXTENSION_PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
+
       - name: Install iOS App Store provisioning profile
         env:
           IOS_APP_STORE_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_APP_STORE_PROVISIONING_PROFILE_BASE64 }}
@@ -201,6 +218,19 @@ jobs:
           cp /tmp/ios-profile.mobileprovision "$PROFILE_DIR/${UUID}.mobileprovision"
           echo "Installed iOS provisioning profile: $UUID"
           echo "IOS_APP_STORE_PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
+
+      - name: Install iOS App Store extension provisioning profile
+        env:
+          IOS_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          echo "$IOS_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64" | base64 --decode > /tmp/ios-profile-extension.mobileprovision
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILE_DIR"
+          UUID=$(security cms -D -i /tmp/ios-profile-extension.mobileprovision 2>/dev/null | plutil -extract UUID raw - 2>/dev/null || echo "ios-app-store-extension")
+          cp /tmp/ios-profile-extension.mobileprovision "$PROFILE_DIR/${UUID}.mobileprovision"
+          echo "Installed iOS extension provisioning profile: $UUID"
+          echo "IOS_APP_STORE_EXTENSION_PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
 
       - name: Set synthetic version/build for preflight
         run: |
@@ -235,7 +265,6 @@ jobs:
             -destination 'generic/platform=macOS' \
             ARCHS="arm64 x86_64" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            PROVISIONING_PROFILE="$MAC_APP_STORE_PROFILE_UUID" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="$MAC_APP_STORE_SIGNING_CERTIFICATE"
 
@@ -251,6 +280,7 @@ jobs:
             -c "Add :installerSigningCertificate string 3rd Party Mac Developer Installer" \
             -c "Add :provisioningProfiles dict" \
             -c "Add :provisioningProfiles:org.centennialoss.midiscribe string $MAC_APP_STORE_PROFILE_UUID" \
+            -c "Add :provisioningProfiles:org.centennialoss.midiscribe.shareextension string $MAC_APP_STORE_EXTENSION_PROFILE_UUID" \
             -c "Add :teamID string $APPLE_TEAM_ID" \
             /tmp/ExportOptions-Mac-preflight.plist
           xcodebuild -exportArchive \
@@ -282,7 +312,6 @@ jobs:
             -archivePath "${{ env.IOS_ARCHIVE_PATH }}" \
             -destination 'generic/platform=iOS' \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            PROVISIONING_PROFILE="$IOS_APP_STORE_PROFILE_UUID" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="$IOS_APP_STORE_SIGNING_CERTIFICATE"
 
@@ -297,6 +326,7 @@ jobs:
             -c "Add :signingCertificate string $IOS_APP_STORE_SIGNING_CERTIFICATE" \
             -c "Add :provisioningProfiles dict" \
             -c "Add :provisioningProfiles:org.centennialoss.midiscribe string $IOS_APP_STORE_PROFILE_UUID" \
+            -c "Add :provisioningProfiles:org.centennialoss.midiscribe.shareextension string $IOS_APP_STORE_EXTENSION_PROFILE_UUID" \
             -c "Add :teamID string $APPLE_TEAM_ID" \
             /tmp/ExportOptions-iOS-preflight.plist
           xcodebuild -exportArchive \
