@@ -5,6 +5,10 @@
 
 import SwiftUI
 
+#if os(macOS)
+import AppKit
+#endif
+
 extension ContentView {
     func welcomeSheetContent(_ content: some View) -> some View {
         #if os(iOS)
@@ -91,20 +95,41 @@ struct WelcomeSheetFlow: View {
         #if os(iOS)
         if BuildInfo.isPhone {
             PhoneWelcomeSheet(kind: kind, panes: panes, selection: $selection, onClose: onClose)
+                .onKeyPress(.leftArrow) {
+                    goBack(panes: panes)
+                    return .handled
+                }
+                .onKeyPress(.rightArrow) {
+                    advance(panes: panes)
+                    return .handled
+                }
         } else {
             IPadMacWelcomeSheet(kind: kind, panes: panes, selection: $selection, onClose: onClose)
+                .onKeyPress(.leftArrow) {
+                    goBack(panes: panes)
+                    return .handled
+                }
+                .onKeyPress(.rightArrow) {
+                    advance(panes: panes)
+                    return .handled
+                }
         }
         #elseif os(macOS)
-        Group {
-            IPadMacWelcomeSheet(kind: kind, panes: panes, selection: $selection, onClose: onClose)
-        }
-        .onKeyPress(.escape) {
-            guard kind == .help || selection == panes.count - 1 else {
-                return .ignored
-            }
-            onClose()
-            return .handled
-        }
+        IPadMacWelcomeSheet(kind: kind, panes: panes, selection: $selection, onClose: onClose)
+            .background(
+                WelcomeSheetKeyHandler(
+                    onLeftArrow: {
+                        goBack(panes: panes)
+                    },
+                    onRightArrow: {
+                        advance(panes: panes)
+                    },
+                    onEscape: {
+                        guard kind == .help || selection == panes.count - 1 else { return }
+                        onClose()
+                    }
+                )
+            )
         #endif
     }
 
@@ -126,7 +151,92 @@ struct WelcomeSheetFlow: View {
             return macOSOnboardingPaneCollection
         }
     }
+
+    private func advance(panes: [OnboardingPane]) {
+        guard selection < panes.count - 1 else { return }
+        withAnimation(.easeInOut(duration: 0.22)) {
+            selection += 1
+        }
+    }
+
+    private func goBack(panes _: [OnboardingPane]) {
+        guard selection > 0 else { return }
+        withAnimation(.easeInOut(duration: 0.22)) {
+            selection -= 1
+        }
+    }
 }
+
+#if os(macOS)
+private struct WelcomeSheetKeyHandler: NSViewRepresentable {
+    let onLeftArrow: () -> Void
+    let onRightArrow: () -> Void
+    let onEscape: () -> Void
+
+    func makeNSView(context _: Context) -> WelcomeSheetKeyMonitorView {
+        let view = WelcomeSheetKeyMonitorView()
+        view.onLeftArrow = onLeftArrow
+        view.onRightArrow = onRightArrow
+        view.onEscape = onEscape
+        view.startMonitoring()
+        return view
+    }
+
+    func updateNSView(_ nsView: WelcomeSheetKeyMonitorView, context _: Context) {
+        nsView.onLeftArrow = onLeftArrow
+        nsView.onRightArrow = onRightArrow
+        nsView.onEscape = onEscape
+    }
+
+    static func dismantleNSView(_ nsView: WelcomeSheetKeyMonitorView, coordinator _: ()) {
+        nsView.stopMonitoring()
+    }
+}
+
+private final class WelcomeSheetKeyMonitorView: NSView {
+    var onLeftArrow: (() -> Void)?
+    var onRightArrow: (() -> Void)?
+    var onEscape: (() -> Void)?
+
+    private var monitor: Any?
+
+    func startMonitoring() {
+        guard monitor == nil else { return }
+
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            let blockedModifiers: NSEvent.ModifierFlags = [.command, .control, .option, .shift]
+            guard event.modifierFlags.isDisjoint(with: blockedModifiers) else {
+                return event
+            }
+
+            switch event.keyCode {
+            case 123:
+                self?.onLeftArrow?()
+                return nil
+            case 124:
+                self?.onRightArrow?()
+                return nil
+            case 53:
+                self?.onEscape?()
+                return nil
+            default:
+                return event
+            }
+        }
+    }
+
+    func stopMonitoring() {
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+            self.monitor = nil
+        }
+    }
+
+    deinit {
+        stopMonitoring()
+    }
+}
+#endif
 
 struct WelcomeSheetView: View {
     @Environment(\.dismiss) private var dismiss

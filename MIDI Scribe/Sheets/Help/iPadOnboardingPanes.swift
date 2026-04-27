@@ -133,7 +133,7 @@ let iPadOnboardingPaneCollection = OnboardingPaneCollection(
             title: "Bulk Edit",
             content: .screenshot(
                 OnboardingScreenshotContent(
-                    assetName: "OnboardingRegularBulkEdit",
+                    assetName: "Help/ScreenShots/iPad/OnboardingRegularBulkEdit",
                     originalSize: iPadScreenshotSize,
                     annotations: [
                         OnboardingAnnotation(
@@ -152,7 +152,7 @@ let iPadOnboardingPaneCollection = OnboardingPaneCollection(
             title: "Settings",
             content: .screenshot(
                 OnboardingScreenshotContent(
-                    assetName: "OnboardingRegularSettings",
+                    assetName: "Help/ScreenShots/iPad/OnboardingRegularSettings",
                     originalSize: iPadScreenshotSize,
                     annotations: [
                         OnboardingAnnotation(

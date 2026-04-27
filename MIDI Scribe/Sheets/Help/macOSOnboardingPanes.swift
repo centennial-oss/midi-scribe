@@ -5,7 +5,7 @@
 
 import SwiftUI
 
-private let macOSScreenshotSize = CGSize(width: 2732, height: 2048)
+private let macOSScreenshotSize = CGSize(width: 2000, height: 1504)
 
 let macOSOnboardingPaneCollection = OnboardingPaneCollection(
     device: .macOS,
@@ -17,154 +17,166 @@ let macOSOnboardingPaneCollection = OnboardingPaneCollection(
         ),
         OnboardingPane(
             id: 1,
-            title: "Live Capture",
-            content: .screenshot(
-                OnboardingScreenshotContent(
-                    assetName: "OnboardingRegularLiveTake",
-                    originalSize: macOSScreenshotSize,
-                    annotations: [
-                        OnboardingAnnotation(
-                            id: "mac-live-start",
-                            sourceX: 620,
-                            sourceY: 1740,
-                            label: "Start a Take here, from the Take menu, or with your configured shortcut.",
-                            caretPosition: .bottom
-                        ),
-                        OnboardingAnnotation(
-                            id: "mac-live-roll",
-                            sourceX: 1850,
-                            sourceY: 760,
-                            label: "The piano roll fills in live as MIDI arrives.",
-                            caretPosition: .top
-                        )
-                    ]
-                )
+            title: "Start a New Take",
+            content: screenshotContent(
+                assetName: "Help/ScreenShots/macOS/macOS-01-start",
+                annotations: [
+                    stubAnnotation(
+                        "mac-start-primary",
+                        810,
+                        670,
+                        "Scribe your first Take by playing your instrument or pressing the green button",
+                        .right
+                    )
+                ],
+                undimmedZones: [
+                    .roundedRect(centerX: 1265, centerY: 670, width: 400, height: 90, cornerRadius: 36)
+                ]
             )
         ),
         OnboardingPane(
             id: 2,
-            title: "Ending a Take",
-            content: .screenshot(
-                OnboardingScreenshotContent(
-                    assetName: "OnboardingRegularLiveTake",
-                    originalSize: macOSScreenshotSize,
-                    annotations: [
-                        OnboardingAnnotation(
-                            id: "mac-live-stop",
-                            sourceX: 1320,
-                            sourceY: 1780,
-                            label: "Stop ends and saves the Take. Trash cancels the recording.",
-                            caretPosition: .bottom
-                        )
-                    ]
-                )
+            title: "Take in Progress",
+            content: screenshotContent(
+                assetName: "Help/ScreenShots/macOS/macOS-02-capturing",
+                annotations: [
+                    stubAnnotation(
+                        "mac-capturing-roll",
+                        1120,
+                        710,
+                        "The Piano Roll will fill in while you play",
+                        .bottom
+                    ),
+                    stubAnnotation(
+                        "mac-capturing-stop",
+                        1680,
+                        240,
+                        "Takes auto-end after a configurable timeout. Manually end or discard an in-progress Take here",
+                        .top
+                    )
+                ],
+                undimmedZones: [
+                    .roundedRect(centerX: 1265, centerY: 900, width: 1370, height: 400, cornerRadius: 36),
+                    .roundedRect(centerX: 1690, centerY: 60, width: 155, height: 70, cornerRadius: 50)
+                ]
             )
         ),
         OnboardingPane(
             id: 3,
-            title: "Playback Controls",
-            content: .screenshot(
-                OnboardingScreenshotContent(
-                    assetName: "OnboardingRegularPlayback",
-                    originalSize: macOSScreenshotSize,
-                    annotations: [
-                        OnboardingAnnotation(
-                            id: "mac-playback-controls",
-                            sourceX: 1500,
-                            sourceY: 1760,
-                            label: "Playback controls let you rewind, play or pause, and restart.",
-                            caretPosition: .bottom
-                        ),
-                        OnboardingAnnotation(
-                            id: "mac-playback-playhead",
-                            sourceX: 1900,
-                            sourceY: 650,
-                            label: "Click the roll to move the playhead. Drag the handle to scrub.",
-                            caretPosition: .top
-                        )
-                    ]
-                )
+            title: "Completed Take",
+            content: screenshotContent(
+                assetName: "Help/ScreenShots/macOS/macOS-03-completed-zooming",
+                annotations: [
+                    stubAnnotation(
+                        "mac-completed-controls",
+                        325,
+                        200,
+                        "Playback starts at the Playhead position",
+                        .right
+                    ),
+                    stubAnnotation(
+                        "mac-completed-zoom",
+                        1620,
+                        430,
+                        "Click and drag on the\nPiano Roll to zoom to the selected area",
+                        .left
+                    )
+                ],
+                undimmedZones: [
+                    .roundedRect(centerX: 1265, centerY: 825, width: 1370, height: 1290, cornerRadius: 18)
+                ]
             )
         ),
         OnboardingPane(
             id: 4,
-            title: "Zooming the Piano Roll",
-            content: .screenshot(
-                OnboardingScreenshotContent(
-                    assetName: "OnboardingRegularPlayback",
-                    originalSize: macOSScreenshotSize,
-                    annotations: [
-                        OnboardingAnnotation(
-                            id: "mac-playback-zoom",
-                            sourceX: 2100,
-                            sourceY: 820,
-                            label: "Drag across the piano roll to zoom into a selected region.",
-                            caretPosition: .right
-                        )
-                    ]
-                )
+            title: "Completed Take",
+            content: screenshotContent(
+                assetName: "Help/ScreenShots/macOS/macOS-04-drag-star",
+                annotations: [
+                    stubAnnotation(
+                        "mac-drag-selection",
+                        1080,
+                        210,
+                        "Click and Drag the Playhead handle to adjust the playback position",
+                        .right
+                    ),
+                    stubAnnotation("mac-drag-actions", 1795, 200, "Star notable Takes\nto keep long-term", .top)
+                ],
+                undimmedZones: [
+                    .roundedRect(centerX: 1375, centerY: 825, width: 200, height: 1290, cornerRadius: 36),
+                    .roundedRect(centerX: 1797, centerY: 60, width: 70, height: 70, cornerRadius: 50),
+                    .roundedRect(centerX: 205, centerY: 600, width: 370, height: 180, cornerRadius: 24)
+                ]
             )
         ),
         OnboardingPane(
             id: 5,
-            title: "Take Actions",
-            content: .screenshot(
-                OnboardingScreenshotContent(
-                    assetName: "OnboardingRegularEditing",
-                    originalSize: macOSScreenshotSize,
-                    annotations: [
-                        OnboardingAnnotation(
-                            id: "mac-edit-actions",
-                            sourceX: 480,
-                            sourceY: 620,
-                            label: "Per-Take actions include rename, split at the playhead, star, and export.",
-                            caretPosition: .left
-                        )
-                    ]
-                )
+            title: "Bulk Editing",
+            content: screenshotContent(
+                assetName: "Help/ScreenShots/macOS/macOS-05-bulk",
+                annotations: [
+                    stubAnnotation(
+                        "mac-bulk-edit",
+                        465,
+                        415,
+                        "Use multi-select to operate on several Takes at once",
+                        .bottom
+                    )
+                ],
+                undimmedZones: [
+                    .roundedRect(centerX: 270, centerY: 775, width: 500, height: 540, cornerRadius: 24)
+                ]
             )
         ),
         OnboardingPane(
             id: 6,
-            title: "Bulk Edit",
-            content: .screenshot(
-                OnboardingScreenshotContent(
-                    assetName: "OnboardingRegularBulkEdit",
-                    originalSize: macOSScreenshotSize,
-                    annotations: [
-                        OnboardingAnnotation(
-                            id: "mac-bulk-actions",
-                            sourceX: 560,
-                            sourceY: 1640,
-                            label: "Select multiple Takes to star, delete, or merge them together.",
-                            caretPosition: .bottom
-                        )
-                    ]
-                )
+            title: "Settings",
+            content: screenshotContent(
+                assetName: "Help/ScreenShots/macOS/macOS-06-settings",
+                annotations: [
+                    stubAnnotation("mac-settings-midi", 1660, 365, "Customize when to\nauto-end live Takes", .left),
+                    stubAnnotation("mac-settings-pedal-start", 302, 695, "Use pedals to manually start and end Takes", .right),
+                    stubAnnotation("mac-settings-samples", 1709, 905, "Load sample Takes to try out \(AppIdentifier.name) features", .left)
+                ],
+                undimmedZones: [
+                    .roundedRect(centerX: 1000, centerY: 752, width: 940, height: 1240, cornerRadius: 50)
+                ]
             )
         ),
         OnboardingPane(
             id: 7,
-            title: "Settings",
-            content: .screenshot(
-                OnboardingScreenshotContent(
-                    assetName: "OnboardingRegularSettings",
-                    originalSize: macOSScreenshotSize,
-                    annotations: [
-                        OnboardingAnnotation(
-                            id: "mac-settings",
-                            sourceX: 2060,
-                            sourceY: 420,
-                            label: "Use Settings to tune recording triggers and \(AppIdentifier.name) behavior.",
-                            caretPosition: .top
-                        )
-                    ]
-                )
-            )
-        ),
-        OnboardingPane(
-            id: 8,
             content: .message(.happyScribing)
         )
     ]
 )
+
+private func screenshotContent(
+    assetName: String,
+    annotations: [OnboardingAnnotation],
+    undimmedZones: [OnboardingUndimmedZone] = []
+) -> OnboardingPaneContent {
+    .screenshot(
+        OnboardingScreenshotContent(
+            assetName: assetName,
+            originalSize: macOSScreenshotSize,
+            annotations: annotations,
+            undimmedZones: undimmedZones
+        )
+    )
+}
+
+private func stubAnnotation(
+    _ id: String,
+    _ sourceX: CGFloat,
+    _ sourceY: CGFloat,
+    _ label: String,
+    _ caret: OnboardingCaretPosition
+) -> OnboardingAnnotation {
+    OnboardingAnnotation(
+        id: id,
+        sourceX: sourceX,
+        sourceY: sourceY,
+        label: label,
+        caretPosition: caret
+    )
+}

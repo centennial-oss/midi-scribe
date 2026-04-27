@@ -20,7 +20,7 @@ let iPhoneOnboardingPaneCollection = OnboardingPaneCollection(
             title: "Live Capture",
             content: .screenshot(
                 OnboardingScreenshotContent(
-                    assetName: "OnboardingPhoneLiveTake",
+                    assetName: "Help/ScreenShots/iPhone/OnboardingPhoneLiveTake",
                     originalSize: iPhoneScreenshotSize,
                     annotations: [
                         OnboardingAnnotation(
@@ -46,7 +46,7 @@ let iPhoneOnboardingPaneCollection = OnboardingPaneCollection(
             title: "Ending a Take",
             content: .screenshot(
                 OnboardingScreenshotContent(
-                    assetName: "OnboardingPhoneLiveTake",
+                    assetName: "Help/ScreenShots/iPhone/OnboardingPhoneLiveTake",
                     originalSize: iPhoneScreenshotSize,
                     annotations: [
                         OnboardingAnnotation(
@@ -65,7 +65,7 @@ let iPhoneOnboardingPaneCollection = OnboardingPaneCollection(
             title: "Playback Controls",
             content: .screenshot(
                 OnboardingScreenshotContent(
-                    assetName: "OnboardingPhonePlayback",
+                    assetName: "Help/ScreenShots/iPhone/OnboardingPhonePlayback",
                     originalSize: iPhoneScreenshotSize,
                     annotations: [
                         OnboardingAnnotation(
@@ -91,7 +91,7 @@ let iPhoneOnboardingPaneCollection = OnboardingPaneCollection(
             title: "Zooming the Piano Roll",
             content: .screenshot(
                 OnboardingScreenshotContent(
-                    assetName: "OnboardingPhonePlayback",
+                    assetName: "Help/ScreenShots/iPhone/OnboardingPhonePlayback",
                     originalSize: iPhoneScreenshotSize,
                     annotations: [
                         OnboardingAnnotation(
@@ -110,7 +110,7 @@ let iPhoneOnboardingPaneCollection = OnboardingPaneCollection(
             title: "Take Actions",
             content: .screenshot(
                 OnboardingScreenshotContent(
-                    assetName: "OnboardingPhoneEditing",
+                    assetName: "Help/ScreenShots/iPhone/OnboardingPhoneEditing",
                     originalSize: iPhoneScreenshotSize,
                     annotations: [
                         OnboardingAnnotation(
@@ -129,7 +129,7 @@ let iPhoneOnboardingPaneCollection = OnboardingPaneCollection(
             title: "Bulk Edit",
             content: .screenshot(
                 OnboardingScreenshotContent(
-                    assetName: "OnboardingPhoneBulkEdit",
+                    assetName: "Help/ScreenShots/iPhone/OnboardingPhoneBulkEdit",
                     originalSize: iPhoneScreenshotSize,
                     annotations: [
                         OnboardingAnnotation(
@@ -151,7 +151,7 @@ let iPhoneOnboardingPaneCollection = OnboardingPaneCollection(
             title: "Settings",
             content: .screenshot(
                 OnboardingScreenshotContent(
-                    assetName: "OnboardingPhoneSettings",
+                    assetName: "Help/ScreenShots/iPhone/OnboardingPhoneSettings",
                     originalSize: iPhoneScreenshotSize,
                     annotations: [
                         OnboardingAnnotation(
