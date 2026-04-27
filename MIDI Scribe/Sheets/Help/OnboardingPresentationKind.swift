@@ -10,12 +10,7 @@ enum OnboardingPresentationKind {
     case help
 
     var title: String {
-        switch self {
-        case .welcome:
-            return "Welcome to \(AppIdentifier.name)"
-        case .help:
-            return "\(AppIdentifier.name) Help"
-        }
+        "\(AppIdentifier.name) Tour"
     }
 
     var subtitle: String {

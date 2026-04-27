@@ -170,9 +170,10 @@ private struct OnboardingScreenshotPaneView: View {
                 ForEach(content.annotations) { annotation in
                     OnboardingTooltipView(
                         label: annotation.label,
-                        caretPosition: annotation.caretPosition
+                        caretPosition: annotation.caretPosition,
+                        avoidsLineWrapping: annotation.avoidsLineWrapping
                     )
-                    .frame(maxWidth: tooltipWidth(for: containerSize))
+                    .frame(maxWidth: annotation.avoidsLineWrapping ? nil : tooltipWidth(for: containerSize))
                     .position(
                         annotationPosition(
                             annotation,
@@ -187,8 +188,8 @@ private struct OnboardingScreenshotPaneView: View {
             .overlay {
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .strokeBorder(
-                        Color.accentColor,
-                        style: StrokeStyle(lineWidth: 2, dash: [2, 2])
+                        Color.secondary,
+                        style: StrokeStyle(lineWidth: 1, dash: [2, 2])
                     )
             }
         }
@@ -359,16 +360,19 @@ private struct OnboardingTooltipView: View {
 
     let label: String
     let caretPosition: OnboardingCaretPosition
+    let avoidsLineWrapping: Bool
 
     var body: some View {
         Text(label)
             .font(.callout.weight(.semibold))
             .foregroundStyle(.primary)
             .multilineTextAlignment(.leading)
-            .lineLimit(4)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, horizontalPadding)
-            .padding(.vertical, verticalPadding)
+            .lineLimit(avoidsLineWrapping ? 1 : 4)
+            .fixedSize(horizontal: avoidsLineWrapping, vertical: true)
+            .padding(.leading, leadingPadding)
+            .padding(.trailing, trailingPadding)
+            .padding(.top, topPadding)
+            .padding(.bottom, bottomPadding)
             .background {
                 OnboardingTooltipShape(caretPosition: caretPosition)
                     .fill(tooltipFill)
@@ -380,19 +384,61 @@ private struct OnboardingTooltipView: View {
             }
     }
 
-    private var horizontalPadding: CGFloat {
+    private let caretDepth: CGFloat = 10
+
+    private var leadingPadding: CGFloat {
+        switch caretPosition {
+        case .left:
+            return horizontalBubblePadding + caretDepth
+        case .right, .top, .bottom, .none:
+            return 14
+        }
+    }
+
+    private var trailingPadding: CGFloat {
+        switch caretPosition {
+        case .right:
+            return horizontalBubblePadding + caretDepth
+        case .left, .top, .bottom, .none:
+            return 14
+        }
+    }
+
+    private var topPadding: CGFloat {
+        switch caretPosition {
+        case .top:
+            return verticalBubblePadding + caretDepth
+        case .bottom:
+            return verticalBubblePadding
+        case .left, .right, .none:
+            return 12
+        }
+    }
+
+    private var bottomPadding: CGFloat {
+        switch caretPosition {
+        case .bottom:
+            return verticalBubblePadding + caretDepth
+        case .top:
+            return verticalBubblePadding
+        case .left, .right, .none:
+            return 12
+        }
+    }
+
+    private var horizontalBubblePadding: CGFloat {
         switch caretPosition {
         case .left, .right:
-            return 18
+            return 13
         case .top, .bottom, .none:
             return 14
         }
     }
 
-    private var verticalPadding: CGFloat {
+    private var verticalBubblePadding: CGFloat {
         switch caretPosition {
         case .top, .bottom:
-            return 18
+            return 13
         case .left, .right, .none:
             return 12
         }

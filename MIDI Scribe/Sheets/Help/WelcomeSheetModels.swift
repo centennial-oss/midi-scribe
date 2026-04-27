@@ -101,4 +101,21 @@ struct OnboardingAnnotation: Identifiable, Hashable {
     let sourceY: CGFloat
     let label: String
     let caretPosition: OnboardingCaretPosition
+    let avoidsLineWrapping: Bool
+
+    init(
+        id: String,
+        sourceX: CGFloat,
+        sourceY: CGFloat,
+        label: String,
+        caretPosition: OnboardingCaretPosition,
+        avoidsLineWrapping: Bool = false
+    ) {
+        self.id = id
+        self.sourceX = sourceX
+        self.sourceY = sourceY
+        self.label = label
+        self.caretPosition = caretPosition
+        self.avoidsLineWrapping = avoidsLineWrapping
+    }
 }
