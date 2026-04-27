@@ -56,6 +56,10 @@ Humans write this software with AI assistance. All contributions are well-tested
 
 While we welcome pull requests and other contributions from other humans, including AI-generated code, we do not accept contributions from AI bots. A human must review, understand, and sign off on all commits. Please file an issue to discuss any proposed feature before working on it.
 
+## Acknowledgements
+
+We gratefully make use of the [GeneralUser GS](https://github.com/mrbumpy409/GeneralUser-GS/) v2.0.3 sound bank, which was created and has been maintained by the amazing [S. Christian Collins](https://www.schristiancollins.com/) for over 30 years. Without Chris's lifelong dedication to curating free synthesizer sounds for anyone who needs them, MIDI Scribe would not be able to produce realistic instrument sounds on iPhone and iPad. Please [buy Chris a coffee](https://buymeacoffee.com/schristiancollins).
+
 ## Trademark Notice
 
 MIDI Scribe and its logo are trademarks of Centennial OSS Inc.
