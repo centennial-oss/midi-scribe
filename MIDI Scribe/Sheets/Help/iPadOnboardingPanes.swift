@@ -57,7 +57,8 @@ let iPadOnboardingPaneCollection = OnboardingPaneCollection(
                     stubAnnotation(
                         1680,
                         240,
-                        "Takes auto-end after a\nconfigurable timeout.\nManually end or discard\nan in-progress Take here",
+                        "Takes auto-end after a\nconfigurable timeout.\n" +
+                            "Manually end or discard\nan in-progress Take here",
                         .top
                     )
                 ],
