@@ -9,8 +9,8 @@ jobs:
     runs-on: macos-26
     env:
       APP_NAME: MIDI Scribe
-      SCHEME_NAME: MIDIScribe
-      PROJECT_PATH: MIDIScribe.xcodeproj
+      SCHEME_NAME: MIDI Scribe
+      PROJECT_PATH: MIDI Scribe.xcodeproj
       MAC_ARCHIVE_PATH: "${{ github.workspace }}/build/MIDI Scribe-macOS-preflight.xcarchive"
       MAC_EXPORT_PATH: "${{ github.workspace }}/build/MacAppStoreExport-preflight"
       IOS_ARCHIVE_PATH: "${{ github.workspace }}/build/MIDI Scribe-iOS-preflight.xcarchive"
