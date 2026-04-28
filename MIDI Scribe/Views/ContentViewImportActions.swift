@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 extension ContentView {
     func importPendingSharedFilesIfAny() {
+#if os(iOS)
         guard canAttemptAutomaticSharedImport else {
 #if DEBUG
             NSLog(
@@ -40,6 +41,7 @@ extension ContentView {
         NSLog("[Import] Found pending shared file on launch/foreground: %@", nextFile.path)
 #endif
         importSharedMIDIFileIfPossible(from: nextFile)
+#endif
     }
 
     func beginMIDIImportPresentation() {
@@ -162,6 +164,7 @@ extension ContentView {
     }
 
     func handleSharedImportDeepLink(_ url: URL) -> Bool {
+#if os(iOS)
         guard url.scheme?.lowercased() == SharedImportConfig.deepLinkScheme,
               url.host?.lowercased() == SharedImportConfig.deepLinkHost,
               let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
@@ -201,9 +204,13 @@ extension ContentView {
 
         importSharedMIDIFileIfPossible(from: fileURL)
         return true
+#else
+        return false
+#endif
     }
 
     func isSharedImportFile(_ url: URL) -> Bool {
+#if os(iOS)
         guard let containerURL = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: SharedImportConfig.appGroupID
         ) else {
@@ -217,6 +224,9 @@ extension ContentView {
         let standardizedIncoming = incomingDirectory.standardizedFileURL.path
         let standardizedURL = url.standardizedFileURL.path
         return standardizedURL.hasPrefix(standardizedIncoming + "/")
+#else
+        return false
+#endif
     }
 
     var canAttemptAutomaticSharedImport: Bool {

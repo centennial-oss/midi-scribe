@@ -11,13 +11,9 @@ extension ContentView {
     func iPhoneSidebarToggleToolbar() -> some ToolbarContent {
         if BuildInfo.isPhone {
             ToolbarItem(placement: .topBarLeading) {
-                Button {
+                toolbarIconButton("Show Takes Sidebar", systemImage: "sidebar.left", disabled: false) {
                     isSidebarPresented = true
-                } label: {
-                    Image(systemName: "sidebar.left")
                 }
-                .accessibilityLabel("Show Takes Sidebar")
-                .help("Show Takes Sidebar")
             }
         }
     }
@@ -25,43 +21,32 @@ extension ContentView {
     @ToolbarContentBuilder
     func iOSImportToolbar() -> some ToolbarContent {
         ToolbarItemGroup(placement: .topBarTrailing) {
-            Button {
+            toolbarIconButton(
+                "Import MIDI File",
+                systemImage: "square.and.arrow.down",
+                disabled: viewModel.isTakeActionInProgress
+            ) {
                 beginMIDIImportPresentation()
-            } label: {
-                Image(systemName: "square.and.arrow.down")
             }
-            .accessibilityLabel("Import MIDI File")
-            .help("Import MIDI File")
-            .disabled(viewModel.isTakeActionInProgress)
         }
     }
 
     @ToolbarContentBuilder
     func iOSAppActionsToolbar() -> some ToolbarContent {
         ToolbarItemGroup(placement: .topBarTrailing) {
-            Button {
+            toolbarIconButton("Preferences", systemImage: "gearshape", disabled: false) {
                 beginSettingsPresentation()
-            } label: {
-                Image(systemName: "gearshape")
             }
-            .accessibilityLabel("Preferences")
 
             if shouldShowAboutToolbarButton {
-                Button {
+                toolbarIconButton("About", systemImage: "info.circle", disabled: false) {
                     beginAboutPresentation()
-                } label: {
-                    Image(systemName: "info.circle")
                 }
-                .accessibilityLabel("About")
             }
 
-            Button {
+            toolbarIconButton("Help", systemImage: "questionmark.circle", disabled: false) {
                 beginHelpPresentation()
-            } label: {
-                Image(systemName: "questionmark.circle")
             }
-            .help("Help")
-            .accessibilityLabel("Help")
         }
     }
 

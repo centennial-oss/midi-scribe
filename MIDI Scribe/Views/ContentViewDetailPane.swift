@@ -198,21 +198,13 @@ extension ContentView {
     private func currentTakeActionsToolbar() -> some ToolbarContent {
         ToolbarItemGroup(placement: currentTakeToolbarPlacement) {
             if viewModel.isTakeInProgress {
-                Button {
+                toolbarIconButton("End Take", systemImage: "stop.fill", disabled: false) {
                     viewModel.endTake()
-                } label: {
-                    Image(systemName: "stop.fill")
                 }
-                .help("End Take")
-                .accessibilityLabel("End Take")
 
-                Button(role: .destructive) {
+                toolbarIconButton("Cancel Take", systemImage: "trash", disabled: false, role: .destructive) {
                     beginLiveTakeDelete()
-                } label: {
-                    Image(systemName: "trash")
                 }
-                .help("Cancel Take")
-                .accessibilityLabel("Cancel Take")
             }
             #if os(macOS)
             Button {

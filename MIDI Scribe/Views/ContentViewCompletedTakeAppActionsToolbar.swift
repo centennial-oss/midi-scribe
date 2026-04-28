@@ -12,27 +12,22 @@ extension ContentView {
         if BuildInfo.isPhone {
             ToolbarItem(placement: completedTakeToolbarPlacement) {
                 Menu {
-                    Button {
+                    toolbarIconButton("Settings", systemImage: "gearshape", disabled: false, showTextLabel: true) {
                         beginSettingsPresentation()
-                    } label: {
-                        Label("Settings", systemImage: "gearshape")
                     }
 
                     if shouldShowAboutToolbarButton {
-                        Button {
+                        toolbarIconButton("About", systemImage: "info.circle", disabled: false, showTextLabel: true) {
                             beginAboutPresentation()
-                        } label: {
-                            Label("About", systemImage: "info.circle")
                         }
                     }
 
-                    Button {
+                    toolbarIconButton("Help", systemImage: "questionmark.circle", disabled: false, showTextLabel: true) {
                         beginHelpPresentation()
-                    } label: {
-                        Label("Help", systemImage: "questionmark.circle")
                     }
                 } label: {
                     Image(systemName: "ellipsis")
+                        .foregroundStyle(Color.primary)
                         .frame(width: 32, height: 32)
                         .contentShape(Circle())
                 }

@@ -2,7 +2,9 @@ import Foundation
 import SwiftData
 
 extension TakePersistenceService {
+#if os(iOS)
     private static let sharedImportAppGroupID = "group.org.centennialoss.midiscribe"
+#endif
     private static let sharedImportDirectoryName = "SharedIncoming"
 
     struct ImportedTakeResult: Sendable, Equatable {
@@ -58,6 +60,7 @@ extension TakePersistenceService {
     }
 
     private static func isSharedImportFile(_ url: URL) -> Bool {
+#if os(iOS)
         guard let containerURL = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: sharedImportAppGroupID
         ) else {
@@ -71,5 +74,8 @@ extension TakePersistenceService {
         let standardizedIncoming = incomingDirectory.standardizedFileURL.path
         let standardizedURL = url.standardizedFileURL.path
         return standardizedURL.hasPrefix(standardizedIncoming + "/")
+#else
+        return false
+#endif
     }
 }

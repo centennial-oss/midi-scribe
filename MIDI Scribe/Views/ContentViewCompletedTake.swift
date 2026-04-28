@@ -113,12 +113,8 @@ extension ContentView {
     private func completedTakeZoomToolbar() -> some ToolbarContent {
         ToolbarItem(placement: completedTakeToolbarPlacement) {
             if BuildInfo.isPad {
-                Button {
+                toolbarIconButton("Zoom", systemImage: "plus.magnifyingglass", disabled: false) {
                     isPresentingZoomPopover.toggle()
-                } label: {
-                    Image(systemName: "plus.magnifyingglass")
-                        .frame(width: 32, height: 32)
-                        .contentShape(Circle())
                 }
                 .popover(isPresented: $isPresentingZoomPopover) {
                     completedTakeZoomSliderRow()
@@ -222,25 +218,6 @@ extension ContentView {
         ) {
             beginDeleteTake(id: takeID)
         }
-    }
-
-    private func toolbarIconButton(
-        _ label: String,
-        systemImage: String,
-        disabled: Bool,
-        role: ButtonRole? = nil,
-        foregroundStyle: Color? = nil,
-        opacity: Double = 1,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(role: role, action: action) {
-            Image(systemName: systemImage)
-                .foregroundStyle(foregroundStyle ?? (disabled ? Color.secondary : Color.primary))
-                .opacity(opacity)
-        }
-        .disabled(disabled)
-        .help(label)
-        .accessibilityLabel(label)
     }
 
     @ViewBuilder

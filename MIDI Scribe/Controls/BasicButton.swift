@@ -64,13 +64,10 @@ struct BasicButton: View {
         if let foregroundColor = context.foregroundColor {
             return foregroundColor
         }
-        if context.backgroundColor != nil {
-            return .primary
-        }
 #if os(macOS)
-    return Color(nsColor: .windowBackgroundColor)
+        return Color(nsColor: .windowBackgroundColor)
 #else
-    return Color(uiColor: .systemBackground)
+        return Color(uiColor: .systemBackground)
 #endif
     }
 
@@ -97,14 +94,7 @@ struct BasicButton: View {
                     .tint(backgroundColor)
                     .controlSize(context.size)
             } else {
-                button
-                    .padding(8)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(.white.opacity(0.3), lineWidth: 1)
-                    )
-                    .tint(backgroundColor).controlSize(context.size)
+                legacyButton(button, backgroundColor: backgroundColor)
             }
         } else if isDestructive {
             if #available(iOS 26.0, macOS 26.0, *) {
@@ -113,15 +103,7 @@ struct BasicButton: View {
                     .tint(.red)
                     .controlSize(context.size)
             } else {
-                button
-                    .padding(8)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(.white.opacity(0.3), lineWidth: 1)
-                    )
-                    .tint(.red)
-                    .controlSize(context.size)
+                legacyButton(button, backgroundColor: .red)
             }
         } else {
             if #available(iOS 26.0, macOS 26.0, *) {
@@ -129,15 +111,26 @@ struct BasicButton: View {
                     .buttonStyle(.glassProminent)
                     .controlSize(context.size)
             } else {
-                button
-                    .padding(8)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(.white.opacity(0.3), lineWidth: 1)
-                    )
-                    .controlSize(context.size)
+                legacyButton(button, backgroundColor: nil)
             }
+        }
+    }
+
+    private func legacyButton<Content: View>(_ button: Content, backgroundColor: Color?) -> some View {
+        button
+            .padding(8)
+            .background(legacyBackground(backgroundColor: backgroundColor))
+            .controlSize(context.size)
+    }
+
+    @ViewBuilder
+    private func legacyBackground(backgroundColor: Color?) -> some View {
+        if let backgroundColor {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(backgroundColor)
+        } else {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.accentColor)
         }
     }
 
