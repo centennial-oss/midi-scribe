@@ -1,12 +1,7 @@
+#if os(iOS)
 import UniformTypeIdentifiers
-
-#if os(macOS)
-import AppKit
-typealias ShareBaseViewController = NSViewController
-#else
 import UIKit
 typealias ShareBaseViewController = UIViewController
-#endif
 
 private enum SharedImportConfig {
     static let appGroupID = "group.org.centennialoss.midiscribe"
@@ -18,17 +13,6 @@ private enum SharedImportConfig {
 
 final class ShareViewController: ShareBaseViewController {
     private var hasStartedImport = false
-
-#if os(macOS)
-    private let statusLabel = NSTextField(labelWithString: "Sending to MIDI Scribe…")
-    private let indicator = NSProgressIndicator()
-    private let checkLabel = NSTextField(labelWithString: "✓")
-    private lazy var dismissButton: NSButton = {
-        let button = NSButton(title: "OK", target: self, action: #selector(dismissExtensionSheet))
-        button.isHidden = true
-        return button
-    }()
-#else
     private let statusLabel = UILabel()
     private let indicator = UIActivityIndicatorView(style: .medium)
     private let checkLabel = UILabel()
@@ -39,44 +23,7 @@ final class ShareViewController: ShareBaseViewController {
         button.addTarget(self, action: #selector(dismissExtensionSheet), for: .touchUpInside)
         return button
     }()
-#endif
 
-#if os(macOS)
-    override func loadView() {
-        statusLabel.alignment = .center
-        statusLabel.lineBreakMode = .byWordWrapping
-        statusLabel.maximumNumberOfLines = 3
-        indicator.style = .spinning
-        indicator.startAnimation(nil)
-
-        checkLabel.font = .systemFont(ofSize: 40, weight: .bold)
-        checkLabel.textColor = .systemGreen
-        checkLabel.isHidden = true
-
-        let stack = NSStackView(views: [indicator, checkLabel, statusLabel, dismissButton])
-        stack.orientation = .vertical
-        stack.alignment = .centerX
-        stack.spacing = 20
-        stack.translatesAutoresizingMaskIntoConstraints = false
-
-        let view = NSView()
-        view.addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            stack.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 24),
-            stack.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -24)
-        ])
-        self.view = view
-    }
-
-    override func viewDidAppear() {
-        super.viewDidAppear()
-        guard !hasStartedImport else { return }
-        hasStartedImport = true
-        handleIncomingItems()
-    }
-#else
     override func loadView() {
         indicator.startAnimating()
         indicator.translatesAutoresizingMaskIntoConstraints = false
@@ -116,7 +63,6 @@ final class ShareViewController: ShareBaseViewController {
         hasStartedImport = true
         handleIncomingItems()
     }
-#endif
 
     private func handleIncomingItems() {
 #if DEBUG
@@ -265,15 +211,6 @@ final class ShareViewController: ShareBaseViewController {
     }
 
     private func showCompletionState(message: String, isSuccess: Bool) {
-#if os(macOS)
-        DispatchQueue.main.async {
-            self.indicator.stopAnimation(nil)
-            self.indicator.isHidden = true
-            self.checkLabel.isHidden = !isSuccess
-            self.statusLabel.stringValue = message
-            self.dismissButton.isHidden = false
-        }
-#else
         DispatchQueue.main.async {
             self.indicator.stopAnimating()
             self.indicator.isHidden = true
@@ -281,7 +218,6 @@ final class ShareViewController: ShareBaseViewController {
             self.statusLabel.text = message
             self.dismissButton.isHidden = false
         }
-#endif
     }
 
     @objc
@@ -289,3 +225,4 @@ final class ShareViewController: ShareBaseViewController {
         extensionContext?.completeRequest(returningItems: nil)
     }
 }
+#endif

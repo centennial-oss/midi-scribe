@@ -22,7 +22,8 @@ extension ContentView {
                         }
                     }
 
-                    toolbarIconButton("Help", systemImage: "questionmark.circle", disabled: false, showTextLabel: true) {
+                    toolbarIconButton("Help", systemImage: "questionmark.circle", disabled: false,
+                        showTextLabel: true) {
                         beginHelpPresentation()
                     }
                 } label: {

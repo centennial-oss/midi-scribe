@@ -17,37 +17,18 @@ extension ContentView {
         action: @escaping () -> Void
     ) -> some View {
         Button(role: role, action: action) {
-            toolbarIconButtonLabel(
-                label,
-                systemImage: systemImage,
-                disabled: disabled,
-                foregroundStyle: foregroundStyle,
-                opacity: opacity,
-                showTextLabel: showTextLabel
-            )
+            if showTextLabel {
+                Label(label, systemImage: systemImage)
+                    .foregroundStyle(foregroundStyle ?? (disabled ? Color.secondary : Color.primary))
+                    .opacity(opacity)
+            } else {
+                Image(systemName: systemImage)
+                    .foregroundStyle(foregroundStyle ?? (disabled ? Color.secondary : Color.primary))
+                    .opacity(opacity)
+            }
         }
         .disabled(disabled)
         .help(label)
         .accessibilityLabel(label)
-    }
-
-    @ViewBuilder
-    private func toolbarIconButtonLabel(
-        _ label: String,
-        systemImage: String,
-        disabled: Bool,
-        foregroundStyle: Color?,
-        opacity: Double,
-        showTextLabel: Bool
-    ) -> some View {
-        if showTextLabel {
-            Label(label, systemImage: systemImage)
-                .foregroundStyle(foregroundStyle ?? (disabled ? Color.secondary : Color.primary))
-                .opacity(opacity)
-        } else {
-            Image(systemName: systemImage)
-                .foregroundStyle(foregroundStyle ?? (disabled ? Color.secondary : Color.primary))
-                .opacity(opacity)
-        }
     }
 }
