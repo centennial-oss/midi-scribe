@@ -1,8 +1,8 @@
-# <img src="assets/app-icon.png" alt="MIDI Scribe" height="48" /> MIDI Scribe [<img align="right" src="assets/download-app-store.svg" />](https://apps.apple.com/us/app/midi-scribe/id6760952962)
+# <img src="assets/app-icon.png" alt="MIDI Scribe" height="48" /> MIDI Scribe™ [<img align="right" src="assets/download-app-store.svg" />](https://apps.apple.com/us/app/midi-scribe/id6760952962)
 
 A practice take auto-capture utility for MIDI-capable instruments supporting macOS, iPad and iPhone.
 
-MIDI Scribe is [available in the App Store](https://apps.apple.com/us/app/midi-scribe/id6760952962), while macOS builds also can be downloaded directly from [this project's releases](https://github.com/centennial-oss/midi-scribe/releases).
+MIDI Scribe is [available in the App Store](https://apps.apple.com/us/app/midi-scribe/id6760952962), while macOS builds can also be downloaded directly from [this project's releases](https://github.com/centennial-oss/midi-scribe/releases).
 
 ## About
 
