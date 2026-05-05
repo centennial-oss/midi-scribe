@@ -45,7 +45,11 @@ enum OnboardingMessageKind: Hashable {
     var body: String? {
         switch self {
         case .welcome:
+#if os(macOS)
+            return "Click Next to start a quick tour"
+#else
             return "Swipe left to start a quick tour"
+#endif
         case .happyScribing:
             return nil
         }

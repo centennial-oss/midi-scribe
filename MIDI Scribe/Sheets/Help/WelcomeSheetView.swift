@@ -17,21 +17,29 @@ extension ContentView {
                 IPadWelcomePresentationModifier(
                     isPresentingWelcomeSheet: $isPresentingWelcomeSheet,
                     onDismiss: {
+                        appState.setWelcomeTourPresented(false)
                         settings.markWelcomeSheetShown()
                     }
                 )
             )
+            .onChange(of: isPresentingWelcomeSheet) { _, isPresented in
+                appState.setWelcomeTourPresented(isPresented)
+            }
         #else
         content
             .sheet(
                 isPresented: $isPresentingWelcomeSheet,
                 onDismiss: {
+                    appState.setWelcomeTourPresented(false)
                     settings.markWelcomeSheetShown()
                 },
                 content: {
                     WelcomeSheetView()
                 }
             )
+            .onChange(of: isPresentingWelcomeSheet) { _, isPresented in
+                appState.setWelcomeTourPresented(isPresented)
+            }
         #endif
     }
 
@@ -48,6 +56,7 @@ extension ContentView {
                 guard !settings.hasWelcomeSheetShownValue,
                       storedRecentTakes.isEmpty else { return }
                 isPresentingWelcomeSheet = true
+                appState.setWelcomeTourPresented(true)
             }
         } else {
             settings.markWelcomeSheetShown()

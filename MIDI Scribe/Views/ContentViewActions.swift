@@ -166,6 +166,7 @@ extension ContentView {
     func handleModalPresentationRequest(_ request: AppModalPresentationRequest?) {
         guard let request else { return }
         defer { appState.modalPresentationRequest = nil }
+        guard !appState.isWelcomeTourPresented || request == .help else { return }
         switch request {
         case .settings:
             beginSettingsPresentation()
@@ -232,6 +233,7 @@ extension ContentView {
         appState.takeCommandState = TakeCommandState()
         hasEvaluatedWelcomeSheet = false
         isPresentingWelcomeSheet = false
+        appState.setWelcomeTourPresented(false)
     }
 
     func handleTakeCommandRequest(_ request: TakeCommandRequest?) {

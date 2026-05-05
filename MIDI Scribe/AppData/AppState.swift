@@ -93,6 +93,7 @@ final class AppState: ObservableObject {
     @Published var isShowingSettings = false
     @Published var isShowingAbout = false
     @Published var isShowingHelp = false
+    @Published var isWelcomeTourPresented = false
     @Published var sampleTakeLoadRequestID = UUID()
     @Published var sampleTakeLoadResult: SampleTakeLoadResult?
     @Published var isLoadingSampleTakes = false
@@ -145,6 +146,10 @@ final class AppState: ObservableObject {
 
     func requestModalPresentation(_ request: AppModalPresentationRequest) {
         modalPresentationRequest = request
+    }
+
+    func setWelcomeTourPresented(_ isPresented: Bool) {
+        isWelcomeTourPresented = isPresented
     }
 
     func requestLoadSampleTakes() {

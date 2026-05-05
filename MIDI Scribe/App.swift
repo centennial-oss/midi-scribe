@@ -15,6 +15,9 @@ import AppKit
 struct MIDIScribeApp: App {
     @StateObject private var appState = AppState()
     @StateObject private var settings = AppSettings()
+#if os(macOS)
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+#endif
 
     init() {
         AppIdentifier.logBundleIdentifier()
@@ -229,12 +232,14 @@ struct MIDIScribeApp: App {
                     Label("Settings...", systemImage: "gearshape")
                 }
                 .keyboardShortcut(",", modifiers: [.command])
+                .disabled(appState.isWelcomeTourPresented)
             }
 
             CommandGroup(replacing: .appInfo) {
                 Button("About \(AppIdentifier.name)") {
                     appState.requestModalPresentation(.about)
                 }
+                .disabled(appState.isWelcomeTourPresented)
             }
 #else
             CommandGroup(replacing: .appInfo) {
@@ -308,6 +313,12 @@ private func currentTakeSpaceCommandTitle(for state: TakeCommandState) -> String
 }
 
 #if os(macOS)
+private final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        true
+    }
+}
+
 private enum MenuPlacement {
     static func configureMainMenu() {
         DispatchQueue.main.async {
