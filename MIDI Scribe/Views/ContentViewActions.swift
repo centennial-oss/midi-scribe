@@ -63,7 +63,6 @@ extension ContentView {
                 take = nil
             }
             guard let take else { return }
-
             let context = ModelContext(container)
             let takeID = take.id.uuidString
             let descriptor = FetchDescriptor<StoredTake>(
@@ -244,7 +243,6 @@ extension ContentView {
         } else {
             guard canPerformCurrentTakeCommand() else { return }
         }
-
         performTakeCommand(request)
     }
 
