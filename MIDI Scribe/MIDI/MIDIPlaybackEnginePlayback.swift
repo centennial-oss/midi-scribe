@@ -7,17 +7,23 @@ extension MIDIPlaybackEngine {
         let events = take.events
         let startIndex = playbackResumeIndex
         let startOffset = playbackResumeOffset
-        let playbackEpoch = Date().addingTimeInterval(-startOffset)
+        let startOffsetNanoseconds = Self.nanoseconds(for: startOffset)
+        let nowNanoseconds = DispatchTime.now().uptimeNanoseconds
+        let playbackStartUptimeNanoseconds = nowNanoseconds > startOffsetNanoseconds
+            ? nowNanoseconds - startOffsetNanoseconds
+            : 0
 
         for event in pedalReentryEvents(in: take, at: startOffset) {
             play(event: event, target: target)
         }
 
-        playbackTask = Task { [weak self] in
+        let sessionID = playbackSessionID
+        playbackTask = Task.detached(priority: .userInitiated) { [weak self] in
             await self?.runPlaybackLoop(
                 events: events,
                 startIndex: startIndex,
-                playbackEpoch: playbackEpoch,
+                playbackStartUptimeNanoseconds: playbackStartUptimeNanoseconds,
+                playbackSessionID: sessionID,
                 target: target
             )
         }
@@ -41,52 +47,50 @@ extension MIDIPlaybackEngine {
         activatePlaybackState(take: take, target: target)
     }
 
-    private func runPlaybackLoop(
+    nonisolated private func runPlaybackLoop(
         events: [RecordedMIDIEvent],
         startIndex: Int,
-        playbackEpoch: Date,
+        playbackStartUptimeNanoseconds: UInt64,
+        playbackSessionID: UUID?,
         target: PlaybackOutputTarget
     ) async {
-        var immediateBurstCount = 0
-        for index in startIndex ..< events.count {
-            let event = events[index]
-            immediateBurstCount = await waitForPlaybackSlot(
-                eventOffset: event.offsetFromTakeStart,
-                playbackEpoch: playbackEpoch,
-                immediateBurstCount: immediateBurstCount
-            )
+        var index = startIndex
+        while index < events.count {
+            let batchStart = index
+            let batchUptimeNanoseconds = playbackStartUptimeNanoseconds
+                + Self.nanoseconds(for: events[batchStart].offsetFromTakeStart)
+            let now = DispatchTime.now().uptimeNanoseconds
+            if batchUptimeNanoseconds > now {
+                try? await Task.sleep(nanoseconds: batchUptimeNanoseconds - now)
+            }
             if Task.isCancelled { return }
-            await MainActor.run {
-                self.playbackResumeIndex = index + 1
-                self.playbackResumeOffset = event.offsetFromTakeStart
-                self.play(event: event, target: target)
+
+            while index < events.count,
+                  playbackStartUptimeNanoseconds + Self.nanoseconds(for: events[index].offsetFromTakeStart)
+                      == batchUptimeNanoseconds {
+                play(event: events[index], target: target)
+                index += 1
+            }
+
+            let resumeIndex = index
+            let resumeOffset = events[resumeIndex - 1].offsetFromTakeStart
+            Task { @MainActor [weak self] in
+                guard let self, self.playbackSessionID == playbackSessionID, self.isPlaying else { return }
+                self.playbackResumeIndex = resumeIndex
+                self.playbackResumeOffset = resumeOffset
             }
         }
-        await MainActor.run {
-            self.finishPlayback()
-        }
+        await MainActor.run { self.finishPlayback() }
     }
 
-    private func waitForPlaybackSlot(
-        eventOffset: TimeInterval,
-        playbackEpoch: Date,
-        immediateBurstCount: Int
-    ) async -> Int {
-        let targetDate = playbackEpoch.addingTimeInterval(eventOffset)
-        let wait = targetDate.timeIntervalSinceNow
-        if wait > 0 {
-            try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
-            return 0
-        }
-        let nextBurstCount = immediateBurstCount + 1
-        guard nextBurstCount >= 128 else { return nextBurstCount }
-        try? await Task.sleep(nanoseconds: 1_000_000)
-        return 0
+    nonisolated private static func nanoseconds(for interval: TimeInterval) -> UInt64 {
+        UInt64(max(0, interval) * 1_000_000_000)
     }
 
     func snapResumePositionToActiveNoteStart() {
         guard let playbackTake else { return }
-        guard let snappedOffset = activeNoteStartOffset(in: playbackTake, at: playbackResumeOffset) else { return }
+        guard let snappedOffset = activeNoteStartOffset(in: playbackTake, at: playbackResumeOffset)
+        else { return }
         playbackResumeOffset = snappedOffset
         playbackResumeIndex = firstEventIndex(in: playbackTake, atOrAfter: snappedOffset)
     }

@@ -8,12 +8,13 @@ import os
 extension MIDIPlaybackEngine {
     func configureAudio() {
         do {
-            try rebuildSampler()
+            try rebuildSampler(soundBankURL: resolveAndCacheSoundBankURL())
             #if os(iOS)
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
             #endif
             try audioEngine.start()
+            primeSpeakerInstrument()
             #if os(macOS)
             lastSpeakerOutputDeviceID = currentDefaultOutputDeviceID()
             #endif
@@ -27,18 +28,22 @@ extension MIDIPlaybackEngine {
     func reloadInstrument() {
         withSamplerRebuildGate {
             do {
-                let wasRunning = audioEngine.isRunning
-                if wasRunning {
+                if audioEngine.isRunning {
                     catchObjC("audioEngine.stop") { self.audioEngine.stop() }
                 }
-                try rebuildSampler()
-                if wasRunning {
-                    catchObjC("audioEngine.start") {
-                        do { try self.audioEngine.start() } catch {
-                            #if DEBUG
-                            NSLog("[MIDIPlayback] audio start failed: \(error)")
-                            #endif
-                        }
+                try rebuildSampler(soundBankURL: resolveAndCacheSoundBankURL())
+                // Always restart — either we just stopped it above, or AVAudioEngineConfigurationChange
+                // already stopped it (the OS stops the engine before posting that notification).
+                // The wasRunning guard used to skip this when the engine was already down, leaving
+                // it stopped and forcing a lazy restart on the first note-on of the next play.
+                catchObjC("audioEngine.start") {
+                    do {
+                        try self.audioEngine.start()
+                        self.primeSpeakerInstrument()
+                    } catch {
+                        #if DEBUG
+                        NSLog("[MIDIPlayback] audio start failed: \(error)")
+                        #endif
                     }
                 }
             } catch {
@@ -65,9 +70,12 @@ extension MIDIPlaybackEngine {
                 // succeeds. A pre-assigned, never-loaded sampler would otherwise
                 // become the active instrument if the rebuild partially failed,
                 // producing the "audio is bank 0" symptom.
-                try rebuildSampler()
+                try rebuildSampler(soundBankURL: resolveAndCacheSoundBankURL())
                 catchObjC("audioEngine.start") {
-                    do { try self.audioEngine.start() } catch {
+                    do {
+                        try self.audioEngine.start()
+                        self.primeSpeakerInstrument()
+                    } catch {
                         #if DEBUG
                         NSLog("[MIDIPlayback] audio start failed: \(error)")
                         #endif
@@ -98,7 +106,7 @@ extension MIDIPlaybackEngine {
         os_unfair_lock_unlock(&samplerLock)
     }
 
-    func catchObjC(_ label: String, _ block: () -> Void) {
+    nonisolated func catchObjC(_ label: String, _ block: () -> Void) {
         var caught: NSError?
         let didSucceed = MSCatchObjCException(block, &caught)
         if !didSucceed {
@@ -130,7 +138,22 @@ extension MIDIPlaybackEngine {
     }
     #endif
 
-    func resolvedSoundBankURL() throws -> URL { try SoundBankAssets.soundBankURL() }
+    func resolveAndCacheSoundBankURL() throws -> URL {
+        let url = try SoundBankAssets.soundBankURL()
+        cachedSoundBankURL = url
+        return url
+    }
+
+    nonisolated func resolvedCachedSoundBankURL() throws -> URL {
+        if let cachedSoundBankURL {
+            return cachedSoundBankURL
+        }
+        if let url = Bundle.main.url(forResource: "GeneralUser-GS", withExtension: "sf2") {
+            cachedSoundBankURL = url
+            return url
+        }
+        throw CocoaError(.fileNoSuchFile)
+    }
 
     func configureMIDIOutput() {
         let clientStatus = MIDIClientCreateWithBlock(
@@ -141,7 +164,7 @@ extension MIDIPlaybackEngine {
         MIDIOutputPortCreate(outputClient, "\(AppIdentifier.name) Playback Port" as CFString, &outputPort)
     }
 
-    func play(event: RecordedMIDIEvent, target: PlaybackOutputTarget) {
+    nonisolated func play(event: RecordedMIDIEvent, target: PlaybackOutputTarget) {
         switch target {
         case .osSpeakers:
             playThroughSpeakers(event, allowRebuild: true)
@@ -158,7 +181,7 @@ extension MIDIPlaybackEngine {
     ///   best-effort audio feedback and rebuilding the sampler while the user is
     ///   dragging the playhead is the most dangerous path: it tears down AUSampler
     ///   state that the IOThread.client render callback may still be referencing.
-    func playThroughSpeakers(_ event: RecordedMIDIEvent, allowRebuild: Bool) {
+    nonisolated func playThroughSpeakers(_ event: RecordedMIDIEvent, allowRebuild: Bool) {
         guard !event.isPresetSelectionEvent else { return }
         guard let status = statusByte(for: event.kind, channel: Int(event.channel)) else { return }
         let data1 = event.data1 & 0x7F
@@ -181,12 +204,21 @@ extension MIDIPlaybackEngine {
         os_unfair_lock_unlock(&samplerLock)
     }
 
+    /// Sends a silent note-on (velocity=1) followed immediately by note-off to MIDI
+    /// note 0 on channel 1. This forces AUSampler to allocate its voice pool right
+    /// after the engine starts, so the first real note-on from playback doesn't fall
+    /// in the AU's internal initialization window and get dropped silently.
+    nonisolated func primeSpeakerInstrument() {
+        sendMIDIEventSafely(to: speakerInstrument, status: 0x90, data1: 0, data2: 1)
+        sendMIDIEventSafely(to: speakerInstrument, status: 0x80, data1: 0, data2: 0)
+    }
+
     /// Calls `sendMIDIEvent` inside an Objective-C `@try`/`@catch`. AVAudioEngine /
     /// AUSampler occasionally raise `NSInternalInconsistencyException` when the
     /// engine state changes underneath a send (e.g. configuration change / output
     /// device switch during a scrub). Swift cannot catch these natively and they
     /// terminate the app; the bridging helper turns them into a no-op plus a log.
-    private func sendMIDIEventSafely(
+    nonisolated private func sendMIDIEventSafely(
         to sampler: AVAudioUnitMIDIInstrument,
         status: UInt8,
         data1: UInt8,
@@ -204,7 +236,7 @@ extension MIDIPlaybackEngine {
         }
     }
 
-    private func recordScrubDrop(_ reason: String, allowRebuild: Bool) {
+    nonisolated private func recordScrubDrop(_ reason: String, allowRebuild: Bool) {
         guard !allowRebuild else { return }
         #if DEBUG
         scrubDropReasons[reason, default: 0] += 1
@@ -218,7 +250,7 @@ extension MIDIPlaybackEngine {
     }
 
     /// Must be called with `samplerLock` held.
-    private func speakerInstrumentIsReadyLocked(allowRebuild: Bool) -> Bool {
+    nonisolated private func speakerInstrumentIsReadyLocked(allowRebuild: Bool) -> Bool {
         if speakerInstrument.engine === audioEngine, audioEngine.isRunning {
             return true
         }
@@ -231,7 +263,7 @@ extension MIDIPlaybackEngine {
         return didSucceed
     }
 
-    func sendToMIDIDestinations(_ event: RecordedMIDIEvent, channelOverride: Int) {
+    nonisolated func sendToMIDIDestinations(_ event: RecordedMIDIEvent, channelOverride: Int) {
         guard outputPort != 0 else { return }
         guard let channelNibble = midiChannelNibble(for: channelOverride) else { return }
         var data = event.midiData
@@ -267,7 +299,7 @@ extension MIDIPlaybackEngine {
         }
     }
 
-    func sendAllNotesOff() {
+    nonisolated func sendAllNotesOff() {
         for channel in 1...16 {
             sendControlChange(64, value: 0, on: channel)
             sendControlChange(66, value: 0, on: channel)
@@ -316,7 +348,7 @@ extension MIDIPlaybackEngine {
         }
     }
 
-    private func sendControlChange(_ controller: UInt8, value: UInt8, on channel: Int) {
+    nonisolated private func sendControlChange(_ controller: UInt8, value: UInt8, on channel: Int) {
         guard let channelNibble = midiChannelNibble(for: channel) else { return }
         let status = UInt8(0xB0 | channelNibble)
         os_unfair_lock_lock(&samplerLock)
@@ -337,12 +369,12 @@ extension MIDIPlaybackEngine {
         sendToMIDIDestinations(event, channelOverride: channel)
     }
 
-    private func midiChannelNibble(for channel: Int) -> UInt8? {
+    nonisolated private func midiChannelNibble(for channel: Int) -> UInt8? {
         guard (1...16).contains(channel) else { return nil }
         return UInt8(channel - 1)
     }
 
-    private func statusByte(for kind: MIDIChannelEventKind, channel: Int) -> UInt8? {
+    nonisolated private func statusByte(for kind: MIDIChannelEventKind, channel: Int) -> UInt8? {
         guard let channelNibble = midiChannelNibble(for: channel) else { return nil }
         let command: UInt8
         switch kind {

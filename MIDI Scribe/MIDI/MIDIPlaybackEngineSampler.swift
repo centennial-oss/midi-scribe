@@ -3,7 +3,7 @@ import AVFoundation
 import Foundation
 
 extension MIDIPlaybackEngine {
-    func rebuildSampler() throws {
+    nonisolated func rebuildSampler(soundBankURL: URL) throws {
         let wasAttached = speakerInstrument.engine === audioEngine
         if wasAttached {
             sendAllNotesOff()
@@ -14,7 +14,6 @@ extension MIDIPlaybackEngine {
                 self.audioEngine.detach(previous)
             }
         }
-        let soundBankURL = try resolvedSoundBankURL()
         let newInstrument = AVAudioUnitSampler()
         catchObjC("audioEngine.attach/connect") {
             self.audioEngine.attach(newInstrument)
@@ -60,7 +59,7 @@ extension MIDIPlaybackEngine {
 
     /// Emits an explicit bank-select + program-change sequence on the given sampler
     /// so its current program cannot drift to 0 because of an internal AU reset.
-    private func pinProgramChange(on sampler: AVAudioUnitMIDIInstrument, program: UInt8) {
+    nonisolated private func pinProgramChange(on sampler: AVAudioUnitMIDIInstrument, program: UInt8) {
         let bankMSB = UInt8(kAUSampler_DefaultMelodicBankMSB)
         let bankLSB = UInt8(kAUSampler_DefaultBankLSB)
         for channel in 0..<UInt8(16) {
@@ -76,10 +75,10 @@ extension MIDIPlaybackEngine {
 
     /// Rebuild / restart path used by the normal playback send. Must NOT hold
     /// `samplerLock` when called, because `rebuildSampler()` itself takes it.
-    func ensureSpeakerAudioReadyOutsideLock() -> Bool {
+    nonisolated func ensureSpeakerAudioReadyOutsideLock() -> Bool {
         if speakerInstrument.engine !== audioEngine {
             do {
-                try rebuildSampler()
+                try rebuildSampler(soundBankURL: resolvedCachedSoundBankURL())
             } catch {
                 #if DEBUG
                 NSLog("[MIDIPlayback] sampler rebuild failed: \(error)")
@@ -92,6 +91,7 @@ extension MIDIPlaybackEngine {
             let didSucceed = MSCatchObjCException({
                 do {
                     try self.audioEngine.start()
+                    self.primeSpeakerInstrument()
                 } catch {
                     #if DEBUG
                     NSLog("[MIDIPlayback] audio start failed: \(error)")

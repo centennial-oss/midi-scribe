@@ -23,8 +23,8 @@ final class MIDIPlaybackEngine: ObservableObject {
     }
 
     private let settings: AppSettings
-    var audioEngine = AVAudioEngine()
-    var speakerInstrument: AVAudioUnitMIDIInstrument = AVAudioUnitSampler()
+    nonisolated(unsafe) var audioEngine = AVAudioEngine()
+    nonisolated(unsafe) var speakerInstrument: AVAudioUnitMIDIInstrument = AVAudioUnitSampler()
     private var settingsCancellable: AnyCancellable?
     var playbackTask: Task<Void, Never>?
     var playbackTake: RecordedTake?
@@ -33,22 +33,24 @@ final class MIDIPlaybackEngine: ObservableObject {
     var playbackResumeOffset: TimeInterval = 0
     var playbackStartedAt: Date?
     var playbackSegmentStartOffset: TimeInterval = 0
-    var outputClient = MIDIClientRef()
-    var outputPort = MIDIPortRef()
-    var speakerProgram: Int
+    var playbackSessionID: UUID?
+    nonisolated(unsafe) var outputClient = MIDIClientRef()
+    nonisolated(unsafe) var outputPort = MIDIPortRef()
+    nonisolated(unsafe) var speakerProgram: Int
+    nonisolated(unsafe) var cachedSoundBankURL: URL?
     /// Serializes mutations to `speakerInstrument` / `audioEngine` (rebuilds, detaches,
     /// starts/stops) against `sendMIDIEvent` calls. The audio render thread dereferences
     /// state set up from the main thread; without this gate, tearing down the sampler
     /// while a scrub-driven `sendMIDIEvent` is still resolving can race with the
     /// IOThread.client callback and produce EXC_BAD_ACCESS crashes. os_unfair_lock is
     /// safe to acquire briefly from the main thread; we never hold it across awaits.
-    var samplerLock = os_unfair_lock()
+    nonisolated(unsafe) var samplerLock = os_unfair_lock()
     /// `true` while the sampler is being replaced. While set, scrub-path sends are
     /// dropped rather than routed to a half-torn-down sampler.
-    var samplerIsRebuilding = false
+    nonisolated(unsafe) var samplerIsRebuilding = false
     /// Rolling counters for scrub-path drops, logged periodically in debug builds.
-    var scrubDropReasons: [String: Int] = [:]
-    var lastScrubDropLogUptime: TimeInterval = 0
+    nonisolated(unsafe) var scrubDropReasons: [String: Int] = [:]
+    nonisolated(unsafe) var lastScrubDropLogUptime: TimeInterval = 0
     /// Observes `AVAudioEngineConfigurationChange`. When the OS changes the audio
     /// graph (output device change, sample rate change, another app taking exclusive
     /// audio, headphones plug/unplug, etc.), the engine is stopped and AUSampler
@@ -57,7 +59,7 @@ final class MIDIPlaybackEngine: ObservableObject {
     /// default/empty patch that users hear as "wrong instrument / bank 0".
     private var configurationChangeObserver: NSObjectProtocol?
     #if os(macOS)
-    var lastSpeakerOutputDeviceID: AudioDeviceID?
+    nonisolated(unsafe) var lastSpeakerOutputDeviceID: AudioDeviceID?
     #endif
     init(settings: AppSettings) {
         self.settings = settings
@@ -143,6 +145,7 @@ final class MIDIPlaybackEngine: ObservableObject {
         }
         playbackTask?.cancel()
         playbackTask = nil
+        playbackSessionID = nil
         isPlaying = false
         sendAllNotesOff()
         snapResumePositionToActiveNoteStart()
@@ -171,7 +174,7 @@ final class MIDIPlaybackEngine: ObservableObject {
     func activatePlaybackState(take: RecordedTake, target: PlaybackOutputTarget) {
         playbackTake = take; currentTakeID = take.id; currentTarget = target; playbackTarget = target
         isPlaying = true; pausedAtOffset = nil; playbackStartedAt = Date()
-        playbackSegmentStartOffset = playbackResumeOffset
+        playbackSegmentStartOffset = playbackResumeOffset; playbackSessionID = UUID()
     }
     func playScrubEvent(_ event: RecordedMIDIEvent, target: PlaybackOutputTarget) {
         switch target {
@@ -195,6 +198,7 @@ final class MIDIPlaybackEngine: ObservableObject {
         playbackResumeOffset = 0
         playbackStartedAt = nil
         playbackSegmentStartOffset = 0
+        playbackSessionID = nil
         playbackTake = nil
         currentTakeID = nil
         currentTarget = nil
