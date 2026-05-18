@@ -209,6 +209,7 @@ extension PianoRollView {
                                 )
                             } else {
                                 playbackCenteringAnimationEndsAt = nil
+                                viewModel.clearAuditionNoteText(for: take.id)
                             }
                         }
                         .onChange(of: scrollToStartRequestID) { _, _ in

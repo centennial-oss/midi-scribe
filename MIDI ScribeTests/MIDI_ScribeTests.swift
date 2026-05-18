@@ -294,6 +294,17 @@ struct MIDIScribeTests {
         )
     }
 
+    @MainActor
+    @Test func formatAuditionNoteNamesSortsByPitchAndChannel() {
+        let notes = [
+            PianoRollNote(pitch: 64, channel: 2, velocity: 80, startOffset: 0, duration: 1),
+            PianoRollNote(pitch: 60, channel: 1, velocity: 100, startOffset: 0, duration: 1),
+            PianoRollNote(pitch: 64, channel: 1, velocity: 90, startOffset: 0, duration: 1)
+        ]
+        #expect(MIDILiveNoteViewModel.formatAuditionNoteNames(notes) == "C4, E4, E4")
+        #expect(MIDILiveNoteViewModel.formatAuditionNoteNames([]) == nil)
+    }
+
     private func programChange(program: UInt8) -> RecordedMIDIEvent {
         RecordedMIDIEvent(
             receivedAt: Date(),

@@ -260,6 +260,10 @@ extension ContentView {
             }
             inlineLabeledValue("Notes", "\(max(take.summary.noteOnCount, take.summary.noteOffCount))")
             inlineLabeledValue("Range", viewModel.completedTakeRangeText(take))
+            Spacer(minLength: 24)
+            if viewModel.shouldShowNowNoteText {
+                inlineLabeledValue("", viewModel.nowNoteText)
+            }
             #else
             HStack(spacing: 6) {
                 Text(viewModel.completedTakeDurationText(take))
@@ -268,8 +272,14 @@ extension ContentView {
             }
             inlineLabeledValue("Notes", "\(max(take.summary.noteOnCount, take.summary.noteOffCount))")
             inlineLabeledValue("Range", viewModel.completedTakeRangeText(take))
+            Spacer(minLength: 24)
+            if viewModel.shouldShowNowNoteText {
+                inlineLabeledValue("", viewModel.nowNoteText)
+            }
             #endif
         }
+        .lineLimit(1)
+        .minimumScaleFactor(0.85)
     }
 
     private func shouldShowCompletedTakeZoomToolbar(for take: RecordedTakeListItem) -> Bool {
@@ -288,8 +298,10 @@ extension ContentView {
 
     private func inlineLabeledValue(_ label: String, _ value: String) -> some View {
         HStack(spacing: 6) {
-            Text("\(label):")
-                .font(.takeMetadataLabel)
+            if !label.isEmpty {
+                Text("\(label):")
+                    .font(.takeMetadataLabel)
+            }
             Text(value)
                 .font(.takeMetadataValue)
                 .foregroundStyle(.secondary)

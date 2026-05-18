@@ -6,6 +6,18 @@
 import Foundation
 
 extension MIDILiveNoteViewModel {
+    nonisolated static func formatAuditionNoteNames(_ notes: [PianoRollNote]) -> String? {
+        guard !notes.isEmpty else { return nil }
+        let sorted = notes.sorted {
+            if $0.pitch == $1.pitch {
+                return $0.channel < $1.channel
+            }
+            return $0.pitch < $1.pitch
+        }
+        return sorted.map {
+            MIDINote.displayName(noteNumber: $0.pitch)
+        }.joined(separator: ", ")
+    }
     func materializedTake(id: UUID) -> RecordedTake? {
         materializedTakes[id]
     }

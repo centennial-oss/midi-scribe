@@ -272,8 +272,8 @@ extension ContentView {
             currentTakeInlineLabeledValue("Range", currentTakeRangeText)
             currentTakeInlineLabeledValue("Channels", currentTakeChannelsText)
             Spacer(minLength: 24)
-            if viewModel.shouldShowCurrentNoteText {
-                currentTakeInlineLabeledValue("Now", viewModel.currentNoteText)
+            if viewModel.shouldShowNowNoteText {
+                currentTakeInlineLabeledValue("Now", viewModel.nowNoteText)
             }
             if viewModel.shouldShowIdleTimeoutText {
                 Text(viewModel.idleTimeoutText)

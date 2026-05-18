@@ -59,6 +59,7 @@ extension PianoRollView {
         logScrubAuditionSummary()
         dragStartOffset = nil
         viewModel.playbackEngine.stopScrubbingNotes()
+        viewModel.clearAuditionNoteText(for: take.id)
         dragIntersectedNotes.removeAll()
         lastScrubAuditionUptime = nil
         resetScrubAuditionDiagnostics()
@@ -146,13 +147,11 @@ extension PianoRollView {
     }
 
     private func intersectedNoteIDs(at offset: TimeInterval) -> Set<UUID> {
-        var intersectedIDs: Set<UUID> = []
-        for note in notes where intersectedIDs.count < Self.maxConcurrentScrubAuditionNotes {
-            if offset >= note.startOffset, offset <= (note.startOffset + note.duration) {
-                intersectedIDs.insert(note.id)
-            }
-        }
-        return intersectedIDs
+        Set(
+            activeNotes(at: offset)
+                .prefix(Self.maxConcurrentScrubAuditionNotes)
+                .map(\.id)
+        )
     }
 
     private func auditionScrubNotes(_ currentlyIntersected: Set<UUID>) {

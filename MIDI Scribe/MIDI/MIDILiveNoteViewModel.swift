@@ -18,6 +18,9 @@ final class MIDILiveNoteViewModel: ObservableObject {
     }
     @Published var currentNoteText = ""
     @Published var currentChannelText = ""
+    /// Note names at the completed-take playhead while playing or scrubbing.
+    @Published private(set) var auditionNoteText: String?
+    private var auditionNoteTextTakeID: UUID?
     @Published var currentTakeSnapshot = CurrentTakeSnapshot.empty
     /// Incrementally-grown list of events in the take currently being
     /// recorded. Kept on the main actor so the live piano roll can render
@@ -160,6 +163,30 @@ final class MIDILiveNoteViewModel: ObservableObject {
         !currentNoteText.isEmpty && currentNoteText != emptyLiveValuePlaceholder
     }
 
+    var shouldShowNowNoteText: Bool {
+        if isDisplayingCompletedTake {
+            guard let auditionNoteText else { return false }
+            return !auditionNoteText.isEmpty
+        }
+        return shouldShowCurrentNoteText
+    }
+
+    var nowNoteText: String {
+        if isDisplayingCompletedTake {
+            return auditionNoteText ?? ""
+        }
+        return currentNoteText
+    }
+
+    var isDisplayingCompletedTake: Bool {
+        switch selectedSidebarItem {
+        case .recentTake, .starredTake:
+            return true
+        default:
+            return false
+        }
+    }
+
     var idleTimeoutText: String {
         guard let lastEventAt = currentTakeSnapshot.lastEventAt else { return "" }
         let remaining = max(settings.newTakePauseSeconds - Date().timeIntervalSince(lastEventAt), 0)
@@ -221,6 +248,7 @@ final class MIDILiveNoteViewModel: ObservableObject {
         guard oldTakeID != newTakeID, newTakeID != nil else { return }
 
         playbackEngine.stopAndReset()
+        clearAuditionNoteText()
     }
 
     private func takeID(fromAny item: ContentSidebarItem) -> UUID? {
@@ -244,6 +272,30 @@ final class MIDILiveNoteViewModel: ObservableObject {
 
     func recordStarredBulkResult(affectedIDs: Set<UUID>) {
         lastBulkResult = .starred(affectedIDs: affectedIDs)
+    }
+
+    func isDisplayingCompletedTake(_ takeID: UUID) -> Bool {
+        switch selectedSidebarItem {
+        case .recentTake(let id), .starredTake(let id):
+            return id == takeID
+        default:
+            return false
+        }
+    }
+
+    func setAuditionNoteText(from notes: [PianoRollNote], takeID: UUID) {
+        guard isDisplayingCompletedTake(takeID) else { return }
+        let text = Self.formatAuditionNoteNames(notes)
+        guard auditionNoteTextTakeID != takeID || auditionNoteText != text else { return }
+        auditionNoteTextTakeID = takeID
+        auditionNoteText = text
+    }
+
+    func clearAuditionNoteText(for takeID: UUID? = nil) {
+        if let takeID, auditionNoteTextTakeID != takeID { return }
+        guard auditionNoteText != nil || auditionNoteTextTakeID != nil else { return }
+        auditionNoteText = nil
+        auditionNoteTextTakeID = nil
     }
 
     // MARK: - Private setup

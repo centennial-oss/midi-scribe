@@ -187,6 +187,23 @@ extension PianoRollView {
             )
         }
         logPlaybackModelDiagnosticsIfNeeded(at: context.playOffset)
+        refreshAuditionNoteText(at: context.playOffset)
+    }
+
+    func refreshAuditionNoteText(at offset: TimeInterval) {
+        guard !isLive else { return }
+        let isScrubbing = dragStartOffset != nil
+        guard isTakePlaying || isScrubbing else {
+            viewModel.clearAuditionNoteText(for: take.id)
+            return
+        }
+        viewModel.setAuditionNoteText(from: activeNotes(at: offset), takeID: take.id)
+    }
+
+    func activeNotes(at offset: TimeInterval) -> [PianoRollNote] {
+        notes.filter { note in
+            offset >= note.startOffset && offset <= note.startOffset + note.duration
+        }
     }
 
     func resetScrubState() {
@@ -203,6 +220,7 @@ extension PianoRollView {
         pausedZoomPlayheadAnchorX = nil
         shouldCenterPlayheadAfterDragZoom = false
         viewModel.playbackEngine.stopScrubbingNotes()
+        viewModel.clearAuditionNoteText(for: take.id)
         scrubEdgeAutoScrollDirection = 0
         scrubLastDragTranslationWidth = nil
         playbackCenteringAnimationEndsAt = nil
