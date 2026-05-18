@@ -153,6 +153,17 @@ extension PianoRollView {
         proxy: ScrollViewProxy,
         context: PianoRollTimelineTickContext
     ) {
+        // If we're still in the centering-delay period but the playhead has already
+        // passed the viewport center (e.g. user zoomed in during playback), cancel
+        // the delay so following starts on this tick instead of waiting for the
+        // stale timer — which was calculated at the pre-zoom pixelsPerSecond.
+        if isTakePlaying,
+           let playheadX = playheadGlobalX,
+           let endsAt = playbackCenteringAnimationEndsAt,
+           date < endsAt,
+           playheadX >= context.viewportFrameInGlobal.midX {
+            playbackCenteringAnimationEndsAt = date
+        }
         if shouldFollowPlayingPlayhead(at: date) {
             #if DEBUG
             NSLog("[PianoRollScrollTo] reason=timeline-follow target=playhead anchor=center")
