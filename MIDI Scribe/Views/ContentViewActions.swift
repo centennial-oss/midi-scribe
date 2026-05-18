@@ -334,13 +334,6 @@ extension ContentView {
         pianoRollScrollToStartRequestID += 1
     }
 
-    func adjustPianoRollZoom(by delta: CGFloat) {
-        pianoRollZoomLevel = max(0.0, min(1.0, pianoRollZoomLevel + delta))
-    }
-
-    func resetPianoRollZoom() {
-        pianoRollZoomLevel = 0.0
-    }
     func updateTakeCommandState() {
         if viewModel.selectedSidebarItem == .currentTake {
             updateTakeCommandStateIfChanged(TakeCommandState(

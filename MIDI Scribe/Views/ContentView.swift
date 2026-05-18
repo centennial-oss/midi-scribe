@@ -62,6 +62,8 @@ struct ContentView: View {
     @State var pianoRollScrollToStartRequestID = 0
     @State var completedTakeRenderDelayRequestID = 0
     @State var completedTakeReadyToRenderID: UUID?
+    /// Set when a live take ends; cleared after zoom resets or discard is confirmed.
+    @State var awaitingCompletedTakeZoomReset = false
     @State var swipeRevealedSidebarItem: ContentSidebarItem?
     @State var isPresentingZoomPopover = false
     @State var hasEvaluatedWelcomeSheet = false
@@ -192,6 +194,15 @@ struct ContentView: View {
 #endif
             .onChange(of: viewModel.lastCompletedTake?.id) { _, _ in
                 persistLastCompletedTakeIfNeeded()
+            }
+            .onChange(of: viewModel.isTakeInProgress) { wasInProgress, isInProgress in
+                handleTakeInProgressChangeForZoomReset(wasInProgress: wasInProgress, isInProgress: isInProgress)
+            }
+            .onChange(of: viewModel.selectedSidebarItem) { _, _ in
+                applyCompletedTakeZoomResetIfNeeded()
+            }
+            .onChange(of: viewModel.lastCompletedTake?.id) { _, _ in
+                applyCompletedTakeZoomResetIfNeeded()
             }
             .onChange(of: appState.sampleTakeLoadRequestID) { _, _ in
                 loadSampleTakes()

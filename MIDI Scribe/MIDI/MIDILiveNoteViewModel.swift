@@ -8,7 +8,7 @@ import Foundation
 
 @MainActor
 final class MIDILiveNoteViewModel: ObservableObject {
-    private static let idleTimeoutDisplayDelay: TimeInterval = 5
+    static let idleTimeoutDisplayDelay: TimeInterval = 5
     static let monitorStartRetryDelays: [TimeInterval] = [1, 2, 5, 10, 15, 30]
 
     @Published var selectedSidebarItem: ContentSidebarItem = .currentTake {
@@ -138,61 +138,6 @@ final class MIDILiveNoteViewModel: ObservableObject {
         currentTakeSnapshot.isInProgress
     }
 
-    var currentTakeDurationText: String {
-        formatDuration(currentTakeSnapshot.startedAt.map { _ in currentTakeSnapshot.duration } ?? 0)
-    }
-
-    var currentTakeSummaryText: String {
-        let summary = currentTakeSnapshot.summary
-        let channels = summary.uniqueChannels.map(String.init).joined(separator: ", ")
-        let noteRangeText = formatNoteRange(lowest: summary.lowestNote, highest: summary.highestNote)
-        let channelLabel = channels.isEmpty ? "None" : channels
-        return [
-            "Notes: \(max(summary.noteOnCount, summary.noteOffCount))",
-            "Range: \(noteRangeText)",
-            "Channels: \(channelLabel)"
-        ].joined(separator: "  ")
-    }
-
-    var shouldShowIdleTimeoutText: Bool {
-        guard currentTakeSnapshot.isInProgress, let lastEventAt = currentTakeSnapshot.lastEventAt else { return false }
-        return Date().timeIntervalSince(lastEventAt) > Self.idleTimeoutDisplayDelay
-    }
-
-    var shouldShowCurrentNoteText: Bool {
-        !currentNoteText.isEmpty && currentNoteText != emptyLiveValuePlaceholder
-    }
-
-    var shouldShowNowNoteText: Bool {
-        if isDisplayingCompletedTake {
-            guard let auditionNoteText else { return false }
-            return !auditionNoteText.isEmpty
-        }
-        return shouldShowCurrentNoteText
-    }
-
-    var nowNoteText: String {
-        if isDisplayingCompletedTake {
-            return auditionNoteText ?? ""
-        }
-        return currentNoteText
-    }
-
-    var isDisplayingCompletedTake: Bool {
-        switch selectedSidebarItem {
-        case .recentTake, .starredTake:
-            return true
-        default:
-            return false
-        }
-    }
-
-    var idleTimeoutText: String {
-        guard let lastEventAt = currentTakeSnapshot.lastEventAt else { return "" }
-        let remaining = max(settings.newTakePauseSeconds - Date().timeIntervalSince(lastEventAt), 0)
-        return "Idle Timeout in \(formatDuration(remaining))"
-    }
-
     func recentTake(id: UUID) -> RecordedTakeListItem? {
         recentTakes.first { $0.id == id }
     }
@@ -211,51 +156,8 @@ final class MIDILiveNoteViewModel: ObservableObject {
         return resolved
     }
 
-    func completedTakeDurationText(_ take: RecordedTakeListItem) -> String {
-        formatDuration(take.duration)
-    }
-
-    func completedTakeChannelsText(_ take: RecordedTakeListItem) -> String {
-        let channels = take.summary.uniqueChannels.map(String.init).joined(separator: ", ")
-        return channels.isEmpty ? "None" : channels
-    }
-
-    func completedTakeRangeText(_ take: RecordedTakeListItem) -> String {
-        formatNoteRange(lowest: take.summary.lowestNote, highest: take.summary.highestNote)
-    }
-
-    func setRecentTakes(_ takes: [RecordedTakeListItem]) {
-        recentTakes = takes
-        // Drop cached full takes that are no longer in the list so memory
-        // doesn't grow unbounded with deleted rows.
-        let validIDs = Set(takes.map(\.id))
-        materializedTakes = materializedTakes.filter { validIDs.contains($0.key) }
-
-        if lastCompletedTake == nil {
-            lastCompletedTake = takes.first
-        } else if let lastCompletedTake, let refreshed = takes.first(where: { $0.id == lastCompletedTake.id }) {
-            self.lastCompletedTake = refreshed
-        }
-    }
-
     func clearLastBulkResult() {
         lastBulkResult = nil
-    }
-
-    private func resetPlaybackIfDisplayedTakeChanged(old: ContentSidebarItem, new: ContentSidebarItem) {
-        let oldTakeID = takeID(fromAny: old)
-        let newTakeID = takeID(fromAny: new)
-        guard oldTakeID != newTakeID, newTakeID != nil else { return }
-
-        playbackEngine.stopAndReset()
-        clearAuditionNoteText()
-    }
-
-    private func takeID(fromAny item: ContentSidebarItem) -> UUID? {
-        switch item {
-        case .recentTake(let id), .starredTake(let id): return id
-        default: return nil
-        }
     }
 
     func recordMergedBulkResult(newTakeID: UUID, removedIDs: Set<UUID>) {
@@ -272,6 +174,36 @@ final class MIDILiveNoteViewModel: ObservableObject {
 
     func recordStarredBulkResult(affectedIDs: Set<UUID>) {
         lastBulkResult = .starred(affectedIDs: affectedIDs)
+    }
+
+    func setRecentTakes(_ takes: [RecordedTakeListItem]) {
+        recentTakes = takes
+        // Drop cached full takes that are no longer in the list so memory
+        // doesn't grow unbounded with deleted rows.
+        let validIDs = Set(takes.map(\.id))
+        materializedTakes = materializedTakes.filter { validIDs.contains($0.key) }
+
+        if lastCompletedTake == nil {
+            lastCompletedTake = takes.first
+        } else if let lastCompletedTake, let refreshed = takes.first(where: { $0.id == lastCompletedTake.id }) {
+            self.lastCompletedTake = refreshed
+        }
+    }
+
+    private func resetPlaybackIfDisplayedTakeChanged(old: ContentSidebarItem, new: ContentSidebarItem) {
+        let oldTakeID = takeID(fromAny: old)
+        let newTakeID = takeID(fromAny: new)
+        guard oldTakeID != newTakeID, newTakeID != nil else { return }
+
+        playbackEngine.stopAndReset()
+        clearAuditionNoteText()
+    }
+
+    private func takeID(fromAny item: ContentSidebarItem) -> UUID? {
+        switch item {
+        case .recentTake(let id), .starredTake(let id): return id
+        default: return nil
+        }
     }
 
     func isDisplayingCompletedTake(_ takeID: UUID) -> Bool {
