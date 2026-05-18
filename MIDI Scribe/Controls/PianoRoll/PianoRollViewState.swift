@@ -103,17 +103,13 @@ extension PianoRollView {
             currentPlaybackOffset
         )
         #endif
-        if shouldDelayCentering, pixelsPerSecond > 0 {
-            let centerDistancePixels = max(0, viewportMidX - (playheadGlobalX ?? viewportMidX))
-            let secondsUntilCenter = TimeInterval(centerDistancePixels / pixelsPerSecond)
-            playbackCenteringAnimationEndsAt = Date().addingTimeInterval(secondsUntilCenter)
+        if shouldDelayCentering {
+            // Pixel-based model: no timer needed. handleTimelineTick will start
+            // following once playheadGlobalX crosses the viewport midX.
+            playbackCenteringAnimationEndsAt = nil
             delayPlaybackCenteringUntilCenter = false
             #if DEBUG
-            NSLog(
-                "[PianoRollCentering] delayed-center centerDistancePx=%.2f secondsUntilCenter=%.3f",
-                centerDistancePixels,
-                secondsUntilCenter
-            )
+            NSLog("[PianoRollCentering] delayed-center pixel-based waiting for playhead to cross viewport midX")
             #endif
             return
         }
@@ -153,18 +149,14 @@ extension PianoRollView {
         proxy: ScrollViewProxy,
         context: PianoRollTimelineTickContext
     ) {
-        // If we're still in the centering-delay period but the playhead has already
-        // passed the viewport center (e.g. user zoomed in during playback), cancel
-        // the delay so following starts on this tick instead of waiting for the
-        // stale timer — which was calculated at the pre-zoom pixelsPerSecond.
-        if isTakePlaying,
-           let playheadX = playheadGlobalX,
-           let endsAt = playbackCenteringAnimationEndsAt,
-           date < endsAt,
-           playheadX >= context.viewportFrameInGlobal.midX {
-            playbackCenteringAnimationEndsAt = date
-        }
-        if shouldFollowPlayingPlayhead(at: date) {
+        // Delayed-centering path (playbackCenteringAnimationEndsAt == nil): follow once
+        // the playhead crosses the viewport midpoint and the roll is scrollable.
+        // Immediate-centering path (timer set): follow once the scroll animation completes.
+        let pixelCenteringReady = isTakePlaying
+            && playbackCenteringAnimationEndsAt == nil
+            && (playheadGlobalX ?? -1) >= context.viewportFrameInGlobal.midX
+            && context.rollWidth > context.layoutWidth
+        if shouldFollowPlayingPlayhead(at: date) || pixelCenteringReady {
             #if DEBUG
             NSLog("[PianoRollScrollTo] reason=timeline-follow target=playhead anchor=center")
             #endif
