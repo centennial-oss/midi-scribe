@@ -2,8 +2,7 @@
   "images" : [
     {
       "filename" : "macOS-06-settings 1.png",
-      "idiom" : "mac",
-      "scale" : "1x"
+      "idiom" : "mac"
     },
     {
       "appearances" : [
@@ -13,22 +12,7 @@
         }
       ],
       "filename" : "macOS-06-settings.png",
-      "idiom" : "mac",
-      "scale" : "1x"
-    },
-    {
-      "idiom" : "mac",
-      "scale" : "2x"
-    },
-    {
-      "appearances" : [
-        {
-          "appearance" : "luminosity",
-          "value" : "dark"
-        }
-      ],
-      "idiom" : "mac",
-      "scale" : "2x"
+      "idiom" : "mac"
     }
   ],
   "info" : {
