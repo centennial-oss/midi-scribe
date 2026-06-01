@@ -245,11 +245,18 @@ extension PianoRollView {
         into context: GraphicsContext,
         drawContext: PianoRollDrawContext,
         playOffset: TimeInterval,
+        visibleXRange: ClosedRange<CGFloat>?,
         backgroundColor: Color
     ) {
         for note in notes where pianoRollIsNotePlaying(note, currentOffset: playOffset) {
-            pianoRollEraseNote(note, into: context, drawContext: drawContext, backgroundColor: backgroundColor)
-            pianoRollDrawNote(note, playing: true, into: context, drawContext: drawContext)
+            pianoRollEraseNote(
+                note, into: context, drawContext: drawContext,
+                backgroundColor: backgroundColor, visibleXRange: visibleXRange
+            )
+            pianoRollDrawNote(
+                note, playing: true, into: context,
+                drawContext: drawContext, visibleXRange: visibleXRange
+            )
         }
 
         let tail = take.duration
@@ -257,12 +264,15 @@ extension PianoRollView {
             var note = open
             note.duration = max(0.01, tail - note.startOffset)
             let playing = pianoRollIsNotePlaying(note, currentOffset: playOffset)
-            pianoRollDrawNote(note, playing: playing, into: context, drawContext: drawContext)
+            pianoRollDrawNote(
+                note, playing: playing, into: context,
+                drawContext: drawContext, visibleXRange: visibleXRange
+            )
         }
         for (_, open) in liveActiveCCs {
             var ccEvent = open
             ccEvent.duration = max(0.01, tail - ccEvent.startOffset)
-            pianoRollDrawCC(ccEvent, into: context, drawContext: drawContext)
+            pianoRollDrawCC(ccEvent, into: context, drawContext: drawContext, visibleXRange: visibleXRange)
         }
     }
 }
@@ -272,6 +282,7 @@ struct PianoRollStaticNotesLayer: View, Equatable {
     let notes: [PianoRollNote]
     let ccEvents: [PianoRollCC]
     let drawContext: PianoRollDrawContext
+    let visibleXRange: ClosedRange<CGFloat>?
     let rollWidth: CGFloat
     let viewHeight: CGFloat
 
@@ -279,16 +290,20 @@ struct PianoRollStaticNotesLayer: View, Equatable {
         lhs.notesToken == rhs.notesToken
             && lhs.rollWidth == rhs.rollWidth
             && lhs.viewHeight == rhs.viewHeight
+            && lhs.visibleXRange == rhs.visibleXRange
             && lhs.drawContext == rhs.drawContext
     }
 
     var body: some View {
         Canvas { context, _ in
             for note in notes {
-                pianoRollDrawNote(note, playing: false, into: context, drawContext: drawContext)
+                pianoRollDrawNote(
+                    note, playing: false, into: context,
+                    drawContext: drawContext, visibleXRange: visibleXRange
+                )
             }
             for ccEvent in ccEvents {
-                pianoRollDrawCC(ccEvent, into: context, drawContext: drawContext)
+                pianoRollDrawCC(ccEvent, into: context, drawContext: drawContext, visibleXRange: visibleXRange)
             }
         }
         .frame(width: rollWidth, height: viewHeight)
@@ -306,13 +321,20 @@ private func pianoRollNoteRect(_ note: PianoRollNote, drawContext: PianoRollDraw
     return CGRect(x: startX, y: topY, width: width, height: drawContext.noteHeight)
 }
 
+private func pianoRollRectIsVisible(_ rect: CGRect, in visibleXRange: ClosedRange<CGFloat>?) -> Bool {
+    guard let visibleXRange else { return true }
+    return rect.maxX >= visibleXRange.lowerBound && rect.minX <= visibleXRange.upperBound
+}
+
 func pianoRollDrawNote(
     _ note: PianoRollNote,
     playing: Bool,
     into context: GraphicsContext,
-    drawContext: PianoRollDrawContext
+    drawContext: PianoRollDrawContext,
+    visibleXRange: ClosedRange<CGFloat>?
 ) {
     let rect = pianoRollNoteRect(note, drawContext: drawContext)
+    guard pianoRollRectIsVisible(rect, in: visibleXRange) else { return }
     let path = Path(roundedRect: rect, cornerRadius: 1)
     let baseColor = playing ? drawContext.playingNoteColor : drawContext.idleNoteColor
     context.fill(path, with: .color(baseColor.opacity(pianoRollNoteOpacity(forVelocity: note.velocity))))
@@ -322,21 +344,25 @@ func pianoRollEraseNote(
     _ note: PianoRollNote,
     into context: GraphicsContext,
     drawContext: PianoRollDrawContext,
-    backgroundColor: Color
+    backgroundColor: Color,
+    visibleXRange: ClosedRange<CGFloat>?
 ) {
     let rect = pianoRollNoteRect(note, drawContext: drawContext).insetBy(dx: -0.5, dy: -0.5)
+    guard pianoRollRectIsVisible(rect, in: visibleXRange) else { return }
     context.fill(Path(roundedRect: rect, cornerRadius: 1), with: .color(backgroundColor))
 }
 
 func pianoRollDrawCC(
     _ ccEvent: PianoRollCC,
     into context: GraphicsContext,
-    drawContext: PianoRollDrawContext
+    drawContext: PianoRollDrawContext,
+    visibleXRange: ClosedRange<CGFloat>?
 ) {
     let startX = drawContext.timelineLeadingInset + (ccEvent.startOffset * drawContext.pixelsPerSecond)
     let width = max(2, ccEvent.duration * drawContext.pixelsPerSecond)
     let laneY = PianoRollView.contentTopInset + (CGFloat(ccEvent.kind.laneIndex) * drawContext.ccLaneHeight)
     let rect = CGRect(x: startX, y: laneY, width: width, height: drawContext.ccLaneHeight)
+    guard pianoRollRectIsVisible(rect, in: visibleXRange) else { return }
     context.fill(Path(rect), with: .color(ccEvent.kind.color))
 }
 

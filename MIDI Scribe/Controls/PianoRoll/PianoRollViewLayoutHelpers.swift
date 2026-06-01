@@ -12,6 +12,54 @@ struct PlayheadGlobalXPreferenceKey: PreferenceKey {
 
 extension PianoRollView {
     @ViewBuilder
+    func pianoRollNotesLayers(
+        drawContext: PianoRollDrawContext,
+        playOffset: TimeInterval,
+        visibleXRange: ClosedRange<CGFloat>?,
+        rollWidth: CGFloat,
+        viewHeight: CGFloat
+    ) -> some View {
+        PianoRollStaticNotesLayer(
+            notesToken: notesRenderToken,
+            notes: notes,
+            ccEvents: ccEvents,
+            drawContext: drawContext,
+            visibleXRange: visibleXRange,
+            rollWidth: rollWidth,
+            viewHeight: viewHeight
+        )
+        .equatable()
+
+        Canvas { context, _ in
+            drawDynamicNotesAndCCs(
+                into: context,
+                drawContext: drawContext,
+                playOffset: playOffset,
+                visibleXRange: visibleXRange,
+                backgroundColor: rollBackground
+            )
+        }
+        .frame(width: rollWidth, height: viewHeight)
+        .allowsHitTesting(false)
+    }
+
+    func visibleNoteXRange(
+        playOffset: TimeInterval,
+        pixelsPerSecond: CGFloat,
+        layoutWidth: CGFloat,
+        canScroll: Bool,
+        viewportGlobalMinX: CGFloat
+    ) -> ClosedRange<CGFloat>? {
+        guard canScroll, let playheadGlobalX else { return nil }
+        let headX = Self.timelineLeadingInset + (playOffset * pixelsPerSecond)
+        let contentLeadingGlobalX = playheadGlobalX - headX
+        let scrollOffset = max(0, viewportGlobalMinX - contentLeadingGlobalX)
+        let quantum = max(layoutWidth, 1)
+        let bucketStart = (scrollOffset / quantum).rounded(.down) * quantum
+        return (bucketStart - quantum) ... (bucketStart + 2 * quantum)
+    }
+
+    @ViewBuilder
     func playheadMarkers(
         headX: CGFloat,
         rollWidth: CGFloat,

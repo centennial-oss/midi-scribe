@@ -81,6 +81,13 @@ extension PianoRollView {
                 let viewHeight = layoutHeight
 
                 let playOffset = currentPlaybackOffset
+                let visibleXRange = visibleNoteXRange(
+                    playOffset: playOffset,
+                    pixelsPerSecond: pixelsPerSecond,
+                    layoutWidth: layoutWidth,
+                    canScroll: canScrollHorizontally,
+                    viewportGlobalMinX: geo.frame(in: .global).minX
+                )
                 let playheadColor =
                     (dragStartOffset != nil || isScrubHandleHovered) ? Color.blue : playheadChrome
                 let touchInputModifier = pianoRollTouchInputModifier(
@@ -98,30 +105,16 @@ extension PianoRollView {
                             Color.clear
                                 .frame(width: 1, height: viewHeight)
                                 .id("playheadStart")
-                            let drawContext = makeDrawContext(
-                                keyHeight: keyHeight,
-                                pixelsPerSecond: pixelsPerSecond
-                            )
-                            PianoRollStaticNotesLayer(
-                                notesToken: notesRenderToken,
-                                notes: notes,
-                                ccEvents: ccEvents,
-                                drawContext: drawContext,
+                            pianoRollNotesLayers(
+                                drawContext: makeDrawContext(
+                                    keyHeight: keyHeight,
+                                    pixelsPerSecond: pixelsPerSecond
+                                ),
+                                playOffset: playOffset,
+                                visibleXRange: visibleXRange,
                                 rollWidth: rollWidth,
                                 viewHeight: viewHeight
                             )
-                            .equatable()
-
-                            Canvas { context, _ in
-                                drawDynamicNotesAndCCs(
-                                    into: context,
-                                    drawContext: drawContext,
-                                    playOffset: playOffset,
-                                    backgroundColor: rollBackground
-                                )
-                            }
-                            .frame(width: rollWidth, height: viewHeight)
-                            .allowsHitTesting(false)
 
                             let headX = Self.timelineLeadingInset + (playOffset * pixelsPerSecond)
 
