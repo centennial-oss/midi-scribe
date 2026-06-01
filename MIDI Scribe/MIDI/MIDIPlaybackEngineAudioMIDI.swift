@@ -218,7 +218,7 @@ extension MIDIPlaybackEngine {
     /// engine state changes underneath a send (e.g. configuration change / output
     /// device switch during a scrub). Swift cannot catch these natively and they
     /// terminate the app; the bridging helper turns them into a no-op plus a log.
-    nonisolated private func sendMIDIEventSafely(
+    nonisolated func sendMIDIEventSafely(
         to sampler: AVAudioUnitMIDIInstrument,
         status: UInt8,
         data1: UInt8,
@@ -250,7 +250,7 @@ extension MIDIPlaybackEngine {
     }
 
     /// Must be called with `samplerLock` held.
-    nonisolated private func speakerInstrumentIsReadyLocked(allowRebuild: Bool) -> Bool {
+    nonisolated func speakerInstrumentIsReadyLocked(allowRebuild: Bool) -> Bool {
         if speakerInstrument.engine === audioEngine, audioEngine.isRunning {
             return true
         }
@@ -299,17 +299,6 @@ extension MIDIPlaybackEngine {
         }
     }
 
-    nonisolated func sendAllNotesOff() {
-        for channel in 1...16 {
-            sendControlChange(64, value: 0, on: channel)
-            sendControlChange(66, value: 0, on: channel)
-            sendControlChange(67, value: 0, on: channel)
-            sendControlChange(120, value: 0, on: channel)
-            sendControlChange(121, value: 0, on: channel)
-            sendControlChange(123, value: 0, on: channel)
-        }
-    }
-
     func captureResumePosition() {
         guard let playbackStartedAt else { return }
         playbackResumeOffset = playbackSegmentStartOffset + max(Date().timeIntervalSince(playbackStartedAt), 0)
@@ -346,27 +335,6 @@ extension MIDIPlaybackEngine {
                 )
             }
         }
-    }
-
-    nonisolated private func sendControlChange(_ controller: UInt8, value: UInt8, on channel: Int) {
-        guard let channelNibble = midiChannelNibble(for: channel) else { return }
-        let status = UInt8(0xB0 | channelNibble)
-        os_unfair_lock_lock(&samplerLock)
-        if !samplerIsRebuilding, speakerInstrumentIsReadyLocked(allowRebuild: true) {
-            sendMIDIEventSafely(to: speakerInstrument, status: status, data1: controller, data2: value)
-        }
-        os_unfair_lock_unlock(&samplerLock)
-
-        let event = RecordedMIDIEvent(
-            receivedAt: Date(),
-            offsetFromTakeStart: 0,
-            kind: .controlChange,
-            channel: UInt8(channel),
-            status: status,
-            data1: controller,
-            data2: value
-        )
-        sendToMIDIDestinations(event, channelOverride: channel)
     }
 
     nonisolated private func midiChannelNibble(for channel: Int) -> UInt8? {

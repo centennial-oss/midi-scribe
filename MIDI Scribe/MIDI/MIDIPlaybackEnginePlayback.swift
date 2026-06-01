@@ -55,6 +55,7 @@ extension MIDIPlaybackEngine {
         target: PlaybackOutputTarget
     ) async {
         var index = startIndex
+        var lastResumeSyncNanoseconds: UInt64 = 0
         while index < events.count {
             let batchStart = index
             let batchUptimeNanoseconds = playbackStartUptimeNanoseconds
@@ -72,12 +73,21 @@ extension MIDIPlaybackEngine {
                 index += 1
             }
 
-            let resumeIndex = index
-            let resumeOffset = events[resumeIndex - 1].offsetFromTakeStart
-            Task { @MainActor [weak self] in
-                guard let self, self.playbackSessionID == playbackSessionID, self.isPlaying else { return }
-                self.playbackResumeIndex = resumeIndex
-                self.playbackResumeOffset = resumeOffset
+            // Keep the resume cursor warm, but throttle the main-actor hop to
+            // ~100ms. Dense MIDI fires many batches per second; pause/seek
+            // recompute the resume position from elapsed time anyway, so a
+            // per-batch hop is wasteful. (The final position is handled by
+            // pause()/finishPlayback().)
+            let nowAfterBatch = DispatchTime.now().uptimeNanoseconds
+            if nowAfterBatch - lastResumeSyncNanoseconds >= Self.resumeSyncIntervalNanoseconds {
+                lastResumeSyncNanoseconds = nowAfterBatch
+                let resumeIndex = index
+                let resumeOffset = events[resumeIndex - 1].offsetFromTakeStart
+                Task { @MainActor [weak self] in
+                    guard let self, self.playbackSessionID == playbackSessionID, self.isPlaying else { return }
+                    self.playbackResumeIndex = resumeIndex
+                    self.playbackResumeOffset = resumeOffset
+                }
             }
         }
         await MainActor.run { self.finishPlayback() }
@@ -86,6 +96,9 @@ extension MIDIPlaybackEngine {
     nonisolated private static func nanoseconds(for interval: TimeInterval) -> UInt64 {
         UInt64(max(0, interval) * 1_000_000_000)
     }
+
+    /// Minimum spacing between main-actor resume-cursor syncs during playback.
+    nonisolated private static let resumeSyncIntervalNanoseconds: UInt64 = 100_000_000
 
     func snapResumePositionToActiveNoteStart() {
         guard let playbackTake else { return }
