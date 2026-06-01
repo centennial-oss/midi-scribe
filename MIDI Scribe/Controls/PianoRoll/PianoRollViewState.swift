@@ -26,8 +26,7 @@ extension PianoRollView {
 
     func makeDrawContext(
         keyHeight: CGFloat,
-        pixelsPerSecond: CGFloat,
-        playOffset: TimeInterval
+        pixelsPerSecond: CGFloat
     ) -> PianoRollDrawContext {
         PianoRollDrawContext(
             keyHeight: keyHeight,
@@ -35,7 +34,6 @@ extension PianoRollView {
             ccLaneHeight: max(2, max(4, keyHeight) / 2),
             pixelsPerSecond: pixelsPerSecond,
             timelineLeadingInset: Self.timelineLeadingInset,
-            playOffset: playOffset,
             idleNoteColor: noteBarIdleColor,
             playingNoteColor: noteBarPlayingColor
         )

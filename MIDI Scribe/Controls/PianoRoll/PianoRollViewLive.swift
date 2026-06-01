@@ -96,6 +96,7 @@ extension PianoRollView {
     private func appendNote(_ note: PianoRollNote) {
         notes.append(note)
         notesByID[note.id] = note
+        notesRenderToken &+= 1
     }
 
     /// Rebuilds `notesByID` from the current `notes` array. Called after a
@@ -125,6 +126,7 @@ extension PianoRollView {
             active.duration = max(0.01, event.offsetFromTakeStart - active.startOffset)
             ccEvents.append(active)
             liveActiveCCs[ccNumber] = nil
+            notesRenderToken &+= 1
         }
     }
 
@@ -150,6 +152,7 @@ extension PianoRollView {
         notes = buildNotes(from: renderableEvents)
         rebuildNotesByID()
         ccEvents = buildCCs(from: renderableEvents)
+        notesRenderToken &+= 1
     }
 
     private func buildNotes(from sortedEvents: [RecordedMIDIEvent]) -> [PianoRollNote] {
@@ -223,84 +226,131 @@ extension PianoRollView {
     }
 }
 
-/// Precomputed drawing parameters for a single Canvas pass over all notes
-/// and CCs. Bundled into a struct to keep per-note draw helpers under the
-/// linter's parameter-count limit.
-struct PianoRollDrawContext {
+/// Precomputed drawing parameters shared by the static and dynamic Canvas
+/// layers. Deliberately excludes the playhead offset so the static layer's
+/// `Equatable` comparison stays stable across animation frames (only the
+/// dynamic layer cares about which notes are under the playhead).
+struct PianoRollDrawContext: Equatable {
     let keyHeight: CGFloat
     let noteHeight: CGFloat
     let ccLaneHeight: CGFloat
     let pixelsPerSecond: CGFloat
     let timelineLeadingInset: CGFloat
-    let playOffset: TimeInterval
     let idleNoteColor: Color
     let playingNoteColor: Color
 }
 
 extension PianoRollView {
-    func drawNotesAndCCs(
+    func drawDynamicNotesAndCCs(
         into context: GraphicsContext,
-        drawContext: PianoRollDrawContext
+        drawContext: PianoRollDrawContext,
+        playOffset: TimeInterval,
+        backgroundColor: Color
     ) {
-        let tail = take.duration
-
-        for note in notes {
-            drawNote(note, into: context, drawContext: drawContext)
+        for note in notes where pianoRollIsNotePlaying(note, currentOffset: playOffset) {
+            pianoRollEraseNote(note, into: context, drawContext: drawContext, backgroundColor: backgroundColor)
+            pianoRollDrawNote(note, playing: true, into: context, drawContext: drawContext)
         }
+
+        let tail = take.duration
         for (_, open) in liveActiveNotes {
             var note = open
             note.duration = max(0.01, tail - note.startOffset)
-            drawNote(note, into: context, drawContext: drawContext)
-        }
-        for ccEvent in ccEvents {
-            drawCC(ccEvent, into: context, drawContext: drawContext)
+            let playing = pianoRollIsNotePlaying(note, currentOffset: playOffset)
+            pianoRollDrawNote(note, playing: playing, into: context, drawContext: drawContext)
         }
         for (_, open) in liveActiveCCs {
             var ccEvent = open
             ccEvent.duration = max(0.01, tail - ccEvent.startOffset)
-            drawCC(ccEvent, into: context, drawContext: drawContext)
+            pianoRollDrawCC(ccEvent, into: context, drawContext: drawContext)
         }
     }
+}
 
-    private func drawNote(
-        _ note: PianoRollNote,
-        into context: GraphicsContext,
-        drawContext: PianoRollDrawContext
-    ) {
-        let startX = drawContext.timelineLeadingInset + (note.startOffset * drawContext.pixelsPerSecond)
-        let width = max(2, note.duration * drawContext.pixelsPerSecond)
-        let topY = pitchToY(pitch: note.pitch, keyHeight: drawContext.keyHeight) + PianoRollView.contentTopInset
-        let rect = CGRect(x: startX, y: topY, width: width, height: drawContext.noteHeight)
-        let path = Path(roundedRect: rect, cornerRadius: 1)
-        let playing = isNotePlaying(note, currentOffset: drawContext.playOffset)
-        let baseColor = playing ? drawContext.playingNoteColor : drawContext.idleNoteColor
-        context.fill(path, with: .color(baseColor.opacity(opacity(forVelocity: note.velocity))))
+struct PianoRollStaticNotesLayer: View, Equatable {
+    let notesToken: Int
+    let notes: [PianoRollNote]
+    let ccEvents: [PianoRollCC]
+    let drawContext: PianoRollDrawContext
+    let rollWidth: CGFloat
+    let viewHeight: CGFloat
+
+    static func == (lhs: PianoRollStaticNotesLayer, rhs: PianoRollStaticNotesLayer) -> Bool {
+        lhs.notesToken == rhs.notesToken
+            && lhs.rollWidth == rhs.rollWidth
+            && lhs.viewHeight == rhs.viewHeight
+            && lhs.drawContext == rhs.drawContext
     }
 
-    private func opacity(forVelocity velocity: UInt8) -> Double {
-        let normalized = min(Double(velocity), 100) / 100
-        return 0.05 + (normalized * 0.95)
+    var body: some View {
+        Canvas { context, _ in
+            for note in notes {
+                pianoRollDrawNote(note, playing: false, into: context, drawContext: drawContext)
+            }
+            for ccEvent in ccEvents {
+                pianoRollDrawCC(ccEvent, into: context, drawContext: drawContext)
+            }
+        }
+        .frame(width: rollWidth, height: viewHeight)
+        .allowsHitTesting(false)
     }
+}
 
-    private func drawCC(
-        _ ccEvent: PianoRollCC,
-        into context: GraphicsContext,
-        drawContext: PianoRollDrawContext
-    ) {
-        let startX = drawContext.timelineLeadingInset + (ccEvent.startOffset * drawContext.pixelsPerSecond)
-        let width = max(2, ccEvent.duration * drawContext.pixelsPerSecond)
-        let laneY = PianoRollView.contentTopInset + (CGFloat(ccEvent.kind.laneIndex) * drawContext.ccLaneHeight)
-        let rect = CGRect(x: startX, y: laneY, width: width, height: drawContext.ccLaneHeight)
-        context.fill(Path(rect), with: .color(ccEvent.kind.color))
-    }
+// MARK: - Shared free-function draw primitives (used by both layers)
 
-    private func pitchToY(pitch: UInt8, keyHeight: CGFloat) -> CGFloat {
-        let safePitch = max(21, min(108, pitch))
-        let inverted = 108 - safePitch
-        return CGFloat(inverted) * keyHeight
-    }
+private func pianoRollNoteRect(_ note: PianoRollNote, drawContext: PianoRollDrawContext) -> CGRect {
+    let startX = drawContext.timelineLeadingInset + (note.startOffset * drawContext.pixelsPerSecond)
+    let width = max(2, note.duration * drawContext.pixelsPerSecond)
+    let topY = pianoRollPitchToY(pitch: note.pitch, keyHeight: drawContext.keyHeight)
+        + PianoRollView.contentTopInset
+    return CGRect(x: startX, y: topY, width: width, height: drawContext.noteHeight)
+}
 
-    private func isNotePlaying(_ note: PianoRollNote, currentOffset: TimeInterval) -> Bool {
-        currentOffset >= note.startOffset && currentOffset <= (note.startOffset + note.duration)
-    }
+func pianoRollDrawNote(
+    _ note: PianoRollNote,
+    playing: Bool,
+    into context: GraphicsContext,
+    drawContext: PianoRollDrawContext
+) {
+    let rect = pianoRollNoteRect(note, drawContext: drawContext)
+    let path = Path(roundedRect: rect, cornerRadius: 1)
+    let baseColor = playing ? drawContext.playingNoteColor : drawContext.idleNoteColor
+    context.fill(path, with: .color(baseColor.opacity(pianoRollNoteOpacity(forVelocity: note.velocity))))
+}
+
+func pianoRollEraseNote(
+    _ note: PianoRollNote,
+    into context: GraphicsContext,
+    drawContext: PianoRollDrawContext,
+    backgroundColor: Color
+) {
+    let rect = pianoRollNoteRect(note, drawContext: drawContext).insetBy(dx: -0.5, dy: -0.5)
+    context.fill(Path(roundedRect: rect, cornerRadius: 1), with: .color(backgroundColor))
+}
+
+func pianoRollDrawCC(
+    _ ccEvent: PianoRollCC,
+    into context: GraphicsContext,
+    drawContext: PianoRollDrawContext
+) {
+    let startX = drawContext.timelineLeadingInset + (ccEvent.startOffset * drawContext.pixelsPerSecond)
+    let width = max(2, ccEvent.duration * drawContext.pixelsPerSecond)
+    let laneY = PianoRollView.contentTopInset + (CGFloat(ccEvent.kind.laneIndex) * drawContext.ccLaneHeight)
+    let rect = CGRect(x: startX, y: laneY, width: width, height: drawContext.ccLaneHeight)
+    context.fill(Path(rect), with: .color(ccEvent.kind.color))
+}
+
+private func pianoRollNoteOpacity(forVelocity velocity: UInt8) -> Double {
+    let normalized = min(Double(velocity), 100) / 100
+    return 0.05 + (normalized * 0.95)
+}
+
+private func pianoRollPitchToY(pitch: UInt8, keyHeight: CGFloat) -> CGFloat {
+    let safePitch = max(21, min(108, pitch))
+    let inverted = 108 - safePitch
+    return CGFloat(inverted) * keyHeight
+}
+
+func pianoRollIsNotePlaying(_ note: PianoRollNote, currentOffset: TimeInterval) -> Bool {
+    currentOffset >= note.startOffset && currentOffset <= (note.startOffset + note.duration)
 }

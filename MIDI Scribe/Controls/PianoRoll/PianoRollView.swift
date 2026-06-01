@@ -22,6 +22,7 @@ struct PianoRollView: View {
     /// scrub-audition path, which otherwise did an O(n) `notes.first(where:)`
     /// per entered/exited note on every scrub frame.
     @State var notesByID: [UUID: PianoRollNote] = [:]
+    @State var notesRenderToken = 0
     /// Cursor into `take.events` used for incremental updates in live
     /// mode so we don't re-scan the full events array on every new note
     /// (which was O(n) per event → O(n²) over the take and caused
@@ -97,19 +98,26 @@ extension PianoRollView {
                             Color.clear
                                 .frame(width: 1, height: viewHeight)
                                 .id("playheadStart")
-                            // Render all notes + CCs in a single Canvas to
-                            // avoid SwiftUI diffing thousands of Rectangle
-                            // views on every new event (which caused
-                            // live-recording lag after ~1500 notes).
+                            let drawContext = makeDrawContext(
+                                keyHeight: keyHeight,
+                                pixelsPerSecond: pixelsPerSecond
+                            )
+                            PianoRollStaticNotesLayer(
+                                notesToken: notesRenderToken,
+                                notes: notes,
+                                ccEvents: ccEvents,
+                                drawContext: drawContext,
+                                rollWidth: rollWidth,
+                                viewHeight: viewHeight
+                            )
+                            .equatable()
+
                             Canvas { context, _ in
-                                let drawContext = makeDrawContext(
-                                    keyHeight: keyHeight,
-                                    pixelsPerSecond: pixelsPerSecond,
-                                    playOffset: playOffset
-                                )
-                                drawNotesAndCCs(
+                                drawDynamicNotesAndCCs(
                                     into: context,
-                                    drawContext: drawContext
+                                    drawContext: drawContext,
+                                    playOffset: playOffset,
+                                    backgroundColor: rollBackground
                                 )
                             }
                             .frame(width: rollWidth, height: viewHeight)
