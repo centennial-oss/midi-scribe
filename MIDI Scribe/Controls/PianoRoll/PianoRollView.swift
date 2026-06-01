@@ -18,6 +18,10 @@ struct PianoRollView: View {
     /// take, the scrub circle is hidden, and the scroll view auto-follows
     /// the tail when the user has zoomed in past the fit-to-width minimum.
     @State var notes: [PianoRollNote] = []; @State var ccEvents: [PianoRollCC] = []
+    /// O(1) lookup of notes by `id`, kept in sync with `notes`. Used by the
+    /// scrub-audition path, which otherwise did an O(n) `notes.first(where:)`
+    /// per entered/exited note on every scrub frame.
+    @State var notesByID: [UUID: PianoRollNote] = [:]
     /// Cursor into `take.events` used for incremental updates in live
     /// mode so we don't re-scan the full events array on every new note
     /// (which was O(n) per event → O(n²) over the take and caused

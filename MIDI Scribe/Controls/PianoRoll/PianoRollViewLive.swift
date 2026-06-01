@@ -76,7 +76,7 @@ extension PianoRollView {
         if isNoteOn {
             if var prior = liveActiveNotes[pitch] {
                 prior.duration = max(0.01, event.offsetFromTakeStart - prior.startOffset)
-                notes.append(prior)
+                appendNote(prior)
             }
             liveActiveNotes[pitch] = PianoRollNote(
                 pitch: pitch,
@@ -87,9 +87,26 @@ extension PianoRollView {
             )
         } else if var active = liveActiveNotes[pitch] {
             active.duration = max(0.01, event.offsetFromTakeStart - active.startOffset)
-            notes.append(active)
+            appendNote(active)
             liveActiveNotes[pitch] = nil
         }
+    }
+
+    /// Appends a closed note and keeps `notesByID` in sync.
+    private func appendNote(_ note: PianoRollNote) {
+        notes.append(note)
+        notesByID[note.id] = note
+    }
+
+    /// Rebuilds `notesByID` from the current `notes` array. Called after a
+    /// full recompute (`computeNotes`).
+    func rebuildNotesByID() {
+        var map: [UUID: PianoRollNote] = [:]
+        map.reserveCapacity(notes.count)
+        for note in notes {
+            map[note.id] = note
+        }
+        notesByID = map
     }
 
     private func ingestLiveCCEvent(_ event: RecordedMIDIEvent) {
@@ -122,13 +139,24 @@ extension PianoRollView {
 }
 
 extension PianoRollView {
-    func computeNoteEvents() {
+    /// Builds the note and CC models. `take.events` is sorted and validated
+    /// once here and the result shared between both builders, rather than each
+    /// model independently sorting (and re-validating) the same array.
+    func computeNotes() {
+        let renderableEvents = take.events
+            .sorted { $0.offsetFromTakeStart < $1.offsetFromTakeStart }
+            .filter { isRenderableMIDIEvent($0) }
+
+        notes = buildNotes(from: renderableEvents)
+        rebuildNotesByID()
+        ccEvents = buildCCs(from: renderableEvents)
+    }
+
+    private func buildNotes(from sortedEvents: [RecordedMIDIEvent]) -> [PianoRollNote] {
         var activeNotes: [UInt8: PianoRollNote] = [:]
         var result: [PianoRollNote] = []
-        let sortedEvents = take.events.sorted { $0.offsetFromTakeStart < $1.offsetFromTakeStart }
 
         for event in sortedEvents {
-            guard isRenderableMIDIEvent(event) else { continue }
             guard let pitch = event.noteNumber else { continue }
             if event.kind == .noteOn && (event.velocity ?? 0) > 0 {
                 if var active = activeNotes[pitch] {
@@ -155,60 +183,43 @@ extension PianoRollView {
             active.duration = max(0.01, take.duration - active.startOffset)
             result.append(active)
         }
-        notes = result
+        return result
     }
 
-    func computeCCs() {
+    private func buildCCs(from sortedEvents: [RecordedMIDIEvent]) -> [PianoRollCC] {
         if shouldRenderDebugFullLengthCCLanes {
-            ccEvents = PianoRollCCKind.allCases.map { kind in
-                PianoRollCC(
-                    kind: kind,
-                    startOffset: 0,
-                    duration: max(0.01, take.duration)
-                )
+            return PianoRollCCKind.allCases.map { kind in
+                PianoRollCC(kind: kind, startOffset: 0, duration: max(0.01, take.duration))
             }
-            return
         }
 
         var activeCCs: [UInt8: PianoRollCC] = [:]
-        var resultCCs: [PianoRollCC] = []
-        let sortedEvents = take.events.sorted { $0.offsetFromTakeStart < $1.offsetFromTakeStart }
+        var result: [PianoRollCC] = []
 
         for event in sortedEvents where event.kind == .controlChange {
-            guard isRenderableMIDIEvent(event) else { continue }
             let ccNumber = event.data1
             guard !hiddenPianoRollControlChanges.contains(ccNumber) else { continue }
             let isOn = (event.data2 ?? 0) >= 64
-
             if isOn {
                 if activeCCs[ccNumber] == nil {
                     activeCCs[ccNumber] = PianoRollCC(
-                        kind: ccKindFor(ccNumber),
+                        kind: ccKind(for: ccNumber),
                         startOffset: event.offsetFromTakeStart,
                         duration: 0
                     )
                 }
             } else if var active = activeCCs[ccNumber] {
                 active.duration = max(0.01, event.offsetFromTakeStart - active.startOffset)
-                resultCCs.append(active)
+                result.append(active)
                 activeCCs[ccNumber] = nil
             }
         }
 
         for (_, var active) in activeCCs {
             active.duration = max(0.01, take.duration - active.startOffset)
-            resultCCs.append(active)
+            result.append(active)
         }
-        ccEvents = resultCCs
-    }
-
-    private func ccKindFor(_ ccNumber: UInt8) -> PianoRollCCKind {
-        switch ccNumber {
-        case 64: return .sustain
-        case 66: return .sostenuto
-        case 67: return .soft
-        default: return .other
-        }
+        return result
     }
 }
 

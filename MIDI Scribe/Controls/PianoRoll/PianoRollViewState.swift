@@ -284,11 +284,6 @@ extension PianoRollView {
         return localScrubOffset ?? 0
     }
 
-    func computeNotes() {
-        computeNoteEvents()
-        computeCCs()
-    }
-
     func resetLiveCursors() {
         liveEventsProcessedCount = 0
         liveActiveNotes.removeAll(keepingCapacity: true)

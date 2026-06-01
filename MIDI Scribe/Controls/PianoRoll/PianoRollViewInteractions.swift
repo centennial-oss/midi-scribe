@@ -180,11 +180,11 @@ extension PianoRollView {
 
     private func playScrubTransitions(enteredIDs: Set<UUID>, exitedIDs: Set<UUID>) {
         for noteID in exitedIDs {
-            guard let note = notes.first(where: { $0.id == noteID }) else { continue }
+            guard let note = notesByID[noteID] else { continue }
             emitScrubEvent(for: note, kind: .noteOff, velocity: 0)
         }
         for noteID in enteredIDs {
-            guard let note = notes.first(where: { $0.id == noteID }) else { continue }
+            guard let note = notesByID[noteID] else { continue }
             emitScrubEvent(for: note, kind: .noteOn, velocity: note.velocity)
         }
     }
