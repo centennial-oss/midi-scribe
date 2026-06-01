@@ -23,6 +23,7 @@ struct PianoRollView: View {
     /// per entered/exited note on every scrub frame.
     @State var notesByID: [UUID: PianoRollNote] = [:]
     @State var notesRenderToken = 0
+    @State var auditionTracker = PianoRollAuditionTracker(); @State var isAuditionActive = false
     /// Cursor into `take.events` used for incremental updates in live
     /// mode so we don't re-scan the full events array on every new note
     /// (which was O(n) per event → O(n²) over the take and caused

@@ -152,6 +152,7 @@ extension PianoRollView {
         notes = buildNotes(from: renderableEvents)
         rebuildNotesByID()
         ccEvents = buildCCs(from: renderableEvents)
+        auditionTracker.reset(with: notes)
         notesRenderToken &+= 1
     }
 

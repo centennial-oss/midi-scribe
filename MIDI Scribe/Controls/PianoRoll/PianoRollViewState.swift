@@ -13,6 +13,49 @@ struct PianoRollTimelineTickContext {
     let playOffset: TimeInterval
 }
 
+/// PianoRollAuditionTracker tracks which notes are under the playhead so per-frame
+/// audition-text refresh doesn't re-filter the whole notes array every tick.
+struct PianoRollAuditionTracker {
+    private var sortedByStart: [PianoRollNote] = []
+    private var cursor = 0
+    private var lastOffset: TimeInterval = -1
+    private(set) var activeNotes: [PianoRollNote] = []
+
+    /// Re-seeds with a new note set (call when `notes` is recomputed).
+    mutating func reset(with notes: [PianoRollNote]) {
+        sortedByStart = notes.sorted { $0.startOffset < $1.startOffset }
+        invalidate()
+    }
+
+    /// Forces the next `update` to rebuild the active set from scratch.
+    mutating func invalidate() {
+        cursor = 0
+        lastOffset = -1
+        activeNotes.removeAll(keepingCapacity: true)
+    }
+
+    /// Updates `activeNotes` for `offset`; returns `true` if the set changed.
+    mutating func update(to offset: TimeInterval) -> Bool {
+        guard offset != lastOffset else { return false }
+        if offset < lastOffset {
+            cursor = 0
+            activeNotes.removeAll(keepingCapacity: true)
+        }
+        lastOffset = offset
+
+        var changed = false
+        while cursor < sortedByStart.count, sortedByStart[cursor].startOffset <= offset {
+            activeNotes.append(sortedByStart[cursor])
+            cursor += 1
+            changed = true
+        }
+        let beforeCount = activeNotes.count
+        activeNotes.removeAll { $0.startOffset + $0.duration < offset }
+        if activeNotes.count != beforeCount { changed = true }
+        return changed
+    }
+}
+
 extension PianoRollView {
     func logScrollbarZoomEvent() {
         #if DEBUG
@@ -190,12 +233,18 @@ extension PianoRollView {
 
     func refreshAuditionNoteText(at offset: TimeInterval) {
         guard !isLive else { return }
-        let isScrubbing = dragStartOffset != nil
-        guard isTakePlaying || isScrubbing else {
+        let active = isTakePlaying || dragStartOffset != nil
+        guard active else {
+            if isAuditionActive { isAuditionActive = false }
             viewModel.clearAuditionNoteText(for: take.id)
             return
         }
-        viewModel.setAuditionNoteText(from: activeNotes(at: offset), takeID: take.id)
+        if !isAuditionActive {
+            isAuditionActive = true
+            auditionTracker.invalidate()
+        }
+        guard auditionTracker.update(to: offset) else { return }
+        viewModel.setAuditionNoteText(from: auditionTracker.activeNotes, takeID: take.id)
     }
 
     func activeNotes(at offset: TimeInterval) -> [PianoRollNote] {
