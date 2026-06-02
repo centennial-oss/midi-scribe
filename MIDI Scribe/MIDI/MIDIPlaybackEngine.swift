@@ -36,6 +36,8 @@ final class MIDIPlaybackEngine: ObservableObject {
     var playbackSessionID: UUID?
     nonisolated(unsafe) var outputClient = MIDIClientRef()
     nonisolated(unsafe) var outputPort = MIDIPortRef()
+    nonisolated(unsafe) var cachedDestinations: [MIDIEndpointRef] = []
+    nonisolated(unsafe) var destinationCacheLock = os_unfair_lock()
     nonisolated(unsafe) var speakerProgram: Int
     nonisolated(unsafe) var cachedSoundBankURL: URL?
     /// Serializes mutations to `speakerInstrument` / `audioEngine` (rebuilds, detaches,

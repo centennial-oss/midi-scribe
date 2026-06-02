@@ -52,8 +52,8 @@ extension MIDIPlaybackEngine {
     /// already in valid 7-bit / channel-nibble form.
     nonisolated private func sendCoalescedToMIDIDestinations(_ messages: [[UInt8]]) {
         guard outputPort != 0, !messages.isEmpty else { return }
-        let destinationCount = MIDIGetNumberOfDestinations()
-        guard destinationCount > 0 else { return }
+        let destinations = currentMIDIDestinations()
+        guard !destinations.isEmpty else { return }
 
         let byteCount = max(1024, messages.count * 64 + 256)
         let listPointer = UnsafeMutableRawPointer.allocate(
@@ -73,8 +73,8 @@ extension MIDIPlaybackEngine {
             currentPacket = added
         }
 
-        for destinationIndex in 0 ..< destinationCount {
-            MIDISend(outputPort, MIDIGetDestination(destinationIndex), packetList)
+        for destination in destinations {
+            MIDISend(outputPort, destination, packetList)
         }
     }
 }

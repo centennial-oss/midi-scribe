@@ -159,9 +159,35 @@ extension MIDIPlaybackEngine {
         let clientStatus = MIDIClientCreateWithBlock(
             "\(AppIdentifier.name) Playback" as CFString,
             &outputClient
-        ) { _ in }
+        ) { [weak self] notification in
+            if notification.pointee.messageID == .msgSetupChanged {
+                self?.refreshDestinationCache()
+            }
+        }
         guard clientStatus == noErr else { return }
         MIDIOutputPortCreate(outputClient, "\(AppIdentifier.name) Playback Port" as CFString, &outputPort)
+        refreshDestinationCache()
+    }
+
+    /// Re-reads the current external MIDI destinations into `cachedDestinations`.
+    /// Cheap and infrequent: called once at setup and on each MIDI setup change.
+    nonisolated func refreshDestinationCache() {
+        let count = MIDIGetNumberOfDestinations()
+        var destinations: [MIDIEndpointRef] = []
+        destinations.reserveCapacity(count)
+        for index in 0 ..< count {
+            destinations.append(MIDIGetDestination(index))
+        }
+        os_unfair_lock_lock(&destinationCacheLock)
+        cachedDestinations = destinations
+        os_unfair_lock_unlock(&destinationCacheLock)
+    }
+
+    /// Snapshot of the cached destinations, taken under the lock.
+    nonisolated func currentMIDIDestinations() -> [MIDIEndpointRef] {
+        os_unfair_lock_lock(&destinationCacheLock)
+        defer { os_unfair_lock_unlock(&destinationCacheLock) }
+        return cachedDestinations
     }
 
     nonisolated func play(event: RecordedMIDIEvent, target: PlaybackOutputTarget) {
@@ -266,35 +292,33 @@ extension MIDIPlaybackEngine {
     nonisolated func sendToMIDIDestinations(_ event: RecordedMIDIEvent, channelOverride: Int) {
         guard outputPort != 0 else { return }
         guard let channelNibble = midiChannelNibble(for: channelOverride) else { return }
-        var data = event.midiData
-        guard !data.isEmpty else { return }
-        data[0] = (data[0] & 0xF0) | channelNibble
-        if data.count > 1 {
-            for index in 1 ..< data.count {
-                data[index] = data[index] & 0x7F
-            }
-        }
-        let packetListSize = 1024
-        let packetListPointer = UnsafeMutableRawPointer.allocate(
-            byteCount: packetListSize,
-            alignment: MemoryLayout<MIDIPacketList>.alignment
-        )
-        defer { packetListPointer.deallocate() }
-        let typedPacketListPointer = packetListPointer.bindMemory(to: MIDIPacketList.self, capacity: 1)
-        data.withUnsafeBytes { bytes in
-            let packetList = typedPacketListPointer
-            let packet = MIDIPacketListInit(packetList)
-            _ = MIDIPacketListAdd(
-                packetList,
-                packetListSize,
-                packet,
-                0,
-                data.count,
-                bytes.bindMemory(to: UInt8.self).baseAddress!
-            )
+        let destinations = currentMIDIDestinations()
+        guard !destinations.isEmpty else { return }
 
-            for destinationIndex in 0 ..< MIDIGetNumberOfDestinations() {
-                MIDISend(outputPort, MIDIGetDestination(destinationIndex), packetList)
+        let statusByte = (event.status & 0xF0) | channelNibble
+        let byteCount = event.data2 == nil ? 2 : 3
+
+        // Stack-allocated message bytes and packet list — no per-event heap
+        // allocation (the previous 1024-byte buffer was malloc'd/freed per send).
+        withUnsafeTemporaryAllocation(of: UInt8.self, capacity: 3) { bytes in
+            bytes[0] = statusByte
+            bytes[1] = event.data1 & 0x7F
+            bytes[2] = (event.data2 ?? 0) & 0x7F
+
+            var packetList = MIDIPacketList()
+            withUnsafeMutablePointer(to: &packetList) { listPointer in
+                let packet = MIDIPacketListInit(listPointer)
+                _ = MIDIPacketListAdd(
+                    listPointer,
+                    MemoryLayout<MIDIPacketList>.size,
+                    packet,
+                    0,
+                    byteCount,
+                    bytes.baseAddress!
+                )
+                for destination in destinations {
+                    MIDISend(outputPort, destination, listPointer)
+                }
             }
         }
     }
