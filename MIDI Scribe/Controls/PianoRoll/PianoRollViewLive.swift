@@ -96,7 +96,7 @@ extension PianoRollView {
     private func appendNote(_ note: PianoRollNote) {
         notes.append(note)
         notesByID[note.id] = note
-        activeNoteIndex = PianoRollActiveNoteIndex(notes: notes)
+        activeNoteIndex.insert(note)
         notesRenderToken &+= 1
     }
 

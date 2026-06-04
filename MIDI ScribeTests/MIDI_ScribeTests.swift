@@ -208,6 +208,19 @@ struct MIDIScribeTests {
         #expect(MIDILiveNoteViewModel.formatAuditionNoteNames([]) == nil)
     }
 
+    @MainActor
+    @Test func activeNoteIndexFindsLongAndShortOverlappingNotes() {
+        let longNote = PianoRollNote(pitch: 40, channel: 1, velocity: 80, startOffset: 0, duration: 100)
+        let earlyNote = PianoRollNote(pitch: 50, channel: 1, velocity: 80, startOffset: 5, duration: 1)
+        let lateNote = PianoRollNote(pitch: 60, channel: 1, velocity: 80, startOffset: 95, duration: 1)
+
+        var index = PianoRollActiveNoteIndex(notes: [lateNote, longNote])
+        index.insert(earlyNote)
+
+        #expect(Set(index.activeNotes(at: 95.5).map(\.pitch)) == [40, 60])
+        #expect(Set(index.activeNotes(at: 5.5).map(\.pitch)) == [40, 50])
+    }
+
     private func programChange(program: UInt8) -> RecordedMIDIEvent {
         RecordedMIDIEvent(
             receivedAt: Date(),
