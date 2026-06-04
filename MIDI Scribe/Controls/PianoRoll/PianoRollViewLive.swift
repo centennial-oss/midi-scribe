@@ -126,6 +126,7 @@ extension PianoRollView {
         } else if var active = liveActiveCCs[ccNumber] {
             active.duration = max(0.01, event.offsetFromTakeStart - active.startOffset)
             ccEvents.append(active)
+            ccEventIndex.insert(active)
             liveActiveCCs[ccNumber] = nil
             notesRenderToken &+= 1
         }
@@ -152,6 +153,7 @@ extension PianoRollView {
         rebuildNotesByID()
         activeNoteIndex = PianoRollActiveNoteIndex(notes: notes)
         ccEvents = buildCCs(from: renderableEvents)
+        ccEventIndex = PianoRollCCEventIndex(events: ccEvents)
         auditionTracker.reset(with: notes)
         notesRenderToken &+= 1
     }
@@ -286,7 +288,7 @@ extension PianoRollView {
 struct PianoRollStaticNotesLayer: View, Equatable {
     let notesToken: Int
     let noteIndex: PianoRollActiveNoteIndex
-    let ccEvents: [PianoRollCC]
+    let ccEventIndex: PianoRollCCEventIndex
     let drawContext: PianoRollDrawContext
     let visibleXRange: ClosedRange<CGFloat>?
     let rollWidth: CGFloat
@@ -308,7 +310,7 @@ struct PianoRollStaticNotesLayer: View, Equatable {
                     drawContext: drawContext, visibleXRange: visibleXRange
                 )
             }
-            for ccEvent in ccEvents {
+            for ccEvent in ccEventIndex.events(intersecting: visibleXRange, drawContext: drawContext) {
                 pianoRollDrawCC(ccEvent, into: context, drawContext: drawContext, visibleXRange: visibleXRange)
             }
         }

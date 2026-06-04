@@ -44,6 +44,7 @@ actor TakeLifecycleController {
     private var events: [RecordedMIDIEvent] = []
     private var summaryBuilder = RecordedTakeSummaryBuilder()
     private var timeoutGeneration = 0
+    private var timeoutTask: Task<Void, Never>?
 
     func ingestInput(at date: Date, timeout: TimeInterval) {
         if startedAt == nil {
@@ -53,7 +54,7 @@ actor TakeLifecycleController {
         lastEventAt = date
 
         timeoutGeneration += 1
-        scheduleTimeout(generation: timeoutGeneration, timeout: timeout)
+        rescheduleTimeout(generation: timeoutGeneration, timeout: timeout)
         publish()
     }
 
@@ -83,7 +84,7 @@ actor TakeLifecycleController {
         lastEventAt = event.receivedAt
 
         timeoutGeneration += 1
-        scheduleTimeout(generation: timeoutGeneration, timeout: timeout)
+        rescheduleTimeout(generation: timeoutGeneration, timeout: timeout)
         publish()
     }
 
@@ -95,6 +96,7 @@ actor TakeLifecycleController {
             lastEventAt = nil
             summaryBuilder = RecordedTakeSummaryBuilder()
             timeoutGeneration += 1
+            cancelTimeout()
             onTakeDiscarded?()
             publish()
             return false
@@ -111,6 +113,7 @@ actor TakeLifecycleController {
         events = []
         summaryBuilder = RecordedTakeSummaryBuilder()
         timeoutGeneration += 1
+        cancelTimeout()
         onTakeCompleted?(completedTake)
         publish()
         return true
@@ -123,6 +126,7 @@ actor TakeLifecycleController {
         events = []
         summaryBuilder = RecordedTakeSummaryBuilder()
         timeoutGeneration += 1
+        cancelTimeout()
         onTakeDiscarded?()
         publish()
     }
@@ -140,16 +144,24 @@ actor TakeLifecycleController {
         onTakeDiscarded = callback
     }
 
-    private func scheduleTimeout(generation: Int, timeout: TimeInterval) {
-        Task { [weak self] in
+    private func rescheduleTimeout(generation: Int, timeout: TimeInterval) {
+        timeoutTask?.cancel()
+        timeoutTask = Task { [weak self] in
             let duration = UInt64(timeout * 1_000_000_000)
             try? await Task.sleep(nanoseconds: duration)
+            guard !Task.isCancelled else { return }
             await self?.handleTimeout(generation: generation)
         }
     }
 
+    private func cancelTimeout() {
+        timeoutTask?.cancel()
+        timeoutTask = nil
+    }
+
     private func handleTimeout(generation: Int) {
         guard generation == timeoutGeneration, startedAt != nil else { return }
+        timeoutTask = nil
         endCurrentTake()
     }
 

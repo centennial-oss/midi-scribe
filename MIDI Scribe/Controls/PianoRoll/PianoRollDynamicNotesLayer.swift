@@ -136,6 +136,125 @@ private extension PianoRollNote {
     }
 }
 
+struct PianoRollCCEventIndex {
+    private static let pendingRebuildThreshold = 256
+
+    private var sortedByStart: [PianoRollCC] = []
+    private var intervalTree: IntervalNode?
+    private var pendingEvents: [PianoRollCC] = []
+
+    init(events: [PianoRollCC] = []) {
+        sortedByStart = events.sorted { $0.startOffset < $1.startOffset }
+        intervalTree = Self.makeTree(from: sortedByStart, range: 0 ..< sortedByStart.count)
+    }
+
+    mutating func insert(_ event: PianoRollCC) {
+        let insertionIndex = insertionIndex(for: event.startOffset)
+        sortedByStart.insert(event, at: insertionIndex)
+        pendingEvents.append(event)
+        if pendingEvents.count >= Self.pendingRebuildThreshold {
+            rebuildTree()
+        }
+    }
+
+    func events(
+        intersecting visibleXRange: ClosedRange<CGFloat>?,
+        drawContext: PianoRollDrawContext
+    ) -> [PianoRollCC] {
+        guard let visibleXRange else { return sortedByStart }
+        guard drawContext.pixelsPerSecond > 0 else { return [] }
+
+        let visibleStart = TimeInterval(
+            max(0, (visibleXRange.lowerBound - drawContext.timelineLeadingInset) / drawContext.pixelsPerSecond)
+        )
+        let visibleEnd = TimeInterval(
+            max(0, (visibleXRange.upperBound - drawContext.timelineLeadingInset) / drawContext.pixelsPerSecond)
+        )
+        return events(overlapping: visibleStart ... visibleEnd)
+    }
+
+    private func events(overlapping query: ClosedRange<TimeInterval>) -> [PianoRollCC] {
+        var result: [PianoRollCC] = []
+        intervalTree?.appendOverlapping(query, to: &result)
+        for event in pendingEvents where Self.overlaps(event, query) {
+            result.append(event)
+        }
+        return result
+    }
+
+    private func insertionIndex(for offset: TimeInterval) -> Int {
+        var low = 0
+        var high = sortedByStart.count
+        while low < high {
+            let mid = (low + high) / 2
+            if sortedByStart[mid].startOffset <= offset {
+                low = mid + 1
+            } else {
+                high = mid
+            }
+        }
+        return low
+    }
+
+    private mutating func rebuildTree() {
+        intervalTree = Self.makeTree(from: sortedByStart, range: 0 ..< sortedByStart.count)
+        pendingEvents.removeAll(keepingCapacity: true)
+    }
+
+    private static func makeTree(
+        from events: [PianoRollCC],
+        range: Range<Int>
+    ) -> IntervalNode? {
+        guard !range.isEmpty else { return nil }
+        let mid = range.lowerBound + ((range.upperBound - range.lowerBound) / 2)
+        return IntervalNode(
+            event: events[mid],
+            left: makeTree(from: events, range: range.lowerBound ..< mid),
+            right: makeTree(from: events, range: (mid + 1) ..< range.upperBound)
+        )
+    }
+
+    private static func overlaps(_ event: PianoRollCC, _ query: ClosedRange<TimeInterval>) -> Bool {
+        event.startOffset <= query.upperBound && event.endOffset >= query.lowerBound
+    }
+
+    private final class IntervalNode {
+        let event: PianoRollCC
+        let left: IntervalNode?
+        let right: IntervalNode?
+        let maxEndOffset: TimeInterval
+
+        init(event: PianoRollCC, left: IntervalNode?, right: IntervalNode?) {
+            self.event = event
+            self.left = left
+            self.right = right
+            maxEndOffset = max(
+                event.endOffset,
+                left?.maxEndOffset ?? -.infinity,
+                right?.maxEndOffset ?? -.infinity
+            )
+        }
+
+        func appendOverlapping(_ query: ClosedRange<TimeInterval>, to result: inout [PianoRollCC]) {
+            if let left, left.maxEndOffset >= query.lowerBound {
+                left.appendOverlapping(query, to: &result)
+            }
+            if PianoRollCCEventIndex.overlaps(event, query) {
+                result.append(event)
+            }
+            if event.startOffset <= query.upperBound {
+                right?.appendOverlapping(query, to: &result)
+            }
+        }
+    }
+}
+
+private extension PianoRollCC {
+    var endOffset: TimeInterval {
+        startOffset + duration
+    }
+}
+
 struct PianoRollDynamicNotesLayer: View, Equatable {
     let notesToken: Int
     let playOffset: TimeInterval

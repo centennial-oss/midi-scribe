@@ -22,7 +22,7 @@ extension PianoRollView {
         PianoRollStaticNotesLayer(
             notesToken: notesRenderToken,
             noteIndex: activeNoteIndex,
-            ccEvents: ccEvents,
+            ccEventIndex: ccEventIndex,
             drawContext: drawContext,
             visibleXRange: visibleXRange,
             rollWidth: rollWidth,
