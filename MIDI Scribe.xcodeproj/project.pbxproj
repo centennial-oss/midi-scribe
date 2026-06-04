@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		E1AA00012F80000000AA0001 /* MIDI Scribe Share Extension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = E1AA00022F80000000AA0001 /* MIDI Scribe Share Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E1AA00012F80000000AA0001 /* MIDI Scribe Share Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E1AA00022F80000000AA0001 /* MIDI Scribe Share Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -28,15 +28,15 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		E1AA00082F80000000AA0001 /* Embed App Extensions */ = {
+		E1AA00082F80000000AA0001 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				E1AA00012F80000000AA0001 /* MIDI Scribe Share Extension.appex in Embed App Extensions */,
+				E1AA00012F80000000AA0001 /* MIDI Scribe Share Extension.appex in Embed Foundation Extensions */,
 			);
-			name = "Embed App Extensions";
+			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -159,7 +159,7 @@
 				D383E6BC2F6F6353003C62A5 /* Sources */,
 				D383E6BD2F6F6353003C62A5 /* Frameworks */,
 				D383E6BE2F6F6353003C62A5 /* Resources */,
-				E1AA00082F80000000AA0001 /* Embed App Extensions */,
+				E1AA00082F80000000AA0001 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
@@ -251,7 +251,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2630;
-				LastUpgradeCheck = 2640;
+				LastUpgradeCheck = 2650;
 				TargetAttributes = {
 					D383E6BF2F6F6353003C62A5 = {
 						CreatedOnToolsVersion = 26.3;
@@ -706,6 +706,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				PRODUCT_BUNDLE_IDENTIFIER = org.centennialoss.midiscribe.shareextension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -732,6 +733,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				PRODUCT_BUNDLE_IDENTIFIER = org.centennialoss.midiscribe.shareextension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
