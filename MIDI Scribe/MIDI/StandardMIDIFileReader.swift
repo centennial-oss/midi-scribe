@@ -6,6 +6,9 @@
 import Foundation
 
 enum StandardMIDIFileReader {
+    nonisolated private static let headerChunkID: UInt32 = 0x4D546864 // "MThd"
+    nonisolated private static let trackChunkID: UInt32 = 0x4D54726B // "MTrk"
+
     enum ReaderError: LocalizedError {
         case invalidHeader
         case unsupportedFormat(UInt16)
@@ -26,7 +29,7 @@ enum StandardMIDIFileReader {
 
     nonisolated static func take(from data: Data, title: String) throws -> RecordedTake {
         var reader = ByteReader(data: data)
-        guard try reader.readString(count: 4) == "MThd" else { throw ReaderError.invalidHeader }
+        guard try reader.readUInt32() == headerChunkID else { throw ReaderError.invalidHeader }
         let headerLength = try reader.readUInt32()
         guard headerLength >= 6 else { throw ReaderError.invalidHeader }
         let format = try reader.readUInt16()
@@ -40,10 +43,10 @@ enum StandardMIDIFileReader {
 
         var events: [RecordedMIDIEvent] = []
         for _ in 0 ..< trackCount {
-            guard try reader.readString(count: 4) == "MTrk" else { throw ReaderError.invalidTrack }
+            guard try reader.readUInt32() == trackChunkID else { throw ReaderError.invalidTrack }
             let trackLength = Int(try reader.readUInt32())
-            let trackData = try reader.readData(count: trackLength)
-            events.append(contentsOf: try readTrack(trackData, ticksPerQuarterNote: Int(division)))
+            var trackReader = try reader.readLimitedReader(count: trackLength)
+            events.append(contentsOf: try readTrack(&trackReader, ticksPerQuarterNote: Int(division)))
         }
 
         events.sort {
@@ -64,8 +67,10 @@ enum StandardMIDIFileReader {
         )
     }
 
-    private nonisolated static func readTrack(_ data: Data, ticksPerQuarterNote: Int) throws -> [RecordedMIDIEvent] {
-        var reader = ByteReader(data: data)
+    private nonisolated static func readTrack(
+        _ reader: inout ByteReader,
+        ticksPerQuarterNote: Int
+    ) throws -> [RecordedMIDIEvent] {
         var tempoMicrosecondsPerQuarter = 500_000
         var absoluteSeconds: TimeInterval = 0
         var runningStatus: UInt8?
@@ -136,18 +141,19 @@ enum StandardMIDIFileReader {
     ) throws -> Bool {
         let metaType = try reader.readUInt8()
         let length = try reader.readVariableLengthQuantity()
-        let metaData = try reader.readData(count: length)
-        if metaType == 0x51, metaData.count == 3 {
-            tempoMicrosecondsPerQuarter = tempo(from: metaData)
+        if metaType == 0x51, length == 3 {
+            tempoMicrosecondsPerQuarter = try tempo(from: &reader)
+        } else {
+            try reader.skip(length)
         }
         return metaType == 0x2F
     }
 
-    private nonisolated static func tempo(from data: Data) -> Int {
-        let start = data.startIndex
-        return (Int(data[start]) << 16)
-            | (Int(data[data.index(start, offsetBy: 1)]) << 8)
-            | Int(data[data.index(start, offsetBy: 2)])
+    private nonisolated static func tempo(from reader: inout ByteReader) throws -> Int {
+        let byte1 = try reader.readUInt8()
+        let byte2 = try reader.readUInt8()
+        let byte3 = try reader.readUInt8()
+        return (Int(byte1) << 16) | (Int(byte2) << 8) | Int(byte3)
     }
 
     private nonisolated static func seconds(forTicks ticks: Int, ticksPerQuarterNote: Int, tempo: Int) -> TimeInterval {
@@ -181,14 +187,23 @@ private extension MIDIChannelEventKind {
 
 private struct ByteReader {
     private let data: Data
-    private var offset = 0
+    private var offset: Int
+    private let endOffset: Int
 
     nonisolated init(data: Data) {
         self.data = data
+        self.offset = data.startIndex
+        self.endOffset = data.endIndex
+    }
+
+    private nonisolated init(data: Data, range: Range<Int>) {
+        self.data = data
+        self.offset = range.lowerBound
+        self.endOffset = range.upperBound
     }
 
     nonisolated var isAtEnd: Bool {
-        offset >= data.count
+        offset >= endOffset
     }
 
     nonisolated mutating func unreadByte() {
@@ -196,26 +211,23 @@ private struct ByteReader {
     }
 
     nonisolated mutating func skip(_ count: Int) throws {
-        guard offset + count <= data.count else { throw StandardMIDIFileReader.ReaderError.truncatedFile }
-        offset += count
-    }
-
-    nonisolated mutating func readData(count: Int) throws -> Data {
-        guard offset + count <= data.count else { throw StandardMIDIFileReader.ReaderError.truncatedFile }
-        let slice = data[offset ..< offset + count]
-        offset += count
-        return Data(slice)
-    }
-
-    nonisolated mutating func readString(count: Int) throws -> String {
-        guard let string = String(data: try readData(count: count), encoding: .utf8) else {
-            throw StandardMIDIFileReader.ReaderError.invalidTrack
+        guard count >= 0, offset + count <= endOffset else {
+            throw StandardMIDIFileReader.ReaderError.truncatedFile
         }
-        return string
+        offset += count
+    }
+
+    nonisolated mutating func readLimitedReader(count: Int) throws -> ByteReader {
+        guard count >= 0, offset + count <= endOffset else {
+            throw StandardMIDIFileReader.ReaderError.truncatedFile
+        }
+        let range = offset ..< (offset + count)
+        offset += count
+        return ByteReader(data: data, range: range)
     }
 
     nonisolated mutating func readUInt8() throws -> UInt8 {
-        guard offset < data.count else { throw StandardMIDIFileReader.ReaderError.truncatedFile }
+        guard offset < endOffset else { throw StandardMIDIFileReader.ReaderError.truncatedFile }
         let value = data[offset]
         offset += 1
         return value

@@ -20,6 +20,8 @@
 import Foundation
 
 enum StandardMIDIFileWriter {
+    private static let headerChunkID: UInt32 = 0x4D546864 // "MThd"
+    private static let trackChunkID: UInt32 = 0x4D54726B // "MTrk"
     static let defaultTicksPerQuarter: UInt16 = 480
     static let defaultTempoMicrosecondsPerQuarter: UInt32 = 500_000 // 120 BPM
 
@@ -30,82 +32,85 @@ enum StandardMIDIFileWriter {
         tempoMicrosecondsPerQuarter: UInt32 = defaultTempoMicrosecondsPerQuarter
     ) -> Data {
         var output = Data()
+        output.reserveCapacity(estimatedOutputSize(for: take))
 
         // Header chunk: "MThd" + length(6) + format(1) + ntrks(2) + division
-        output.append(contentsOf: Array("MThd".utf8))
+        output.append(uint32BE: headerChunkID)
         output.append(uint32BE: 6)
         output.append(uint16BE: 1) // format 1
         output.append(uint16BE: 2) // two tracks (conductor + performance)
         output.append(uint16BE: ticksPerQuarter)
 
-        output.append(
-            trackChunk(for: conductorTrackEvents(
+        appendTrackChunk(to: &output) { body in
+            appendConductorTrack(
+                to: &body,
                 title: take.displayTitle,
                 tempoMicrosecondsPerQuarter: tempoMicrosecondsPerQuarter
-            ))
-        )
+            )
+        }
 
-        output.append(
-            trackChunk(for: performanceTrackEvents(
+        appendTrackChunk(to: &output) { body in
+            appendPerformanceTrack(
+                to: &body,
                 take: take,
                 ticksPerQuarter: ticksPerQuarter,
                 tempoMicrosecondsPerQuarter: tempoMicrosecondsPerQuarter
-            ))
-        )
+            )
+        }
 
         return output
     }
 
-    // MARK: - Track event construction
-
-    private struct TrackEvent {
-        let deltaTicks: UInt32
-        let bytes: [UInt8]
+    private static func estimatedOutputSize(for take: RecordedTake) -> Int {
+        // Header + two track headers + conductor events + a conservative
+        // performance estimate: up to four VLQ bytes plus three MIDI bytes.
+        14 + take.displayTitle.utf8.count + 24 + (take.events.count * 7)
     }
 
-    private static func conductorTrackEvents(
+    private static func appendTrackChunk(to output: inout Data, bodyWriter: (inout Data) -> Void) {
+        output.append(uint32BE: trackChunkID)
+        let lengthOffset = output.count
+        output.append(uint32BE: 0)
+        let bodyStart = output.count
+        bodyWriter(&output)
+        let bodyLength = UInt32(output.count - bodyStart)
+        output.replaceUInt32BE(at: lengthOffset, with: bodyLength)
+    }
+
+    private static func appendConductorTrack(
+        to output: inout Data,
         title: String,
         tempoMicrosecondsPerQuarter: UInt32
-    ) -> [TrackEvent] {
-        var events: [TrackEvent] = []
-
+    ) {
         // Track name meta event (FF 03 len text)
-        let titleBytes = Array(title.utf8)
-        events.append(TrackEvent(
-            deltaTicks: 0,
-            bytes: [0xFF, 0x03] + variableLengthQuantity(UInt32(titleBytes.count)) + titleBytes
-        ))
+        output.appendVariableLengthQuantity(0)
+        output.append(0xFF)
+        output.append(0x03)
+        output.appendVariableLengthQuantity(UInt32(title.utf8.count))
+        output.append(contentsOf: title.utf8)
 
         // Set tempo meta event (FF 51 03 tttttt)
-        let tempo = tempoMicrosecondsPerQuarter
-        events.append(TrackEvent(
-            deltaTicks: 0,
-            bytes: [
-                0xFF, 0x51, 0x03,
-                UInt8((tempo >> 16) & 0xFF),
-                UInt8((tempo >> 8) & 0xFF),
-                UInt8(tempo & 0xFF)
-            ]
-        ))
+        output.appendVariableLengthQuantity(0)
+        output.append(contentsOf: [
+            0xFF, 0x51, 0x03,
+            UInt8((tempoMicrosecondsPerQuarter >> 16) & 0xFF),
+            UInt8((tempoMicrosecondsPerQuarter >> 8) & 0xFF),
+            UInt8(tempoMicrosecondsPerQuarter & 0xFF)
+        ])
 
         // Time signature: 4/4, 24 clocks/metronome click, 8 32nds per beat
-        events.append(TrackEvent(
-            deltaTicks: 0,
-            bytes: [0xFF, 0x58, 0x04, 0x04, 0x02, 0x18, 0x08]
-        ))
+        output.appendVariableLengthQuantity(0)
+        output.append(contentsOf: [0xFF, 0x58, 0x04, 0x04, 0x02, 0x18, 0x08])
 
-        // End of track
-        events.append(TrackEvent(deltaTicks: 0, bytes: [0xFF, 0x2F, 0x00]))
-        return events
+        appendEndOfTrack(to: &output)
     }
 
-    private static func performanceTrackEvents(
+    private static func appendPerformanceTrack(
+        to output: inout Data,
         take: RecordedTake,
         ticksPerQuarter: UInt16,
         tempoMicrosecondsPerQuarter: UInt32
-    ) -> [TrackEvent] {
-        var events: [TrackEvent] = []
-
+    ) {
         let secondsPerQuarter = Double(tempoMicrosecondsPerQuarter) / 1_000_000.0
         let ticksPerSecond = Double(ticksPerQuarter) / secondsPerQuarter
 
@@ -115,30 +120,21 @@ enum StandardMIDIFileWriter {
             let delta = absoluteTick >= previousTick ? absoluteTick - previousTick : 0
             previousTick = absoluteTick
 
-            events.append(TrackEvent(deltaTicks: delta, bytes: event.midiData))
+            output.appendVariableLengthQuantity(delta)
+            output.appendMIDIEvent(event)
         }
 
-        events.append(TrackEvent(deltaTicks: 0, bytes: [0xFF, 0x2F, 0x00]))
-        return events
+        appendEndOfTrack(to: &output)
     }
 
-    private static func trackChunk(for events: [TrackEvent]) -> Data {
-        var body = Data()
-        for event in events {
-            body.append(contentsOf: variableLengthQuantity(event.deltaTicks))
-            body.append(contentsOf: event.bytes)
-        }
-
-        var chunk = Data()
-        chunk.append(contentsOf: Array("MTrk".utf8))
-        chunk.append(uint32BE: UInt32(body.count))
-        chunk.append(body)
-        return chunk
+    private static func appendEndOfTrack(to output: inout Data) {
+        output.appendVariableLengthQuantity(0)
+        output.append(contentsOf: [0xFF, 0x2F, 0x00])
     }
+}
 
-    // MARK: - Variable-length quantity encoding per SMF spec
-
-    private static func variableLengthQuantity(_ value: UInt32) -> [UInt8] {
+private extension Data {
+    mutating func appendVariableLengthQuantity(_ value: UInt32) {
         var buffer: UInt32 = value & 0x7F
         var shifted = value >> 7
         while shifted > 0 {
@@ -147,20 +143,36 @@ enum StandardMIDIFileWriter {
             shifted >>= 7
         }
 
-        var result: [UInt8] = []
         while true {
-            result.append(UInt8(buffer & 0xFF))
+            append(UInt8(buffer & 0xFF))
             if buffer & 0x80 != 0 {
                 buffer >>= 8
             } else {
                 break
             }
         }
-        return result
     }
-}
 
-private extension Data {
+    mutating func appendMIDIEvent(_ event: RecordedMIDIEvent) {
+        append(event.status)
+        append(event.data1)
+        if let data2 = event.data2 {
+            append(data2)
+        }
+    }
+
+    mutating func replaceUInt32BE(at offset: Int, with value: UInt32) {
+        replaceSubrange(
+            offset ..< offset + 4,
+            with: [
+                UInt8((value >> 24) & 0xFF),
+                UInt8((value >> 16) & 0xFF),
+                UInt8((value >> 8) & 0xFF),
+                UInt8(value & 0xFF)
+            ]
+        )
+    }
+
     mutating func append(uint16BE value: UInt16) {
         append(UInt8((value >> 8) & 0xFF))
         append(UInt8(value & 0xFF))
