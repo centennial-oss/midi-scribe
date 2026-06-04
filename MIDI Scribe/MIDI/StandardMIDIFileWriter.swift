@@ -109,12 +109,8 @@ enum StandardMIDIFileWriter {
         let secondsPerQuarter = Double(tempoMicrosecondsPerQuarter) / 1_000_000.0
         let ticksPerSecond = Double(ticksPerQuarter) / secondsPerQuarter
 
-        // Events are already ordered by offsetFromTakeStart after persistence,
-        // but be defensive: sort by absolute tick.
-        let sortedEvents = take.events.sorted { $0.offsetFromTakeStart < $1.offsetFromTakeStart }
-
         var previousTick: UInt32 = 0
-        for event in sortedEvents {
+        for event in take.events {
             let absoluteTick = UInt32(max(0, (event.offsetFromTakeStart * ticksPerSecond).rounded()))
             let delta = absoluteTick >= previousTick ? absoluteTick - previousTick : 0
             previousTick = absoluteTick

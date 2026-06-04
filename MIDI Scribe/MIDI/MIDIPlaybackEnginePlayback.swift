@@ -110,7 +110,7 @@ extension MIDIPlaybackEngine {
 
     private func activeNoteStartOffset(in take: RecordedTake, at offset: TimeInterval) -> TimeInterval? {
         var activeByChannelAndPitch: [UInt16: TimeInterval] = [:]
-        for event in take.events.sorted(by: { $0.offsetFromTakeStart < $1.offsetFromTakeStart }) {
+        for event in take.events {
             if event.offsetFromTakeStart > offset { break }
             guard event.channel >= 1, event.channel <= 16 else { continue }
             guard let pitch = event.noteNumber else { continue }

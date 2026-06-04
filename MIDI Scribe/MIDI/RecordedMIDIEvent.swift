@@ -85,13 +85,19 @@ struct RecordedTake: Identifiable, Sendable, Equatable {
     /// counts without re-scanning the (potentially very large) events array.
     let summary: RecordedTakeSummary
 
-    nonisolated init(id: UUID = UUID(), startedAt: Date, endedAt: Date, events: [RecordedMIDIEvent]) {
+    nonisolated init(
+        id: UUID = UUID(),
+        startedAt: Date,
+        endedAt: Date,
+        events: [RecordedMIDIEvent],
+        eventsAreSorted: Bool = false
+    ) {
         self.id = id
         self.startedAt = startedAt
         self.endedAt = endedAt
-        self.events = events
+        self.events = eventsAreSorted ? events : Self.sortedEvents(events)
         self.summary = RecordedTakeSummary(
-            events: events,
+            events: self.events,
             duration: max(endedAt.timeIntervalSince(startedAt), 0)
         )
     }
@@ -101,12 +107,13 @@ struct RecordedTake: Identifiable, Sendable, Equatable {
         startedAt: Date,
         endedAt: Date,
         events: [RecordedMIDIEvent],
-        summary: RecordedTakeSummary
+        summary: RecordedTakeSummary,
+        eventsAreSorted: Bool = false
     ) {
         self.id = id
         self.startedAt = startedAt
         self.endedAt = endedAt
-        self.events = events
+        self.events = eventsAreSorted ? events : Self.sortedEvents(events)
         self.summary = summary
     }
 
@@ -125,6 +132,18 @@ struct RecordedTake: Identifiable, Sendable, Equatable {
         formatter.dateFormat = "yyyy/MM/dd HH:mm:ss"
         return formatter
     }()
+
+    private nonisolated static func sortedEvents(_ events: [RecordedMIDIEvent]) -> [RecordedMIDIEvent] {
+        events.sorted { lhs, rhs in
+            if lhs.offsetFromTakeStart != rhs.offsetFromTakeStart {
+                return lhs.offsetFromTakeStart < rhs.offsetFromTakeStart
+            }
+            if lhs.receivedAt != rhs.receivedAt {
+                return lhs.receivedAt < rhs.receivedAt
+            }
+            return lhs.status < rhs.status
+        }
+    }
 }
 
 struct RecordedTakeSummary: Sendable, Equatable {

@@ -340,7 +340,8 @@ extension ContentView {
             startedAt: startedAt,
             endedAt: endedAt,
             events: events,
-            summary: RecordedTakeSummary.empty
+            summary: RecordedTakeSummary.empty,
+            eventsAreSorted: true
         )
     }
 

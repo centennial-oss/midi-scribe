@@ -112,7 +112,8 @@ final class StoredTake {
             startedAt: startedAt,
             endedAt: endedAt,
             events: sortedEvents,
-            summary: cachedSummary
+            summary: cachedSummary,
+            eventsAreSorted: true
         )
     }
 

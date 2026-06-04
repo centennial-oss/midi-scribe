@@ -146,9 +146,7 @@ extension PianoRollView {
     /// once here and the result shared between both builders, rather than each
     /// model independently sorting (and re-validating) the same array.
     func computeNotes() {
-        let renderableEvents = take.events
-            .sorted { $0.offsetFromTakeStart < $1.offsetFromTakeStart }
-            .filter { isRenderableMIDIEvent($0) }
+        let renderableEvents = take.events.filter { isRenderableMIDIEvent($0) }
 
         notes = buildNotes(from: renderableEvents)
         rebuildNotesByID()

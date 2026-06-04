@@ -55,7 +55,13 @@ enum StandardMIDIFileReader {
 
         let start = Date()
         let duration = events.last?.offsetFromTakeStart ?? 0
-        return RecordedTake(id: UUID(), startedAt: start, endedAt: start.addingTimeInterval(duration), events: events)
+        return RecordedTake(
+            id: UUID(),
+            startedAt: start,
+            endedAt: start.addingTimeInterval(duration),
+            events: events,
+            eventsAreSorted: true
+        )
     }
 
     private nonisolated static func readTrack(_ data: Data, ticksPerQuarterNote: Int) throws -> [RecordedMIDIEvent] {

@@ -103,7 +103,8 @@ actor TakeLifecycleController {
         let completedTake = RecordedTake(
             startedAt: startedAt ?? Date(),
             endedAt: lastEventAt ?? startedAt ?? Date(),
-            events: events
+            events: events,
+            eventsAreSorted: true
         )
         startedAt = nil
         lastEventAt = nil

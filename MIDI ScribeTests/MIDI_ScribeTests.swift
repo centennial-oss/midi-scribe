@@ -221,6 +221,21 @@ struct MIDIScribeTests {
         #expect(Set(index.activeNotes(at: 5.5).map(\.pitch)) == [40, 50])
     }
 
+    @Test func recordedTakeStoresEventsSortedByOffset() {
+        let baseDate = Date(timeIntervalSince1970: 0)
+        let take = RecordedTake(
+            startedAt: baseDate,
+            endedAt: baseDate.addingTimeInterval(2),
+            events: [
+                noteOn(noteNumber: 64, velocity: 80, offset: 1.0, receivedAt: baseDate.addingTimeInterval(1.0)),
+                noteOn(noteNumber: 60, velocity: 80, offset: 0.25, receivedAt: baseDate.addingTimeInterval(0.25)),
+                noteOn(noteNumber: 67, velocity: 80, offset: 1.0, receivedAt: baseDate.addingTimeInterval(0.75))
+            ]
+        )
+
+        #expect(take.events.map(\.data1) == [60, 67, 64])
+    }
+
     private func programChange(program: UInt8) -> RecordedMIDIEvent {
         RecordedMIDIEvent(
             receivedAt: Date(),
@@ -229,6 +244,23 @@ struct MIDIScribeTests {
             channel: 1,
             status: 0xC0,
             data1: program
+        )
+    }
+
+    private func noteOn(
+        noteNumber: UInt8,
+        velocity: UInt8,
+        offset: TimeInterval,
+        receivedAt: Date
+    ) -> RecordedMIDIEvent {
+        RecordedMIDIEvent(
+            receivedAt: receivedAt,
+            offsetFromTakeStart: offset,
+            kind: .noteOn,
+            channel: 1,
+            status: 0x90,
+            data1: noteNumber,
+            data2: velocity
         )
     }
 }

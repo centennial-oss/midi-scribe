@@ -281,7 +281,8 @@ actor TakePersistenceService {
             let mergedRecordedTake = RecordedTake(
                 startedAt: firstStart,
                 endedAt: endedAt,
-                events: mergedEvents
+                events: mergedEvents,
+                eventsAreSorted: true
             )
             let mergedStored = StoredTake(recordedTake: mergedRecordedTake)
             context.insert(mergedStored)
