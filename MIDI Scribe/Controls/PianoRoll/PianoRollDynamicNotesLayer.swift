@@ -14,32 +14,28 @@ struct PianoRollDynamicRenderContext {
 }
 
 struct PianoRollActiveNoteIndex {
+    private static let pendingRebuildThreshold = 256
+
     private var sortedByStart: [PianoRollNote] = []
-    private var maxDuration: TimeInterval = 0
+    private var intervalTree: IntervalNode?
+    private var pendingNotes: [PianoRollNote] = []
 
     init(notes: [PianoRollNote] = []) {
         sortedByStart = notes.sorted { $0.startOffset < $1.startOffset }
-        maxDuration = notes.map(\.duration).max() ?? 0
+        intervalTree = Self.makeTree(from: sortedByStart, range: 0 ..< sortedByStart.count)
+    }
+
+    mutating func insert(_ note: PianoRollNote) {
+        let insertionIndex = insertionIndex(for: note.startOffset)
+        sortedByStart.insert(note, at: insertionIndex)
+        pendingNotes.append(note)
+        if pendingNotes.count >= Self.pendingRebuildThreshold {
+            rebuildTree()
+        }
     }
 
     func activeNotes(at offset: TimeInterval) -> [PianoRollNote] {
-        guard !sortedByStart.isEmpty else { return [] }
-        let upperBound = firstStartIndex(after: offset)
-        guard upperBound > 0 else { return [] }
-
-        let earliestPossibleStart = offset - maxDuration
-        var active: [PianoRollNote] = []
-        var index = upperBound - 1
-        while index >= 0 {
-            let note = sortedByStart[index]
-            if note.startOffset < earliestPossibleStart { break }
-            if offset <= note.startOffset + note.duration {
-                active.append(note)
-            }
-            if index == 0 { break }
-            index -= 1
-        }
-        return active
+        notes(overlapping: offset ... offset)
     }
 
     func notes(
@@ -55,25 +51,19 @@ struct PianoRollActiveNoteIndex {
         let visibleEnd = TimeInterval(
             max(0, (visibleXRange.upperBound - drawContext.timelineLeadingInset) / drawContext.pixelsPerSecond)
         )
-        let upperBound = firstStartIndex(after: visibleEnd)
-        guard upperBound > 0 else { return [] }
-
-        let earliestPossibleStart = visibleStart - maxDuration
-        var visible: [PianoRollNote] = []
-        var index = upperBound - 1
-        while index >= 0 {
-            let note = sortedByStart[index]
-            if note.startOffset < earliestPossibleStart { break }
-            if note.startOffset + note.duration >= visibleStart {
-                visible.append(note)
-            }
-            if index == 0 { break }
-            index -= 1
-        }
-        return visible
+        return notes(overlapping: visibleStart ... visibleEnd)
     }
 
-    private func firstStartIndex(after offset: TimeInterval) -> Int {
+    private func notes(overlapping query: ClosedRange<TimeInterval>) -> [PianoRollNote] {
+        var result: [PianoRollNote] = []
+        intervalTree?.appendOverlapping(query, to: &result)
+        for note in pendingNotes where Self.overlaps(note, query) {
+            result.append(note)
+        }
+        return result
+    }
+
+    private func insertionIndex(for offset: TimeInterval) -> Int {
         var low = 0
         var high = sortedByStart.count
         while low < high {
@@ -85,6 +75,64 @@ struct PianoRollActiveNoteIndex {
             }
         }
         return low
+    }
+
+    private mutating func rebuildTree() {
+        intervalTree = Self.makeTree(from: sortedByStart, range: 0 ..< sortedByStart.count)
+        pendingNotes.removeAll(keepingCapacity: true)
+    }
+
+    private static func makeTree(
+        from notes: [PianoRollNote],
+        range: Range<Int>
+    ) -> IntervalNode? {
+        guard !range.isEmpty else { return nil }
+        let mid = range.lowerBound + ((range.upperBound - range.lowerBound) / 2)
+        return IntervalNode(
+            note: notes[mid],
+            left: makeTree(from: notes, range: range.lowerBound ..< mid),
+            right: makeTree(from: notes, range: (mid + 1) ..< range.upperBound)
+        )
+    }
+
+    private static func overlaps(_ note: PianoRollNote, _ query: ClosedRange<TimeInterval>) -> Bool {
+        note.startOffset <= query.upperBound && note.endOffset >= query.lowerBound
+    }
+
+    private final class IntervalNode {
+        let note: PianoRollNote
+        let left: IntervalNode?
+        let right: IntervalNode?
+        let maxEndOffset: TimeInterval
+
+        init(note: PianoRollNote, left: IntervalNode?, right: IntervalNode?) {
+            self.note = note
+            self.left = left
+            self.right = right
+            maxEndOffset = max(
+                note.endOffset,
+                left?.maxEndOffset ?? -.infinity,
+                right?.maxEndOffset ?? -.infinity
+            )
+        }
+
+        func appendOverlapping(_ query: ClosedRange<TimeInterval>, to result: inout [PianoRollNote]) {
+            if let left, left.maxEndOffset >= query.lowerBound {
+                left.appendOverlapping(query, to: &result)
+            }
+            if PianoRollActiveNoteIndex.overlaps(note, query) {
+                result.append(note)
+            }
+            if note.startOffset <= query.upperBound {
+                right?.appendOverlapping(query, to: &result)
+            }
+        }
+    }
+}
+
+private extension PianoRollNote {
+    var endOffset: TimeInterval {
+        startOffset + duration
     }
 }
 
