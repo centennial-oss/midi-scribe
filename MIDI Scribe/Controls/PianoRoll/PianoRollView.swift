@@ -13,6 +13,7 @@ struct PianoRollView: View {
 
     let take: RecordedTake; @ObservedObject var viewModel: MIDILiveNoteViewModel
     @Binding var zoomLevel: CGFloat; var scrollToStartRequestID = 0; var isLive: Bool = false
+    var isExternalZoomInteractionActive = false
     /// When true, the piano roll is rendering a take that is actively being
     /// recorded. In this mode the playhead tracks the live tail of the
     /// take, the scrub circle is hidden, and the scroll view auto-follows
@@ -23,6 +24,7 @@ struct PianoRollView: View {
     /// per entered/exited note on every scrub frame.
     @State var notesByID: [UUID: PianoRollNote] = [:]
     @State var notesRenderToken = 0
+    @State var activeNoteIndex = PianoRollActiveNoteIndex()
     @State var auditionTracker = PianoRollAuditionTracker(); @State var isAuditionActive = false
     /// Cursor into `take.events` used for incremental updates in live
     /// mode so we don't re-scan the full events array on every new note
@@ -47,9 +49,12 @@ struct PianoRollView: View {
     @State var isZoomCentering = false; @State var zoomCenteringTask: Task<Void, Never>?
     @State var playbackCenteringAnimationEndsAt: Date?; @State var didPrimeInitialLayout = false
     @State var layoutPrimeID = 0; @State var playheadGlobalX: CGFloat?
+    @State var playbackFollowSuppressedUntil: Date?
     @State var isTwoFingerZoomDragActive = false; @State var isIndirectPointerDragActive = false
     @State var isThreeFingerZoomSwipeActive = false
-    @State var pausedZoomPlayheadAnchorX: CGFloat?; @State var delayPlaybackCenteringUntilCenter = false
+    @State var pausedZoomPlayheadAnchorX: CGFloat?; @State var lastPausedZoomPlayheadAnchorX: CGFloat?
+    @State var lastPausedZoomPlayheadAnchorZoomLevel: CGFloat?
+    @State var delayPlaybackCenteringUntilCenter = false
     @State var skipNextPausedZoomCentering = false; @State var shouldAnchorDragZoomSelectionStart = false
     @State var dragZoomSelectionStartOffset: TimeInterval?; @State var measuredBottomScrollbarInset: CGFloat = 0
     /// iOS can deliver an initial 0x0 layout pass for this view. Prime once
@@ -180,28 +185,23 @@ extension PianoRollView {
                             )
                         }
                         .onChange(of: zoomLevel) { _, _ in
-                            logScrollbarZoomEvent()
-                            logZoomChangeDiagnostics(
+                            handleZoomLevelChange(
+                                proxy: proxy,
                                 playOffset: playOffset,
                                 pixelsPerSecond: pixelsPerSecond,
-                                layoutWidth: layoutWidth
+                                layoutWidth: layoutWidth,
+                                viewportFrameInGlobal: geo.frame(in: .global)
                             )
-                            if shouldAnchorDragZoomSelectionStart {
-                                proxy.scrollTo("dragZoomSelectionStart", anchor: .leading)
-                                shouldAnchorDragZoomSelectionStart = false
-                                Task { @MainActor in
-                                    await Task.yield()
-                                    proxy.scrollTo("dragZoomSelectionStart", anchor: .leading)
-                                }
-                            } else if shouldCenterPlayheadAfterDragZoom {
-                                proxy.scrollTo("playhead", anchor: .center); shouldCenterPlayheadAfterDragZoom = false
-                                delayPlaybackCenteringUntilCenter = false
-                            } else if skipNextPausedZoomCentering { skipNextPausedZoomCentering = false } else {
+                        }
+                        .onChange(of: isExternalZoomInteractionActive) { _, isActive in
+                            if isActive {
                                 beginPausedZoomCentering(
-                                    debounce: true,
+                                    debounce: false,
                                     viewportFrameInGlobal: geo.frame(in: .global),
                                     playheadGlobalX: playheadGlobalX
                                 )
+                            } else {
+                                finishPausedZoomCenteringAfterDelay()
                             }
                         }
                         .onChange(of: isTakePlaying) { _, isPlaying in
@@ -246,7 +246,14 @@ extension PianoRollView {
                         )
                         .modifier(touchInputModifier)
                     }
-                    .onPreferenceChange(PlayheadGlobalXPreferenceKey.self) { playheadGlobalX = $0 }
+                    .onPreferenceChange(PlayheadGlobalXPreferenceKey.self) { newValue in
+                        guard !isTakePlaying else { return }
+                        playheadGlobalX = newValue
+                        updatePausedZoomAnchorCache(
+                            playheadGlobalX: newValue,
+                            viewportFrameInGlobal: geo.frame(in: .global)
+                        )
+                    }
                 }
                 .scrollDisabled(
                     !canScrollHorizontally ||

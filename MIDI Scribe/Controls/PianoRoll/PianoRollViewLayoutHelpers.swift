@@ -21,7 +21,7 @@ extension PianoRollView {
     ) -> some View {
         PianoRollStaticNotesLayer(
             notesToken: notesRenderToken,
-            notes: notes,
+            noteIndex: activeNoteIndex,
             ccEvents: ccEvents,
             drawContext: drawContext,
             visibleXRange: visibleXRange,
@@ -30,17 +30,34 @@ extension PianoRollView {
         )
         .equatable()
 
-        Canvas { context, _ in
-            drawDynamicNotesAndCCs(
-                into: context,
-                drawContext: drawContext,
+        if isLive {
+            Canvas { context, _ in
+                drawDynamicNotesAndCCs(
+                    into: context,
+                    renderContext: PianoRollDynamicRenderContext(
+                        drawContext: drawContext,
+                        playOffset: playOffset,
+                        activeNotes: activeNotesForDynamicRender(at: playOffset),
+                        visibleXRange: visibleXRange,
+                        backgroundColor: rollBackground
+                    )
+                )
+            }
+            .frame(width: rollWidth, height: viewHeight)
+            .allowsHitTesting(false)
+        } else {
+            PianoRollDynamicNotesLayer(
+                notesToken: notesRenderToken,
                 playOffset: playOffset,
+                activeNoteIndex: activeNoteIndex,
+                drawContext: drawContext,
                 visibleXRange: visibleXRange,
+                rollWidth: rollWidth,
+                viewHeight: viewHeight,
                 backgroundColor: rollBackground
             )
+            .equatable()
         }
-        .frame(width: rollWidth, height: viewHeight)
-        .allowsHitTesting(false)
     }
 
     func visibleNoteXRange(
@@ -50,11 +67,15 @@ extension PianoRollView {
         canScroll: Bool,
         viewportGlobalMinX: CGFloat
     ) -> ClosedRange<CGFloat>? {
-        guard canScroll, let playheadGlobalX else { return nil }
+        guard canScroll else { return nil }
         let headX = Self.timelineLeadingInset + (playOffset * pixelsPerSecond)
+        let quantum = max(layoutWidth, 1)
+        if isTakePlaying {
+            return (headX - 3 * quantum) ... (headX + 3 * quantum)
+        }
+        guard let playheadGlobalX else { return nil }
         let contentLeadingGlobalX = playheadGlobalX - headX
         let scrollOffset = max(0, viewportGlobalMinX - contentLeadingGlobalX)
-        let quantum = max(layoutWidth, 1)
         let bucketStart = (scrollOffset / quantum).rounded(.down) * quantum
         return (bucketStart - quantum) ... (bucketStart + 2 * quantum)
     }

@@ -66,6 +66,7 @@ struct ContentView: View {
     @State var awaitingCompletedTakeZoomReset = false
     @State var swipeRevealedSidebarItem: ContentSidebarItem?
     @State var isPresentingZoomPopover = false
+    @State var isPianoRollZoomSliderEditing = false
     @State var hasEvaluatedWelcomeSheet = false
     @State var isPresentingWelcomeSheet = false
     @State var hasAttemptedLastViewedTakeRestore = false

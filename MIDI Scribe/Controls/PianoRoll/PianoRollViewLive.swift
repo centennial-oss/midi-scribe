@@ -96,6 +96,7 @@ extension PianoRollView {
     private func appendNote(_ note: PianoRollNote) {
         notes.append(note)
         notesByID[note.id] = note
+        activeNoteIndex = PianoRollActiveNoteIndex(notes: notes)
         notesRenderToken &+= 1
     }
 
@@ -151,6 +152,7 @@ extension PianoRollView {
 
         notes = buildNotes(from: renderableEvents)
         rebuildNotesByID()
+        activeNoteIndex = PianoRollActiveNoteIndex(notes: notes)
         ccEvents = buildCCs(from: renderableEvents)
         auditionTracker.reset(with: notes)
         notesRenderToken &+= 1
@@ -244,19 +246,18 @@ struct PianoRollDrawContext: Equatable {
 extension PianoRollView {
     func drawDynamicNotesAndCCs(
         into context: GraphicsContext,
-        drawContext: PianoRollDrawContext,
-        playOffset: TimeInterval,
-        visibleXRange: ClosedRange<CGFloat>?,
-        backgroundColor: Color
+        renderContext: PianoRollDynamicRenderContext
     ) {
-        for note in notes where pianoRollIsNotePlaying(note, currentOffset: playOffset) {
+        for note in renderContext.activeNotes {
             pianoRollEraseNote(
-                note, into: context, drawContext: drawContext,
-                backgroundColor: backgroundColor, visibleXRange: visibleXRange
+                note, into: context, drawContext: renderContext.drawContext,
+                backgroundColor: renderContext.backgroundColor,
+                visibleXRange: renderContext.visibleXRange
             )
             pianoRollDrawNote(
                 note, playing: true, into: context,
-                drawContext: drawContext, visibleXRange: visibleXRange
+                drawContext: renderContext.drawContext,
+                visibleXRange: renderContext.visibleXRange
             )
         }
 
@@ -264,23 +265,29 @@ extension PianoRollView {
         for (_, open) in liveActiveNotes {
             var note = open
             note.duration = max(0.01, tail - note.startOffset)
-            let playing = pianoRollIsNotePlaying(note, currentOffset: playOffset)
+            let playing = pianoRollIsNotePlaying(note, currentOffset: renderContext.playOffset)
             pianoRollDrawNote(
                 note, playing: playing, into: context,
-                drawContext: drawContext, visibleXRange: visibleXRange
+                drawContext: renderContext.drawContext,
+                visibleXRange: renderContext.visibleXRange
             )
         }
         for (_, open) in liveActiveCCs {
             var ccEvent = open
             ccEvent.duration = max(0.01, tail - ccEvent.startOffset)
-            pianoRollDrawCC(ccEvent, into: context, drawContext: drawContext, visibleXRange: visibleXRange)
+            pianoRollDrawCC(
+                ccEvent,
+                into: context,
+                drawContext: renderContext.drawContext,
+                visibleXRange: renderContext.visibleXRange
+            )
         }
     }
 }
 
 struct PianoRollStaticNotesLayer: View, Equatable {
     let notesToken: Int
-    let notes: [PianoRollNote]
+    let noteIndex: PianoRollActiveNoteIndex
     let ccEvents: [PianoRollCC]
     let drawContext: PianoRollDrawContext
     let visibleXRange: ClosedRange<CGFloat>?
@@ -297,7 +304,7 @@ struct PianoRollStaticNotesLayer: View, Equatable {
 
     var body: some View {
         Canvas { context, _ in
-            for note in notes {
+            for note in noteIndex.notes(intersecting: visibleXRange, drawContext: drawContext) {
                 pianoRollDrawNote(
                     note, playing: false, into: context,
                     drawContext: drawContext, visibleXRange: visibleXRange

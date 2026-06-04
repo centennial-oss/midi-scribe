@@ -124,36 +124,18 @@ extension PianoRollView {
         playheadGlobalX: CGFloat?
     ) {
         guard !isLive else { return }
-        let decision = playbackCenteringDecision(
-            viewportFrameInGlobal: viewportFrameInGlobal,
-            playheadGlobalX: playheadGlobalX
-        )
-        let viewportMidX = viewportFrameInGlobal.midX
-        let shouldDelayCentering = decision.shouldDelayCentering
         #if DEBUG
         NSLog(
-            "[PianoRollCentering] begin isPlaying=%@ delayFlag=%@ contains=%@ playX=%.2f midX=%.2f " +
+            "[PianoRollCentering] begin isPlaying=%@ playX=%.2f midX=%.2f " +
                 "layoutWidth=%.2f pxPerSec=%.4f playOffset=%.4f",
             isTakePlaying ? "true" : "false",
-            shouldDelayCentering ? "true" : "false",
-            decision.viewportContainsPlayhead ? "true" : "false",
             playheadGlobalX ?? -1,
-            viewportMidX,
+            viewportFrameInGlobal.midX,
             layoutWidth,
             pixelsPerSecond,
             currentPlaybackOffset
         )
         #endif
-        if shouldDelayCentering {
-            // Pixel-based model: no timer needed. handleTimelineTick will start
-            // following once playheadGlobalX crosses the viewport midX.
-            playbackCenteringAnimationEndsAt = nil
-            delayPlaybackCenteringUntilCenter = false
-            #if DEBUG
-            NSLog("[PianoRollCentering] delayed-center pixel-based waiting for playhead to cross viewport midX")
-            #endif
-            return
-        }
         let duration: TimeInterval = 0.4
         playbackCenteringAnimationEndsAt = Date().addingTimeInterval(duration)
         #if DEBUG
@@ -190,14 +172,8 @@ extension PianoRollView {
         proxy: ScrollViewProxy,
         context: PianoRollTimelineTickContext
     ) {
-        // Delayed-centering path (playbackCenteringAnimationEndsAt == nil): follow once
-        // the playhead crosses the viewport midpoint and the roll is scrollable.
-        // Immediate-centering path (timer set): follow once the scroll animation completes.
-        let pixelCenteringReady = isTakePlaying
-            && playbackCenteringAnimationEndsAt == nil
-            && (playheadGlobalX ?? -1) >= context.viewportFrameInGlobal.midX
-            && context.rollWidth > context.layoutWidth
-        if shouldFollowPlayingPlayhead(at: date) || pixelCenteringReady {
+        let zoomSuppressed = playbackFollowSuppressedUntil.map { date < $0 } ?? false
+        if shouldFollowPlayingPlayhead(at: date) && !zoomSuppressed {
             #if DEBUG
             NSLog("[PianoRollScrollTo] reason=timeline-follow target=playhead anchor=center")
             #endif
@@ -233,9 +209,14 @@ extension PianoRollView {
 
     func refreshAuditionNoteText(at offset: TimeInterval) {
         guard !isLive else { return }
-        let active = isTakePlaying || dragStartOffset != nil
-        guard active else {
-            if isAuditionActive { isAuditionActive = false }
+        guard dragStartOffset != nil else {
+            if isAuditionActive {
+                isAuditionActive = false
+                viewModel.clearAuditionNoteText(for: take.id)
+            }
+            return
+        }
+        guard !isTakePlaying else {
             viewModel.clearAuditionNoteText(for: take.id)
             return
         }
@@ -248,9 +229,13 @@ extension PianoRollView {
     }
 
     func activeNotes(at offset: TimeInterval) -> [PianoRollNote] {
-        notes.filter { note in
-            offset >= note.startOffset && offset <= note.startOffset + note.duration
-        }
+        activeNoteIndex.activeNotes(at: offset)
+    }
+
+    func activeNotesForDynamicRender(at offset: TimeInterval) -> [PianoRollNote] {
+        guard !isLive else { return [] }
+        guard isTakePlaying || dragStartOffset != nil else { return [] }
+        return activeNoteIndex.activeNotes(at: offset)
     }
 
     func resetScrubState() {
@@ -265,53 +250,14 @@ extension PianoRollView {
         isIndirectPointerDragActive = false
         isThreeFingerZoomSwipeActive = false
         pausedZoomPlayheadAnchorX = nil
+        lastPausedZoomPlayheadAnchorX = nil
+        lastPausedZoomPlayheadAnchorZoomLevel = nil
         shouldCenterPlayheadAfterDragZoom = false
         viewModel.playbackEngine.stopScrubbingNotes()
         viewModel.clearAuditionNoteText(for: take.id)
         scrubEdgeAutoScrollDirection = 0
         scrubLastDragTranslationWidth = nil
         playbackCenteringAnimationEndsAt = nil
-    }
-
-    func beginPausedZoomCentering(
-        debounce: Bool,
-        viewportFrameInGlobal: CGRect,
-        playheadGlobalX: CGFloat?
-    ) {
-        guard !isLive, !isTakePlaying else { return }
-        if !isZoomCentering {
-            isZoomCentering = true
-            pausedZoomPlayheadAnchorX = pausedZoomAnchorX(
-                viewportFrameInGlobal: viewportFrameInGlobal,
-                playheadGlobalX: playheadGlobalX
-            )
-        }
-        guard debounce else { return }
-
-        zoomCenteringTask?.cancel()
-        zoomCenteringTask = Task {
-            try? await Task.sleep(for: .milliseconds(150))
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                isZoomCentering = false
-                pausedZoomPlayheadAnchorX = nil
-                zoomCenteringTask = nil
-            }
-        }
-    }
-
-    private func pausedZoomAnchorX(
-        viewportFrameInGlobal: CGRect,
-        playheadGlobalX: CGFloat?
-    ) -> CGFloat? {
-        guard let playheadGlobalX else { return nil }
-        guard playheadGlobalX >= viewportFrameInGlobal.minX, playheadGlobalX <= viewportFrameInGlobal.maxX else {
-            return nil
-        }
-        let viewportWidth = viewportFrameInGlobal.width
-        guard viewportWidth > 0 else { return nil }
-        let normalizedX = (playheadGlobalX - viewportFrameInGlobal.minX) / viewportWidth
-        return min(max(0, normalizedX), 1)
     }
 
     func primeInitialLayoutIfNeeded(size: CGSize) {

@@ -70,7 +70,8 @@ extension ContentView {
             take: fullTake,
             viewModel: viewModel,
             zoomLevel: $pianoRollZoomLevel,
-            scrollToStartRequestID: pianoRollScrollToStartRequestID
+            scrollToStartRequestID: pianoRollScrollToStartRequestID,
+            isExternalZoomInteractionActive: isPianoRollZoomSliderEditing
         )
         .id(listItem.id)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -289,7 +290,13 @@ extension ContentView {
     private func completedTakeZoomSliderRow() -> some View {
         HStack(spacing: 2) {
             Image(systemName: "minus.magnifyingglass")
-            Slider(value: completedTakeZoomSliderBinding, in: 0...1)
+            Slider(
+                value: completedTakeZoomSliderBinding,
+                in: 0...1,
+                onEditingChanged: { isEditing in
+                    isPianoRollZoomSliderEditing = isEditing
+                }
+            )
                 .frame(minWidth: BuildInfo.isMac ? 150 : 100, maxWidth: BuildInfo.isMac ? 200 : 220)
             Image(systemName: "plus.magnifyingglass")
         }
@@ -350,6 +357,7 @@ extension ContentView {
                 sliderValue(for: pianoRollZoomLevel)
             },
             set: { sliderValue in
+                isPianoRollZoomSliderEditing = true
                 pianoRollZoomLevel = zoomLevel(for: sliderValue)
             }
         )

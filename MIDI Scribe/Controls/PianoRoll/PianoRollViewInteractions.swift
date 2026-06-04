@@ -283,6 +283,8 @@ extension PianoRollView {
     }
 
     func logPlaybackModelDiagnosticsIfNeeded(at offset: TimeInterval) {
+        #if DEBUG
+        guard Self.enablePlaybackModelDiagnostics else { return }
         guard isTakePlaying, !isLive else { return }
         let now = ProcessInfo.processInfo.systemUptime
         if let lastPlaybackModelDiagnosticUptime, now - lastPlaybackModelDiagnosticUptime < 1 {
@@ -294,7 +296,6 @@ extension PianoRollView {
         let raw = rawEventModelSnapshot(at: offset)
         guard rendered.signature != raw.signature else { return }
 
-        #if DEBUG
         NSLog(
             "[PianoRollModel] model mismatch: " +
                 "take=\(take.id) offset=\(String(format: "%.3f", offset)) " +
@@ -302,6 +303,10 @@ extension PianoRollView {
                 "rawCount=\(raw.count) raw=\(raw.signature) events=\(take.events.count) notes=\(notes.count)"
         )
         #endif
+    }
+
+    private static var enablePlaybackModelDiagnostics: Bool {
+        false
     }
 
     private func renderedModelSnapshot(at offset: TimeInterval) -> PianoRollModelSnapshot {

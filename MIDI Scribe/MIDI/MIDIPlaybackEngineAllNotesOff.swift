@@ -44,7 +44,17 @@ extension MIDIPlaybackEngine {
                 messages.append([status, controller, 0])
             }
         }
-        sendCoalescedToMIDIDestinations(messages)
+        sendCoalescedAllNotesOffToMIDIDestinations(messages)
+    }
+
+    nonisolated private func sendCoalescedAllNotesOffToMIDIDestinations(_ messages: [[UInt8]]) {
+        guard Thread.isMainThread else {
+            sendCoalescedToMIDIDestinations(messages)
+            return
+        }
+        Task.detached(priority: .userInitiated) { [weak self] in
+            self?.sendCoalescedToMIDIDestinations(messages)
+        }
     }
 
     /// Builds one `MIDIPacketList` containing all `messages` and sends it once
