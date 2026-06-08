@@ -45,9 +45,10 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
           MAC_APP_STORE_PROVISIONING_PROFILE_BASE64: ${{ secrets.MAC_APP_STORE_PROVISIONING_PROFILE_BASE64 }}
-          MAC_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64: ${{ secrets.MAC_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64 }}
+          # TEMP: share extension removed during Apple account transfer
+          # MAC_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64: ${{ secrets.MAC_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64 }}
           IOS_APP_STORE_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_APP_STORE_PROVISIONING_PROFILE_BASE64 }}
-          IOS_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64 }}
+          # IOS_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64 }}
         run: |
           set -euo pipefail
           REQUIRED_VARS=(
@@ -62,9 +63,9 @@ jobs:
             APP_STORE_CONNECT_ISSUER_ID
             APP_STORE_CONNECT_API_KEY
             MAC_APP_STORE_PROVISIONING_PROFILE_BASE64
-            MAC_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64
+            # MAC_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64
             IOS_APP_STORE_PROVISIONING_PROFILE_BASE64
-            IOS_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64
+            # IOS_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64
           )
           for var in "${REQUIRED_VARS[@]}"; do
             if [ -z "${!var:-}" ]; then
@@ -161,18 +162,19 @@ jobs:
           echo "Installed provisioning profile: $UUID"
           echo "MAC_APP_STORE_PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
 
-      - name: Install Mac App Store extension provisioning profile
-        env:
-          MAC_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64: ${{ secrets.MAC_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64 }}
-        run: |
-          set -euo pipefail
-          echo "$MAC_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64" | base64 --decode > /tmp/profile-extension.provisionprofile
-          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
-          mkdir -p "$PROFILE_DIR"
-          UUID=$(security cms -D -i /tmp/profile-extension.provisionprofile 2>/dev/null | plutil -extract UUID raw - 2>/dev/null || echo "mac-app-store-extension")
-          cp /tmp/profile-extension.provisionprofile "$PROFILE_DIR/${UUID}.provisionprofile"
-          echo "Installed extension provisioning profile: $UUID"
-          echo "MAC_APP_STORE_EXTENSION_PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
+      # TEMP: share extension removed during Apple account transfer
+      # - name: Install Mac App Store extension provisioning profile
+      #   env:
+      #     MAC_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64: ${{ secrets.MAC_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64 }}
+      #   run: |
+      #     set -euo pipefail
+      #     echo "$MAC_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64" | base64 --decode > /tmp/profile-extension.provisionprofile
+      #     PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+      #     mkdir -p "$PROFILE_DIR"
+      #     UUID=$(security cms -D -i /tmp/profile-extension.provisionprofile 2>/dev/null | plutil -extract UUID raw - 2>/dev/null || echo "mac-app-store-extension")
+      #     cp /tmp/profile-extension.provisionprofile "$PROFILE_DIR/${UUID}.provisionprofile"
+      #     echo "Installed extension provisioning profile: $UUID"
+      #     echo "MAC_APP_STORE_EXTENSION_PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
 
       - name: Install iOS App Store provisioning profile
         env:
@@ -187,18 +189,19 @@ jobs:
           echo "Installed iOS provisioning profile: $UUID"
           echo "IOS_APP_STORE_PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
 
-      - name: Install iOS App Store extension provisioning profile
-        env:
-          IOS_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64 }}
-        run: |
-          set -euo pipefail
-          echo "$IOS_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64" | base64 --decode > /tmp/ios-profile-extension.mobileprovision
-          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
-          mkdir -p "$PROFILE_DIR"
-          UUID=$(security cms -D -i /tmp/ios-profile-extension.mobileprovision 2>/dev/null | plutil -extract UUID raw - 2>/dev/null || echo "ios-app-store-extension")
-          cp /tmp/ios-profile-extension.mobileprovision "$PROFILE_DIR/${UUID}.mobileprovision"
-          echo "Installed iOS extension provisioning profile: $UUID"
-          echo "IOS_APP_STORE_EXTENSION_PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
+      # TEMP: share extension removed during Apple account transfer
+      # - name: Install iOS App Store extension provisioning profile
+      #   env:
+      #     IOS_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64 }}
+      #   run: |
+      #     set -euo pipefail
+      #     echo "$IOS_APP_STORE_EXTENSION_PROVISIONING_PROFILE_BASE64" | base64 --decode > /tmp/ios-profile-extension.mobileprovision
+      #     PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+      #     mkdir -p "$PROFILE_DIR"
+      #     UUID=$(security cms -D -i /tmp/ios-profile-extension.mobileprovision 2>/dev/null | plutil -extract UUID raw - 2>/dev/null || echo "ios-app-store-extension")
+      #     cp /tmp/ios-profile-extension.mobileprovision "$PROFILE_DIR/${UUID}.mobileprovision"
+      #     echo "Installed iOS extension provisioning profile: $UUID"
+      #     echo "IOS_APP_STORE_EXTENSION_PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
 
       - name: Verify installed provisioning profiles
         run: |
@@ -206,9 +209,10 @@ jobs:
           PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
           for uuid in \
             "$MAC_APP_STORE_PROFILE_UUID" \
-            "$MAC_APP_STORE_EXTENSION_PROFILE_UUID" \
-            "$IOS_APP_STORE_PROFILE_UUID" \
-            "$IOS_APP_STORE_EXTENSION_PROFILE_UUID"; do
+            "$IOS_APP_STORE_PROFILE_UUID"; do
+            # TEMP: share extension removed during Apple account transfer
+            # "$MAC_APP_STORE_EXTENSION_PROFILE_UUID"
+            # "$IOS_APP_STORE_EXTENSION_PROFILE_UUID"
             file=""
             if [ -f "$PROFILE_DIR/${uuid}.provisionprofile" ]; then
               file="$PROFILE_DIR/${uuid}.provisionprofile"
@@ -261,36 +265,37 @@ jobs:
             CODE_SIGN_IDENTITY="-" \
             clean build
 
-      - name: Code sign app + share extension (Developer ID - for GitHub release)
+      - name: Code sign app (Developer ID - for GitHub release)
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
           APP_PATH="build/Build/Products/Release/${{ env.APP_NAME }}.app"
           APP_XCENT="build/Build/Intermediates.noindex/${{ env.SCHEME_NAME }}.build/Release/${{ env.SCHEME_NAME }}.build/${{ env.APP_NAME }}.app.xcent"
           APP_ENTITLEMENTS="build/Release.entitlements"
-          EXT_NAME="MIDI Scribe Share Extension"
-          EXT_APP_PATH="$APP_PATH/Contents/PlugIns/$EXT_NAME.appex"
-          EXT_BIN_PATH="$EXT_APP_PATH/Contents/MacOS/$EXT_NAME"
-          EXT_XCENT="build/Build/Intermediates.noindex/${{ env.SCHEME_NAME }}.build/Release/$EXT_NAME.build/$EXT_NAME.appex.xcent"
-          EXT_ENTITLEMENTS="build/Release-ShareExtension.entitlements"
+          # TEMP: share extension removed during Apple account transfer
+          # EXT_NAME="MIDI Scribe Share Extension"
+          # EXT_APP_PATH="$APP_PATH/Contents/PlugIns/$EXT_NAME.appex"
+          # EXT_BIN_PATH="$EXT_APP_PATH/Contents/MacOS/$EXT_NAME"
+          # EXT_XCENT="build/Build/Intermediates.noindex/${{ env.SCHEME_NAME }}.build/Release/$EXT_NAME.build/$EXT_NAME.appex.xcent"
+          # EXT_ENTITLEMENTS="build/Release-ShareExtension.entitlements"
 
           cp "$APP_XCENT" "$APP_ENTITLEMENTS"
-          cp "$EXT_XCENT" "$EXT_ENTITLEMENTS"
+          # cp "$EXT_XCENT" "$EXT_ENTITLEMENTS"
           # get-task-allow is for debugging only; must be false for notarization
           /usr/libexec/PlistBuddy -c "Set :com.apple.security.get-task-allow false" "$APP_ENTITLEMENTS"
-          /usr/libexec/PlistBuddy -c "Set :com.apple.security.get-task-allow false" "$EXT_ENTITLEMENTS"
+          # /usr/libexec/PlistBuddy -c "Set :com.apple.security.get-task-allow false" "$EXT_ENTITLEMENTS"
 
           # Sign extension payload first, then extension bundle, then containing app.
-          codesign --force --sign "$APPLE_SIGNING_IDENTITY" \
-            --timestamp \
-            --options runtime \
-            --entitlements "$EXT_ENTITLEMENTS" \
-            "$EXT_BIN_PATH"
-          codesign --force --sign "$APPLE_SIGNING_IDENTITY" \
-            --timestamp \
-            --options runtime \
-            --entitlements "$EXT_ENTITLEMENTS" \
-            "$EXT_APP_PATH"
+          # codesign --force --sign "$APPLE_SIGNING_IDENTITY" \
+          #   --timestamp \
+          #   --options runtime \
+          #   --entitlements "$EXT_ENTITLEMENTS" \
+          #   "$EXT_BIN_PATH"
+          # codesign --force --sign "$APPLE_SIGNING_IDENTITY" \
+          #   --timestamp \
+          #   --options runtime \
+          #   --entitlements "$EXT_ENTITLEMENTS" \
+          #   "$EXT_APP_PATH"
           codesign --force --sign "$APPLE_SIGNING_IDENTITY" \
             --timestamp \
             --options runtime \
@@ -369,6 +374,8 @@ jobs:
         run: |
           # signingStyle=manual: sign locally with the certs imported into the keychain,
           # not via cloud signing (which requires elevated API key permissions).
+          # TEMP: share extension removed during Apple account transfer
+          # -c "Add :provisioningProfiles:org.centennialoss.midiscribe.shareextension string $MAC_APP_STORE_EXTENSION_PROFILE_UUID"
           /usr/libexec/PlistBuddy \
             -c "Add :method string app-store-connect" \
             -c "Add :destination string upload" \
@@ -377,7 +384,6 @@ jobs:
             -c "Add :installerSigningCertificate string 3rd Party Mac Developer Installer" \
             -c "Add :provisioningProfiles dict" \
             -c "Add :provisioningProfiles:org.centennialoss.midiscribe string $MAC_APP_STORE_PROFILE_UUID" \
-            -c "Add :provisioningProfiles:org.centennialoss.midiscribe.shareextension string $MAC_APP_STORE_EXTENSION_PROFILE_UUID" \
             -c "Add :teamID string $APPLE_TEAM_ID" \
             /tmp/ExportOptions-Mac-CI.plist
           # -allowProvisioningUpdates not needed here: the archive already has the profile embedded.
@@ -415,6 +421,8 @@ jobs:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
+          # TEMP: share extension removed during Apple account transfer
+          # -c "Add :provisioningProfiles:org.centennialoss.midiscribe.shareextension string $IOS_APP_STORE_EXTENSION_PROFILE_UUID"
           /usr/libexec/PlistBuddy \
             -c "Add :method string app-store-connect" \
             -c "Add :destination string upload" \
@@ -422,7 +430,6 @@ jobs:
             -c "Add :signingCertificate string $IOS_APP_STORE_SIGNING_CERTIFICATE" \
             -c "Add :provisioningProfiles dict" \
             -c "Add :provisioningProfiles:org.centennialoss.midiscribe string $IOS_APP_STORE_PROFILE_UUID" \
-            -c "Add :provisioningProfiles:org.centennialoss.midiscribe.shareextension string $IOS_APP_STORE_EXTENSION_PROFILE_UUID" \
             -c "Add :teamID string $APPLE_TEAM_ID" \
             /tmp/ExportOptions-iOS-CI.plist
           xcodebuild -exportArchive \
