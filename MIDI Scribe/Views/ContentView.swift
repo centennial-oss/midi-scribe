@@ -42,7 +42,7 @@ struct ContentView: View {
     @State var isPresentingImporter = false
     @State var exportErrorMessage: String?
     @State var importAlert: MIDIImportAlert?
-    @State var pendingSharedImport: PendingSharedImport?
+    @State var pendingIncomingImport: PendingIncomingImport?
     @State var isPresentingMergeDialog = false
     @State var mergeSilenceMsText: String = "0"
     @State var renamingTakeID: UUID?
@@ -152,7 +152,6 @@ struct ContentView: View {
             let container = modelContext.container
             if viewModel.persistenceService == nil {
                 viewModel.persistenceService = TakePersistenceService(container: container)
-                importPendingSharedFilesIfAny()
             }
             viewModel.resolveFullTake = { id in
                 let context = ModelContext(container)
@@ -225,22 +224,8 @@ struct ContentView: View {
     private func commandObservationContent(_ content: some View) -> some View {
         content
             .onAppear {
-                importPendingSharedFilesIfAny()
                 handlePendingIncomingURL()
             }
-            .onChange(of: viewModel.pendingOperation) { _, operation in
-                guard operation == nil else { return }
-                importPendingSharedFilesIfAny()
-            }
-            .onChange(of: scenePhase) { _, phase in
-                guard phase == .active else { return }
-                importPendingSharedFilesIfAny()
-            }
-#if os(iOS)
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-                importPendingSharedFilesIfAny()
-            }
-#endif
             .onChange(of: appState.dataResetRequestID) { _, _ in
                 resetAfterDataErase()
             }
@@ -293,7 +278,7 @@ private extension ContentView {
     }
 }
 
-struct PendingSharedImport: Identifiable, Equatable {
+struct PendingIncomingImport: Identifiable, Equatable {
     let url: URL
     let fileName: String
 

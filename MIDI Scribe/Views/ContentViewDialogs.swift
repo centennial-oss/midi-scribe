@@ -125,24 +125,24 @@ extension ContentView {
             .alert(
                 "Import MIDI File?",
                 isPresented: Binding(
-                    get: { pendingSharedImport != nil },
+                    get: { pendingIncomingImport != nil },
                     set: { isPresented in
                         if !isPresented {
-                            pendingSharedImport = nil
+                            pendingIncomingImport = nil
                         }
                     }
                 ),
-                presenting: pendingSharedImport
-            ) { sharedImport in
+                presenting: pendingIncomingImport
+            ) { incomingImport in
                 Button("Import") {
-                    pendingSharedImport = sharedImport
-                    confirmSharedMIDIImport()
+                    pendingIncomingImport = incomingImport
+                    confirmIncomingMIDIImport()
                 }
                 Button("Cancel", role: .cancel) {
-                    pendingSharedImport = nil
+                    pendingIncomingImport = nil
                 }
-            } message: { sharedImport in
-                Text("Import \(sharedImport.fileName)?")
+            } message: { incomingImport in
+                Text("Import \(incomingImport.fileName)?")
             }
             .alert(item: $importAlert) { alert in
                 Alert(
