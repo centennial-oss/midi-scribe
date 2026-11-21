@@ -348,11 +348,12 @@ jobs:
       - name: Archive for Mac App Store
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
-          # Manual signing with pre-installed provisioning profile (required for TestFlight).
-          # Profile is installed in "Install Mac App Store provisioning profile" step.
+          # Manual signing with the distribution certificate and the provisioning
+          # profile installed in "Install Mac App Store provisioning profile".
+          # Automatic signing needs a development certificate, which the runner
+          # does not have, so Xcode created a new one on every run until the
+          # account hit its certificate limit.
           xcodebuild archive \
             -scheme "${{ env.SCHEME_NAME }}" \
             -configuration Release \
@@ -360,11 +361,9 @@ jobs:
             -destination 'generic/platform=macOS' \
             ARCHS="arm64 x86_64" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            CODE_SIGN_STYLE=Automatic \
-            -allowProvisioningUpdates \
-            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
-            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
-            -authenticationKeyPath ~/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="$MAC_APP_STORE_SIGNING_CERTIFICATE" \
+            PROVISIONING_PROFILE_SPECIFIER="$MAC_APP_STORE_PROFILE_UUID"
 
       - name: Export and upload Mac App Store package to App Store Connect
         env:
@@ -399,21 +398,18 @@ jobs:
       - name: Archive iOS app for App Store
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
           # The app target is iOS-only via TARGETED_DEVICE_FAMILY=2.
+          # Manual signing; see the Mac archive step for why.
           xcodebuild archive \
             -scheme "${{ env.SCHEME_NAME }}" \
             -configuration Release \
             -archivePath "${{ env.IOS_ARCHIVE_PATH }}" \
             -destination 'generic/platform=iOS' \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            CODE_SIGN_STYLE=Automatic \
-            -allowProvisioningUpdates \
-            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
-            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
-            -authenticationKeyPath ~/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="$IOS_APP_STORE_SIGNING_CERTIFICATE" \
+            PROVISIONING_PROFILE_SPECIFIER="$IOS_APP_STORE_PROFILE_UUID"
 
       - name: Export and upload iOS app to App Store Connect
         env:
